@@ -379,30 +379,78 @@ async function init() {
   document.getElementById('conn-banner').classList.add('show');
   document.getElementById('conn-banner').textContent = '⏳ Подключение к серверу...';
 
+  // Пробуем серверы по очереди
+  let connected = false;
   for (const srv of SIGNAL_SERVERS) {
+    console.log('[signal] пробуем', srv.host);
     try {
-      myPeer = await tryConnect(srv);
+      const peer = new Peer(undefined, {
+        host: srv.host,
+        port: srv.port,
+        path: srv.path,
+        secure: srv.secure,
+        key: srv.key || 'peerjs',
+        config: { iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+        ]}
+      });
+
+      const id = await new Promise((resolve, reject) => {
+        const t = setTimeout(() => { peer.destroy(); reject(new Error('timeout')); }, 8000);
+        peer.on('open', id => { clearTimeout(t); resolve(id); });
+        peer.on('error', e => { clearTimeout(t); peer.destroy(); reject(e); });
+      });
+
+      // Успех — сохраняем и обновляем UI прямо здесь
+      myPeer = peer;
+      myId = id;
       connectedSignal = srv.host;
+      connected = true;
+      console.log('[signal] подключён, id=', id);
+
       document.getElementById('conn-banner').classList.remove('show');
+      document.getElementById('my-id-short').textContent = id.slice(0,20) + '…';
+      document.getElementById('my-id-short').title = id;
+      document.getElementById('sett-id-val').textContent = id;
+      document.getElementById('my-avatar-sm').textContent = initialsFor(myName);
+      document.getElementById('sett-signal-status').textContent = '✓ ' + srv.host;
+      toast('✓ Подключён · нажмите на ID чтобы скопировать');
       break;
+
     } catch(e) {
-      console.warn(`[signal] ${srv.host} недоступен`);
+      console.warn('[signal]', srv.host, 'недоступен:', e.message);
     }
   }
 
-  if (!myPeer) {
+  if (!connected) {
     document.getElementById('conn-banner').textContent = '❌ Нет связи с сервером. Обновите страницу.';
     return;
   }
 
   myPeer.on('open', id => {
     myId = id;
-    document.getElementById('my-id-val')?.textContent;
-    document.getElementById('my-id-short').textContent = id.slice(0,20) + '…';
-    document.getElementById('sett-id-val').textContent = id;
-    document.getElementById('my-avatar-sm').textContent = initialsFor(myName);
-    document.getElementById('sett-signal-status').textContent = '✓ ' + connectedSignal;
-    toast('Готов · нажмите на ID чтобы скопировать');
+    console.log('[peer] open, id=', id);
+    const shortEl = document.getElementById('my-id-short');
+    const settEl = document.getElementById('sett-id-val');
+    const avEl = document.getElementById('my-avatar-sm');
+    const sigEl = document.getElementById('sett-signal-status');
+    if (shortEl) shortEl.textContent = id.slice(0,20) + '…';
+    if (settEl) settEl.textContent = id;
+    if (avEl) avEl.textContent = initialsFor(myName);
+    if (sigEl) sigEl.textContent = '✓ ' + connectedSignal;
+    // Update status text
+    const statusEl = document.getElementById('my-id-short');
+    if (statusEl) {
+      statusEl.textContent = id.slice(0,20) + '…';
+      statusEl.title = id;
+    }
+    // Update the top-left name area to show connected
+    const nameEl = document.getElementById('my-name-display');
+    if (nameEl && nameEl.textContent === 'Аноним') nameEl.textContent = myName;
+    // Show banner gone
+    document.getElementById('conn-banner').classList.remove('show');
+    toast('✓ Готов · ID скопирован при нажатии');
   });
 
   myPeer.on('connection', conn => initConn(conn));
