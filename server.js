@@ -8,7 +8,7 @@ const PORT = process.env.PORT || 9000;
 const USE_SSL = process.env.USE_SSL === 'true';
 const SSL_KEY = process.env.SSL_KEY || '/etc/letsencrypt/live/YOUR_DOMAIN/privkey.pem';
 const SSL_CERT = process.env.SSL_CERT || '/etc/letsencrypt/live/YOUR_DOMAIN/fullchain.pem';
-const SECRET = process.env.PEER_SECRET || null; // опционально: ограничить доступ
+const SECRET = process.env.PEER_SECRET || 'peerjs'; // должен совпадать с key на клиенте
 
 // ── Создаём HTTP или HTTPS сервер ──────────────────────────────────
 let server;
@@ -34,7 +34,7 @@ const peerServer = PeerServer({
   concurrent_limit: 5000,            // макс одновременных соединений
   cleanup_out_msgs: 1000,            // чистить очередь после N сообщений
   alive_timeout: 60000,              // 60 сек — считать мёртвым
-  key: SECRET,                       // если задан — клиенты должны его передавать
+  key: SECRET,                       // совпадает с key: 'peerjs' на клиенте
 });
 
 // ── Логи ──────────────────────────────────────────────────────────
@@ -52,7 +52,6 @@ peerServer.on('error', (err) => {
 
 function getCount() {
   try {
-    // внутренний счётчик peer библиотеки
     return peerServer._clients?.size ?? '?';
   } catch {
     return '?';
@@ -60,7 +59,6 @@ function getCount() {
 }
 
 // ── Healthcheck endpoint ───────────────────────────────────────────
-// Cloudflare и мониторинг будут стучать сюда
 server.on('request', (req, res) => {
   if (req.url === '/health') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
