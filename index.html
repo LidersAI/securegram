@@ -902,7 +902,7 @@ async function init() {
     try {
       // Use saved ID if available so contacts can find us
       const savedId = db.myId || undefined;
-      const peer = new Peer(savedId, {
+      const peer = new Peer(savedId || undefined, {
         host: srv.host, port: srv.port, path: srv.path,
         secure: srv.secure, key: srv.key || 'peerjs',
         config: { iceServers: [
@@ -914,7 +914,21 @@ async function init() {
       const openedId = await new Promise((res, rej) => {
         const t = setTimeout(() => { peer.destroy(); rej(new Error('timeout')); }, 8000);
         peer.on('open', id => { clearTimeout(t); res(id); });
-        peer.on('error', e => { clearTimeout(t); peer.destroy(); rej(e); });
+        peer.on('error', e => {
+          clearTimeout(t);
+          peer.destroy();
+          if (e.type === 'unavailable-id') {
+            // ID taken on server restart - try with new random ID
+            const peer2 = new Peer(undefined, {
+              host: srv.host, port: srv.port, path: srv.path,
+              secure: srv.secure, key: srv.key || 'peerjs',
+              config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
+            });
+            const t2 = setTimeout(() => { peer2.destroy(); rej(new Error('timeout')); }, 8000);
+            peer2.on('open', id => { clearTimeout(t2); res(id); });
+            peer2.on('error', e2 => { clearTimeout(t2); peer2.destroy(); rej(e2); });
+          } else { rej(e); }
+        });
       });
 
       myPeer = peer;
@@ -2920,17 +2934,6 @@ document.addEventListener('visibilitychange', () => {
 // ═══════════════════════════════════════════════
 //  CALLS (WebRTC MediaStream)
 // ═══════════════════════════════════════════════
-// lastSeen[peerId] = timestamp (ms)
-
-function loadLastSeen() {
-  try { lastSeen = JSON.parse(localStorage.getItem('sg_lastseen') || '{}'); } catch { lastSeen = {}; }
-}
-
-function saveLastSeen(pid, ts) {
-  lastSeen[pid] = ts;
-  try { localStorage.setItem('sg_lastseen', JSON.stringify(lastSeen)); } catch {}
-}
-
 function formatLastSeen(pid) {
   const sess = sessions[pid];
   if (sess?.online && sess?.sharedKey) return 'в сети';
@@ -3281,7 +3284,7 @@ function toggleSpeaker() {
 // ═══════════════════════════════════════════════
 //  LAST SEEN & ONLINE STATUS
 // ═══════════════════════════════════════════════
-const lastSeen = {};  // peerId -> timestamp
+let lastSeen = {};  // peerId -> timestamp
 
 function updateLastSeen(peerId) {
   lastSeen[peerId] = Date.now();
