@@ -196,11 +196,21 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .rec-dot{width:8px;height:8px;border-radius:50%;background:#f87171;animation:recpulse 1s infinite}
 @keyframes recpulse{0%,100%{opacity:1}50%{opacity:.3}}
 @media(max-width:640px){
-  #sidebar{position:fixed;left:0;top:0;bottom:0;z-index:50;width:90%;max-width:340px}
+  #sidebar{position:fixed;left:0;top:0;bottom:0;z-index:50;width:88%;max-width:340px;box-shadow:4px 0 24px rgba(0,0,0,.5)}
   #sidebar.hidden{transform:translateX(-110%)}
   #back-btn{display:flex!important}
   #members-panel{display:none!important}
+  #main{width:100%}
 }
+/* message context menu */
+.msg-menu{position:fixed;background:#232e3c;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.5);z-index:400;min-width:160px;overflow:hidden;border:1px solid rgba(255,255,255,.08)}
+.msg-menu-item{padding:11px 16px;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:10px;color:#fff;transition:background .1s}
+.msg-menu-item:hover{background:rgba(255,255,255,.07)}
+.msg-menu-item.danger{color:#f87171}
+.edit-mode-bar{display:none;padding:8px 14px;background:#1a2633;border-top:1px solid rgba(255,255,255,.06);font-size:13px;color:var(--text3);align-items:center;gap:8px}
+.edit-mode-bar.show{display:flex}
+.edit-mode-bar span{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.edit-cancel-btn{border:none;background:transparent;color:var(--text3);cursor:pointer;font-size:18px;padding:2px 6px}
 </style>
 </head>
 <body>
@@ -274,6 +284,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
     </div>
   </div>
 
+  <div id="edit-bar" class="edit-mode-bar">
+    <span>✏️ Редактирование: <span id="edit-preview"></span></span>
+    <button class="edit-cancel-btn" onclick="cancelEdit()" title="Отмена">✕</button>
+  </div>
   <div id="rec-indicator" class="rec-indicator"><span class="rec-dot"></span> Запись... отпустите чтобы отправить</div>
   <div id="input-bar">
     <label id="photo-btn" title="Отправить фото" style="width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text3);font-size:20px;flex-shrink:0">
@@ -877,6 +891,39 @@ async function onData(fromId, raw) {
     });
     renderList(); refreshHeader(); renderMembers();
   }
+
+  // ── EDIT ────────────────────────────────────
+  if (msg.type === 'EDIT') {
+    if (!sess.sharedKey) return;
+    try {
+      const plain = await Crypto.decrypt(sess.sharedKey, msg.cipher);
+      const data = JSON.parse(plain);
+      updateDB(db => {
+        const chatKey = data.roomId ? 'room:'+data.roomId : 'dm:'+fromId;
+        const msgs = chatKey.startsWith('room:') ? db.rooms?.[chatKey.slice(5)]?.messages : db.dms?.[chatKey.slice(3)]?.messages;
+        if (msgs) { const m = msgs.find(m => m.id === msg.id); if (m) m.text = data.text + ' ✎'; }
+      });
+      const el = document.querySelector('[data-msg-id="'+msg.id+'"] .msg-text');
+      if (el) el.innerHTML = esc(data.text) + ' <span style="font-size:10px;opacity:.5">✎</span>';
+    } catch(e) { console.error(e); }
+  }
+
+  // ── DELETE ──────────────────────────────────
+  if (msg.type === 'DELETE') {
+    if (!sess.sharedKey) return;
+    try {
+      const plain = await Crypto.decrypt(sess.sharedKey, msg.cipher);
+      const data = JSON.parse(plain);
+      updateDB(db => {
+        const chatKey = data.roomId ? 'room:'+data.roomId : 'dm:'+fromId;
+        const msgs = chatKey.startsWith('room:') ? db.rooms?.[chatKey.slice(5)]?.messages : db.dms?.[chatKey.slice(3)]?.messages;
+        if (msgs) { const idx = msgs.findIndex(x => x.id === msg.id); if (idx >= 0) msgs.splice(idx, 1); }
+      });
+      const el = document.querySelector('[data-msg-id="'+msg.id+'"]');
+      if (el) el.remove();
+      renderList();
+    } catch(e) { console.error(e); }
+  }
 }
 
 async function propagate(srcId, origMsg) {
@@ -902,6 +949,8 @@ async function sendMsg() {
   const input = document.getElementById('msg-in');
   const text = input.value.trim();
   if (!text || !activeChat) return;
+  // Handle edit mode
+  if (editingMsgId) { await applyEdit(text); return; }
   input.value = ''; input.style.height = 'auto';
 
   const isRoom = activeChat.startsWith('room:');
@@ -999,6 +1048,10 @@ function renderMessages() {
   document.getElementById('chat-bg').scrollTop = 999999;
 }
 
+// ── Context menu state ───────────────────────
+let editingMsgId = null;
+let ctxMenu = null;
+
 function appendMsgEl(m, scroll) {
   const container = document.getElementById('messages');
   const el = document.createElement('div');
@@ -1008,11 +1061,12 @@ function appendMsgEl(m, scroll) {
     const isMe = m.from === myId;
     const color = isMe ? '#5288c1' : colorFor(m.from);
     el.className = 'msg-wrap ' + (isMe ? 'me' : 'them');
+    el.dataset.msgId = m.id;
     el.innerHTML = `<div class="bw">
       ${!isMe ? `<div class="msg-av-sm" style="background:${color}22;color:${color}">${initialsFor(m.name||'?')}</div>` : ''}
       <div class="bubble">
         ${!isMe ? `<div class="bubble-sender" style="color:${color}">${esc(m.name||'?')}</div>` : ''}
-        <div>${esc(m.text)}</div>
+        <div class="msg-text">${esc(m.text)}</div>
         <div class="msg-meta">
           ${isMe ? '<span class="lock-ico">🔒</span>' : ''}
           <span class="msg-time">${m.ts||''}</span>
@@ -1020,9 +1074,143 @@ function appendMsgEl(m, scroll) {
         </div>
       </div>
     </div>`;
+    // Long press / right click → context menu
+    let pressTimer;
+    const showCtx = (x, y) => showMsgMenu(m, el, x, y);
+    el.addEventListener('contextmenu', e => { e.preventDefault(); showCtx(e.clientX, e.clientY); });
+    el.addEventListener('touchstart', e => { pressTimer = setTimeout(() => showCtx(e.touches[0].clientX, e.touches[0].clientY), 550); }, {passive:true});
+    el.addEventListener('touchend', () => clearTimeout(pressTimer), {passive:true});
+    el.addEventListener('touchmove', () => clearTimeout(pressTimer), {passive:true});
   }
   container.appendChild(el);
   if (scroll) document.getElementById('chat-bg').scrollTop = 999999;
+}
+
+function showMsgMenu(m, el, x, y) {
+  closeCtxMenu();
+  const isMe = m.from === myId;
+  const menu = document.createElement('div');
+  menu.className = 'msg-menu';
+  ctxMenu = menu;
+
+  const items = [];
+  // Copy always available
+  items.push({ icon:'📋', label:'Копировать', fn: () => { navigator.clipboard.writeText(m.text||''); toast('Скопировано'); } });
+  if (isMe && m.text) {
+    items.push({ icon:'✏️', label:'Редактировать', fn: () => startEdit(m, el) });
+  }
+  if (isMe) {
+    items.push({ icon:'🗑', label:'Удалить у себя', danger:true, fn: () => deleteMsg(m, el, false) });
+    items.push({ icon:'🗑', label:'Удалить у всех', danger:true, fn: () => deleteMsg(m, el, true) });
+  } else {
+    items.push({ icon:'🗑', label:'Удалить у себя', danger:true, fn: () => deleteMsg(m, el, false) });
+  }
+
+  items.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'msg-menu-item' + (item.danger?' danger':'');
+    div.innerHTML = `<span>${item.icon}</span><span>${item.label}</span>`;
+    div.onclick = () => { closeCtxMenu(); item.fn(); };
+    menu.appendChild(div);
+  });
+
+  // Position menu smart (avoid screen edges)
+  document.body.appendChild(menu);
+  const mw = 180, mh = items.length * 44;
+  let left = x, top = y;
+  if (left + mw > window.innerWidth - 8) left = window.innerWidth - mw - 8;
+  if (top + mh > window.innerHeight - 8) top = y - mh;
+  if (top < 8) top = 8;
+  menu.style.cssText = `left:${left}px;top:${top}px`;
+
+  // Close on outside click
+  setTimeout(() => document.addEventListener('click', closeCtxMenu, {once:true}), 10);
+}
+
+function closeCtxMenu() {
+  if (ctxMenu) { ctxMenu.remove(); ctxMenu = null; }
+}
+
+// ── Edit message ─────────────────────────────
+function startEdit(m, el) {
+  editingMsgId = m.id;
+  const input = document.getElementById('msg-in');
+  input.value = m.text;
+  input.style.height = 'auto';
+  input.style.height = Math.min(input.scrollHeight, 130) + 'px';
+  input.focus();
+  document.getElementById('edit-bar').classList.add('show');
+  document.getElementById('edit-preview').textContent = (m.text||'').slice(0,40);
+  // Highlight the message being edited
+  document.querySelectorAll('.msg-wrap').forEach(e => e.style.opacity = e.dataset.msgId === m.id ? '1' : '0.5');
+}
+
+function cancelEdit() {
+  editingMsgId = null;
+  document.getElementById('msg-in').value = '';
+  document.getElementById('edit-bar').classList.remove('show');
+  document.querySelectorAll('.msg-wrap').forEach(e => e.style.opacity = '');
+}
+
+async function applyEdit(text) {
+  if (!editingMsgId || !activeChat) return;
+  // Update locally
+  updateDB(db => {
+    const msgs = activeChat.startsWith('room:')
+      ? db.rooms?.[activeChat.slice(5)]?.messages
+      : db.dms?.[activeChat.slice(3)]?.messages;
+    if (msgs) { const m = msgs.find(m => m.id === editingMsgId); if (m) m.text = text + ' ✎'; }
+  });
+  // Update in DOM
+  const el = document.querySelector(`[data-msg-id="${editingMsgId}"] .msg-text`);
+  if (el) el.innerHTML = esc(text) + ' <span style="font-size:10px;opacity:.5">✎</span>';
+  // Broadcast edit
+  const isRoom = activeChat.startsWith('room:');
+  const roomId = isRoom ? activeChat.slice(5) : null;
+  const payload = { editId: editingMsgId, text, roomId };
+  for (const [pid, sess] of Object.entries(sessions)) {
+    if (!sess.online || !sess.sharedKey) continue;
+    if (isRoom) { const db=getDB(); if (!db.rooms?.[roomId]?.members?.[pid]) continue; }
+    else { if (activeChat.slice(3) !== pid) continue; }
+    try {
+      const cipher = await Crypto.encrypt(sess.sharedKey, JSON.stringify({...payload, from:myId, name:myName, ts:nowTime(), date:nowDate()}));
+      rawSend(sess.conn, { type:'EDIT', id: editingMsgId, cipher });
+    } catch(e) {}
+  }
+  cancelEdit();
+  toast('Изменено');
+}
+
+// ── Delete message ────────────────────────────
+async function deleteMsg(m, el, forAll) {
+  // Remove from DOM
+  el.remove();
+  // Remove from storage
+  updateDB(db => {
+    const msgs = activeChat?.startsWith('room:')
+      ? db.rooms?.[activeChat.slice(5)]?.messages
+      : db.dms?.[activeChat.slice(3)]?.messages;
+    if (msgs) { const idx = msgs.findIndex(x => x.id === m.id); if (idx >= 0) msgs.splice(idx, 1); }
+  });
+  seenMsgIds.delete(m.id);
+  renderList();
+  if (forAll) {
+    // Broadcast delete
+    const isRoom = activeChat?.startsWith('room:');
+    const roomId = isRoom ? activeChat.slice(5) : null;
+    for (const [pid, sess] of Object.entries(sessions)) {
+      if (!sess.online || !sess.sharedKey) continue;
+      if (isRoom) { const db=getDB(); if (!db.rooms?.[roomId]?.members?.[pid]) continue; }
+      else { if (activeChat.slice(3) !== pid) continue; }
+      try {
+        const cipher = await Crypto.encrypt(sess.sharedKey, JSON.stringify({ deleteId:m.id, from:myId, name:myName, ts:nowTime(), date:nowDate(), roomId }));
+        rawSend(sess.conn, { type:'DELETE', id:m.id, cipher });
+      } catch(e) {}
+    }
+    toast('Удалено у всех');
+  } else {
+    toast('Удалено');
+  }
 }
 
 // ═══════════════════════════════════════════════
