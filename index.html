@@ -11,6 +11,13 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="SecureGram">
+<meta name="description" content="P2P мессенджер с E2E шифрованием">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+<link rel="shortcut icon" href="favicon.ico">
+<link rel="apple-touch-icon" sizes="152x152" href="icon-152.png">
+<link rel="apple-touch-icon" sizes="144x144" href="icon-144.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -61,6 +68,11 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .ci-prev{font-size:13px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
 .ci-badge{min-width:20px;height:20px;border-radius:10px;background:var(--accent);color:#fff;font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;padding:0 5px;flex-shrink:0}
 .ci-badge.off{display:none}
+.ci-del-btn{display:none;width:30px;height:30px;border-radius:50%;border:none;background:rgba(248,113,113,.15);color:#f87171;font-size:15px;cursor:pointer;align-items:center;justify-content:center;flex-shrink:0;transition:background .1s}
+.ci-del-btn:hover{background:rgba(248,113,113,.3)}
+.chat-item:hover .ci-del-btn{display:flex}
+.chat-item.active .ci-del-btn{display:flex}
+@media(max-width:768px){.ci-del-btn{display:flex}}
 #sb-bottom{border-top:1px solid var(--border);padding:10px}
 #add-by-id-wrap{background:var(--bg3);border-radius:10px;padding:10px 12px}
 .lbl{font-size:11px;color:var(--text3);margin-bottom:6px}
@@ -74,7 +86,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 #conn-banner{display:none;padding:7px 16px;background:rgba(248,180,0,.12);border-bottom:1px solid rgba(248,180,0,.2);font-size:12px;color:#f8b400;text-align:center}
 #conn-banner.show{display:block}
 #chat-hdr{background:var(--bg);border-bottom:1px solid var(--border);padding:0 14px;display:none;align-items:center;gap:10px;height:56px;flex-shrink:0}
-#back-btn{display:none;width:34px;height:34px;border-radius:50%;border:none;background:transparent;color:var(--text3);cursor:pointer;font-size:20px;align-items:center;justify-content:center}
+#back-btn{display:none;width:44px;height:44px;border-radius:50%;border:none;background:transparent;color:var(--text);cursor:pointer;font-size:24px;align-items:center;justify-content:center;flex-shrink:0}
 #hdr-av{width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;flex-shrink:0}
 #hdr-av.circle{border-radius:50%}
 #hdr-av.square{border-radius:9px}
@@ -195,18 +207,27 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .rec-indicator.show{display:flex}
 .rec-dot{width:8px;height:8px;border-radius:50%;background:#f87171;animation:recpulse 1s infinite}
 @keyframes recpulse{0%,100%{opacity:1}50%{opacity:.3}}
-@media(max-width:640px){
-  #sidebar{position:fixed;left:0;top:0;bottom:0;z-index:50;width:88%;max-width:340px;box-shadow:4px 0 24px rgba(0,0,0,.5)}
-  #sidebar.hidden{transform:translateX(-110%)}
-  #back-btn{display:flex!important}
+@media(max-width:768px){
+  #sidebar{position:fixed;left:0;top:0;bottom:0;z-index:50;width:88%;max-width:340px;box-shadow:4px 0 24px rgba(0,0,0,.5);transition:transform .25s ease}
+  #sidebar.hidden{transform:translateX(-115%)}
+  #back-btn{display:flex!important;align-items:center;justify-content:center}
   #members-panel{display:none!important}
-  #main{width:100%}
+  #main{width:100%;position:relative}
+  #chat-hdr{position:sticky;top:0;z-index:10}
 }
 /* message context menu */
 .msg-menu{position:fixed;background:#232e3c;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.5);z-index:400;min-width:160px;overflow:hidden;border:1px solid rgba(255,255,255,.08)}
 .msg-menu-item{padding:11px 16px;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:10px;color:#fff;transition:background .1s}
 .msg-menu-item:hover{background:rgba(255,255,255,.07)}
 .msg-menu-item.danger{color:#f87171}
+.reactions{display:flex;flex-wrap:wrap;gap:3px;margin-top:4px}
+.reaction{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:99px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);font-size:14px;cursor:pointer;transition:background .1s;user-select:none;-webkit-user-select:none}
+.reaction:hover{background:rgba(255,255,255,.14)}
+.reaction.mine{background:rgba(82,136,193,.25);border-color:rgba(82,136,193,.4)}
+.reaction-count{font-size:12px;color:rgba(255,255,255,.7);font-weight:500;min-width:8px}
+.emoji-picker-popup{position:fixed;background:#232e3c;border-radius:14px;box-shadow:0 4px 24px rgba(0,0,0,.5);z-index:500;padding:8px;display:flex;gap:4px;flex-wrap:wrap;width:220px;border:1px solid rgba(255,255,255,.08)}
+.ep-emoji{font-size:22px;cursor:pointer;padding:5px;border-radius:8px;transition:background .1s;line-height:1}
+.ep-emoji:hover{background:rgba(255,255,255,.1)}
 .edit-mode-bar{display:none;padding:8px 14px;background:#1a2633;border-top:1px solid rgba(255,255,255,.06);font-size:13px;color:var(--text3);align-items:center;gap:8px}
 .edit-mode-bar.show{display:flex}
 .edit-mode-bar span{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -409,6 +430,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
     <div class="field">
       <label>Сигнальный сервер</label>
       <div class="f-hint" id="sett-srv">—</div>
+    </div>
+    <div id="pwa-install-row" style="display:none;margin-bottom:14px">
+      <button onclick="installPWA()" style="width:100%;padding:9px;border-radius:8px;border:none;background:rgba(82,136,193,.2);color:#64b5f6;font-size:13px;cursor:pointer;font-weight:500">📱 Установить как приложение</button>
     </div>
     <div style="border-top:1px solid rgba(255,255,255,.08);margin:16px 0 0;padding-top:14px">
       <div style="font-size:12px;color:var(--text3);margin-bottom:8px">Управление данными</div>
@@ -882,6 +906,41 @@ async function onData(fromId, raw) {
     if (activeChat === chatKey) showTyping(fromId);
   }
 
+  // ── REACTION ────────────────────────────────
+  if (msg.type === 'REACTION') {
+    if (!sess.sharedKey) return;
+    try {
+      const plain = await Crypto.decrypt(sess.sharedKey, msg.cipher);
+      const data = JSON.parse(plain);
+      const chatKey = data.roomId ? 'room:' + data.roomId : 'dm:' + fromId;
+      // Update storage
+      updateDB(db => {
+        const msgs = chatKey.startsWith('room:')
+          ? db.rooms?.[chatKey.slice(5)]?.messages
+          : db.dms?.[chatKey.slice(3)]?.messages;
+        if (!msgs) return;
+        const m = msgs.find(x => x.id === data.msgId);
+        if (!m) return;
+        if (!m.reactions) m.reactions = {};
+        if (!m.reactions[data.emoji]) m.reactions[data.emoji] = [];
+        const idx = m.reactions[data.emoji].indexOf(data.from);
+        if (idx >= 0) m.reactions[data.emoji].splice(idx, 1);
+        else m.reactions[data.emoji].push(data.from);
+        if (m.reactions[data.emoji].length === 0) delete m.reactions[data.emoji];
+      });
+      // Re-render if visible
+      if (activeChat === chatKey) {
+        const db = getDB();
+        const msgs = chatKey.startsWith('room:')
+          ? db.rooms?.[chatKey.slice(5)]?.messages
+          : db.dms?.[chatKey.slice(3)]?.messages;
+        const m = msgs?.find(x => x.id === data.msgId);
+        const el = document.querySelector(`[data-msg-id="${data.msgId}"]`);
+        if (el && m) renderReactionsEl(el, m);
+      }
+    } catch(e) { console.error(e); }
+  }
+
   // ── NAME ───────────────────────────────────
   if (msg.type === 'NAME') {
     sess.name = msg.name;
@@ -1094,6 +1153,8 @@ function showMsgMenu(m, el, x, y) {
   ctxMenu = menu;
 
   const items = [];
+  // React — always first
+  items.push({ icon:'😊', label:'Реакция', fn: () => showEmojiPicker(m, el) });
   // Copy always available
   items.push({ icon:'📋', label:'Копировать', fn: () => { navigator.clipboard.writeText(m.text||''); toast('Скопировано'); } });
   if (isMe && m.text) {
@@ -1224,6 +1285,7 @@ function openChat(chatKey) {
   document.getElementById('chat-hdr').style.display = 'flex';
   document.getElementById('chat-bg').style.display = 'block';
   document.getElementById('input-bar').style.display = 'flex';
+  // Always hide sidebar when opening chat (works on both mobile and desktop)
   document.getElementById('sidebar').classList.add('hidden');
   document.getElementById('msg-in').disabled = false;
   document.getElementById('send-btn').disabled = false;
@@ -1304,6 +1366,51 @@ function appendMpRow(list, pid, name, color, online) {
 // ═══════════════════════════════════════════════
 //  CHAT LIST
 // ═══════════════════════════════════════════════
+function deleteChat(chatKey) {
+  const isRoom = chatKey.startsWith('room:');
+  const name = isRoom
+    ? (getDB().rooms?.[chatKey.slice(5)]?.name || 'группу')
+    : (sessions[chatKey.slice(3)]?.name || getDB().dms?.[chatKey.slice(3)]?.name || 'контакт');
+
+  const msg = isRoom
+    ? `Удалить группу «${name}»? История переписки тоже удалится.`
+    : `Удалить чат с «${name}»? История переписки тоже удалится.`;
+
+  if (!confirm(msg)) return;
+
+  updateDB(db => {
+    if (isRoom) {
+      delete db.rooms[chatKey.slice(5)];
+    } else {
+      delete db.dms[chatKey.slice(3)];
+    }
+  });
+
+  // Close session if open
+  if (!isRoom) {
+    const pid = chatKey.slice(3);
+    if (sessions[pid]) {
+      try { sessions[pid].conn?.close(); } catch {}
+      delete sessions[pid];
+    }
+  }
+
+  // If this was active chat — go back to empty state
+  if (activeChat === chatKey) {
+    activeChat = null;
+    document.getElementById('empty').style.display = 'flex';
+    document.getElementById('chat-hdr').style.display = 'none';
+    document.getElementById('chat-bg').style.display = 'none';
+    document.getElementById('input-bar').style.display = 'none';
+    document.getElementById('members-panel').classList.remove('open');
+    showSidebar();
+  }
+
+  delete unread[chatKey];
+  renderList();
+  toast('Чат удалён');
+}
+
 function renderList() {
   const db = getDB();
   const list = document.getElementById('chat-list');
@@ -1353,6 +1460,7 @@ function renderList() {
           <div class="ci-badge ${(item.unread||0)>0?'':'off'}">${item.unread||''}</div>
         </div>
       </div>
+      <button class="ci-del-btn" onclick="event.stopPropagation();deleteChat('${item.key}')" title="Удалить чат">✕</button>
     </div>`).join('');
 }
 
@@ -1422,7 +1530,11 @@ function saveSettings() {
 function rawSend(conn, obj) { try { conn.send(JSON.stringify(obj)); } catch(e) { console.error(e); } }
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>'); }
 function notify(name, text) { if (Notification.permission==='granted') new Notification('SecureGram · '+name, {body:text}); }
-function showSidebar() { document.getElementById('sidebar').classList.remove('hidden'); }
+function showSidebar() {
+  document.getElementById('sidebar').classList.remove('hidden');
+  // On mobile, also hide the chat view to show only sidebar
+  // (sidebar is full-width overlay on mobile)
+}
 function copyId() { navigator.clipboard.writeText(myId).then(()=>toast('ID скопирован ✓')).catch(()=>toast('Скопируйте вручную')); }
 function openModal(id) { document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
@@ -1718,6 +1830,169 @@ function resetApp() {
 }
 
 init();
+
+// ═══════════════════════════════════════════════
+//  REACTIONS
+// ═══════════════════════════════════════════════
+const REACTION_EMOJIS = ['❤️','👍','😂','😮','😢','🔥','👏','🎉','💯','🤝'];
+
+let emojiPickerEl = null;
+
+function showEmojiPicker(m, msgEl) {
+  closeEmojiPicker();
+  const popup = document.createElement('div');
+  popup.className = 'emoji-picker-popup';
+  emojiPickerEl = popup;
+
+  REACTION_EMOJIS.forEach(emoji => {
+    const btn = document.createElement('span');
+    btn.className = 'ep-emoji';
+    btn.textContent = emoji;
+    btn.onclick = () => { closeEmojiPicker(); toggleReaction(m, msgEl, emoji); };
+    popup.appendChild(btn);
+  });
+
+  // Position above the message bubble
+  document.body.appendChild(popup);
+  const rect = msgEl.getBoundingClientRect();
+  const popH = 80, popW = 220;
+  let top = rect.top - popH - 8;
+  let left = rect.left;
+  if (top < 8) top = rect.bottom + 8;
+  if (left + popW > window.innerWidth - 8) left = window.innerWidth - popW - 8;
+  if (left < 8) left = 8;
+  popup.style.cssText = `left:${left}px;top:${top}px`;
+
+  setTimeout(() => document.addEventListener('click', closeEmojiPicker, { once: true }), 50);
+}
+
+function closeEmojiPicker() {
+  if (emojiPickerEl) { emojiPickerEl.remove(); emojiPickerEl = null; }
+}
+
+async function toggleReaction(m, msgEl, emoji) {
+  const isRoom = activeChat?.startsWith('room:');
+  const roomId = isRoom ? activeChat.slice(5) : null;
+
+  // Update storage
+  updateDB(db => {
+    const msgs = isRoom
+      ? db.rooms?.[roomId]?.messages
+      : db.dms?.[activeChat?.slice(3)]?.messages;
+    if (!msgs) return;
+    const msg = msgs.find(x => x.id === m.id);
+    if (!msg) return;
+    if (!msg.reactions) msg.reactions = {};
+    if (!msg.reactions[emoji]) msg.reactions[emoji] = [];
+    const idx = msg.reactions[emoji].indexOf(myId);
+    if (idx >= 0) msg.reactions[emoji].splice(idx, 1);
+    else msg.reactions[emoji].push(myId);
+    // Clean up empty
+    if (msg.reactions[emoji].length === 0) delete msg.reactions[emoji];
+    m.reactions = msg.reactions; // update in-memory reference
+  });
+
+  // Re-render reactions on this message
+  renderReactionsEl(msgEl, m);
+
+  // Broadcast to peers
+  const payload = { msgId: m.id, emoji, from: myId, roomId };
+  for (const [pid, sess] of Object.entries(sessions)) {
+    if (!sess.online || !sess.sharedKey) continue;
+    if (isRoom && !getDB().rooms?.[roomId]?.members?.[pid]) continue;
+    if (!isRoom && activeChat?.slice(3) !== pid) continue;
+    try {
+      const cipher = await Crypto.encrypt(sess.sharedKey, JSON.stringify({ ...payload, name: myName, ts: nowTime(), date: nowDate() }));
+      rawSend(sess.conn, { type: 'REACTION', cipher });
+    } catch(e) {}
+  }
+}
+
+function renderReactionsEl(msgEl, m) {
+  // Remove existing reactions row
+  msgEl.querySelector('.reactions')?.remove();
+  if (!m.reactions || Object.keys(m.reactions).length === 0) return;
+
+  const wrap = document.createElement('div');
+  wrap.className = 'reactions';
+
+  Object.entries(m.reactions).forEach(([emoji, users]) => {
+    if (!users.length) return;
+    const btn = document.createElement('div');
+    btn.className = 'reaction' + (users.includes(myId) ? ' mine' : '');
+    btn.innerHTML = `${emoji}<span class="reaction-count">${users.length > 1 ? users.length : ''}</span>`;
+    btn.title = users.map(id => sessions[id]?.name || (id === myId ? myName : id.slice(0,8))).join(', ');
+    btn.onclick = () => toggleReaction(m, msgEl, emoji);
+    wrap.appendChild(btn);
+  });
+
+  // Insert after bubble, before next sibling
+  const bw = msgEl.querySelector('.bw');
+  if (bw) bw.after(wrap);
+}
+
+// ── Restore reactions after renderMessages ─────
+const _origRenderMessages = renderMessages;
+window.renderMessages = function() {
+  _origRenderMessages();
+  // After rendering, attach reactions to all messages
+  if (!activeChat) return;
+  const msgs = getHistory(activeChat);
+  msgs.forEach(m => {
+    if (!m.reactions || !m.id) return;
+    const el = document.querySelector(`[data-msg-id="${m.id}"]`);
+    if (el) renderReactionsEl(el, m);
+  });
+};
+
+// ── Swipe right to go back (mobile) ──────────
+(function() {
+  let touchStartX = 0, touchStartY = 0;
+  document.addEventListener('touchstart', e => {
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+  }, { passive: true });
+  document.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    const dy = Math.abs(e.changedTouches[0].clientY - touchStartY);
+    // Swipe right from left edge (first 30px) with horizontal dominance
+    if (touchStartX < 30 && dx > 60 && dy < 80) {
+      showSidebar();
+    }
+  }, { passive: true });
+})();
+
+// ── Service Worker registration ───────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js', { scope: './' })
+      .then(reg => console.log('[SW] registered, scope:', reg.scope))
+      .catch(err => console.warn('[SW] registration failed:', err));
+  });
+}
+
+// ── PWA install prompt ────────────────────────
+let deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  // Show install button in settings if available
+  document.getElementById('pwa-install-row')?.style.setProperty('display', 'block');
+});
+
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  toast('✓ SecureGram установлен как приложение!');
+});
+
+function installPWA() {
+  if (!deferredInstallPrompt) { toast('Откройте меню браузера → "Добавить на экран"'); return; }
+  deferredInstallPrompt.prompt();
+  deferredInstallPrompt.userChoice.then(res => {
+    if (res.outcome === 'accepted') toast('Устанавливаем...');
+    deferredInstallPrompt = null;
+  });
+}
 </script>
 </body>
 </html>
