@@ -164,6 +164,41 @@ mark.hit{background:rgba(82,136,193,.4);color:#fff;border-radius:2px}
 .ic-btn{flex:1;padding:11px;border-radius:10px;border:none;font-size:14px;font-weight:500;cursor:pointer}
 .ic-btn.accept{background:#2dca6a;color:#fff}
 .ic-btn.decline{background:rgba(229,57,53,.2);color:#f87171}
+/* Welcome / Landing screen */
+#welcome-screen{display:none;position:fixed;inset:0;z-index:900;overflow-y:auto;background:linear-gradient(160deg,#0e1a2e 0%,#17212b 60%,#1a2a1a 100%)}
+#welcome-screen.show{display:block}
+.wl-inner{max-width:480px;margin:0 auto;padding:40px 24px 60px;display:flex;flex-direction:column;align-items:center;text-align:center}
+.wl-logo{width:88px;height:88px;border-radius:22px;background:#1c3a64;display:flex;align-items:center;justify-content:center;margin-bottom:20px;box-shadow:0 8px 32px rgba(52,140,220,.3);flex-shrink:0}
+.wl-logo img{width:88px;height:88px;border-radius:22px}
+.wl-app-name{font-size:28px;font-weight:700;letter-spacing:-.5px;margin-bottom:6px}
+.wl-tagline{font-size:16px;color:rgba(255,255,255,.55);margin-bottom:36px;line-height:1.5}
+.wl-features{width:100%;display:flex;flex-direction:column;gap:12px;margin-bottom:36px;text-align:left}
+.wl-feat{display:flex;align-items:center;gap:12px;padding:12px 14px;background:rgba(255,255,255,.06);border-radius:12px;border:1px solid rgba(255,255,255,.08)}
+.wl-feat-ico{font-size:22px;flex-shrink:0;width:32px;text-align:center}
+.wl-feat-body{flex:1}
+.wl-feat-title{font-size:14px;font-weight:500}
+.wl-feat-desc{font-size:12px;color:rgba(255,255,255,.5);margin-top:2px;line-height:1.4}
+.wl-cta{width:100%;padding:16px;border-radius:14px;border:none;background:linear-gradient(135deg,#3a7bd5,#5288c1);color:#fff;font-size:17px;font-weight:600;cursor:pointer;margin-bottom:12px;letter-spacing:-.2px}
+.wl-cta:hover{filter:brightness(1.1)}
+.wl-cta:active{transform:scale(.98)}
+.wl-secondary{font-size:13px;color:rgba(255,255,255,.4);line-height:1.5}
+/* Registration form */
+#reg-screen{display:none;position:fixed;inset:0;z-index:910;background:var(--bg2);overflow-y:auto}
+#reg-screen.show{display:block}
+.reg-inner{max-width:400px;margin:0 auto;padding:48px 24px 60px;display:flex;flex-direction:column;align-items:center}
+.reg-back{align-self:flex-start;border:none;background:transparent;color:var(--text3);cursor:pointer;font-size:24px;margin-bottom:16px;padding:4px}
+.reg-title{font-size:24px;font-weight:700;margin-bottom:6px}
+.reg-sub{font-size:14px;color:var(--text3);margin-bottom:32px;text-align:center;line-height:1.5}
+.reg-av-upload{width:96px;height:96px;border-radius:50%;background:rgba(82,136,193,.15);border:2px dashed rgba(82,136,193,.4);display:flex;align-items:center;justify-content:center;cursor:pointer;margin-bottom:24px;overflow:hidden;flex-shrink:0;transition:border-color .2s}
+.reg-av-upload:hover{border-color:var(--accent)}
+.reg-av-upload img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.reg-av-hint{font-size:12px;color:var(--text3);margin-top:-16px;margin-bottom:20px}
+.reg-name-input{width:100%;background:var(--bg3);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:14px 16px;color:var(--text);font-family:var(--font);font-size:16px;outline:none;margin-bottom:12px;text-align:center}
+.reg-name-input:focus{border-color:var(--accent)}
+.reg-name-input::placeholder{color:var(--text3)}
+.reg-btn{width:100%;padding:15px;border-radius:12px;border:none;background:var(--accent);color:#fff;font-size:16px;font-weight:600;cursor:pointer;margin-top:8px}
+.reg-btn:hover{filter:brightness(1.1)}
+.reg-notice{font-size:11px;color:var(--text3);text-align:center;margin-top:16px;line-height:1.6}
 /* Pin lock screen */
 #pin-screen{display:none;position:fixed;inset:0;background:var(--bg2);z-index:1000;flex-direction:column;align-items:center;justify-content:center;gap:16px}
 #pin-screen.show{display:flex}
@@ -502,18 +537,7 @@ mark.hit{background:rgba(82,136,193,.4);color:#fff;border-radius:2px}
 </div>
 </div>
 
-<!-- ONBOARDING (первый запуск) -->
-<div class="overlay" id="onboard-overlay">
-  <div class="modal">
-    <div class="o-ico">🔒</div>
-    <h2>LIDERS CHAT</h2>
-    <p>P2P мессенджер с E2E шифрованием.<br>Как вас зовут?</p>
-    <input class="f-input" id="onboard-name" type="text" placeholder="Ваше имя..." maxlength="24" style="text-align:center;font-size:16px"/>
-    <div class="modal-btns" style="margin-top:14px">
-      <button class="btn-ok" onclick="finishOnboard()">Начать</button>
-    </div>
-  </div>
-</div>
+<!-- onboarding moved to welcome screen -->
 
 <!-- NEW GROUP -->
 <div class="overlay" id="new-grp-overlay">
@@ -687,6 +711,65 @@ mark.hit{background:rgba(82,136,193,.4);color:#fff;border-radius:2px}
   <div class="ic-btns">
     <button class="ic-btn decline" onclick="declineCall()">✕ Отклонить</button>
     <button class="ic-btn accept" onclick="acceptCall()">✓ Принять</button>
+  </div>
+</div>
+
+<!-- WELCOME SCREEN -->
+<div id="welcome-screen">
+  <div class="wl-inner">
+    <div class="wl-logo"><img src="icon-192.png" alt="LIDERS CHAT"/></div>
+    <div class="wl-app-name">LIDERS CHAT</div>
+    <div class="wl-tagline">Защищённый мессенджер.<br>Ваши сообщения — только ваши.</div>
+    <div class="wl-features">
+      <div class="wl-feat">
+        <div class="wl-feat-ico">🔒</div>
+        <div class="wl-feat-body">
+          <div class="wl-feat-title">End-to-End шифрование</div>
+          <div class="wl-feat-desc">Сообщения шифруются прямо в вашем браузере. Никто — даже мы — не может их прочитать.</div>
+        </div>
+      </div>
+      <div class="wl-feat">
+        <div class="wl-feat-ico">🕸</div>
+        <div class="wl-feat-body">
+          <div class="wl-feat-title">P2P — без серверов</div>
+          <div class="wl-feat-desc">Сообщения идут напрямую между устройствами. Нет центрального сервера — нечего взломать и нечего заблокировать.</div>
+        </div>
+      </div>
+      <div class="wl-feat">
+        <div class="wl-feat-ico">👥</div>
+        <div class="wl-feat-body">
+          <div class="wl-feat-title">Группы по ссылке</div>
+          <div class="wl-feat-desc">Создайте группу и пригласите людей по ссылке. Никакой регистрации по номеру телефона.</div>
+        </div>
+      </div>
+      <div class="wl-feat">
+        <div class="wl-feat-ico">📱</div>
+        <div class="wl-feat-body">
+          <div class="wl-feat-title">Фото, файлы, звонки</div>
+          <div class="wl-feat-desc">Отправляйте фото, файлы, голосовые. Аудио и видеозвонки — всё зашифровано и P2P.</div>
+        </div>
+      </div>
+    </div>
+    <button class="wl-cta" onclick="showRegistration()">Начать →</button>
+    <div class="wl-secondary">Не нужен телефон и email.<br>Ваши данные остаются на вашем устройстве.</div>
+  </div>
+</div>
+
+<!-- REGISTRATION SCREEN -->
+<div id="reg-screen">
+  <div class="reg-inner">
+    <button class="reg-back" onclick="showWelcome()">←</button>
+    <div class="reg-title">Как вас зовут?</div>
+    <div class="reg-sub">Это имя будут видеть ваши собеседники.<br>Его можно изменить в настройках.</div>
+    <label class="reg-av-upload" id="reg-av-wrap" title="Добавить фото профиля">
+      <span id="reg-av-placeholder" style="font-size:32px">📷</span>
+      <img id="reg-av-img" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:50%" alt=""/>
+      <input type="file" accept="image/*" style="display:none" onchange="regPickAvatar(this)"/>
+    </label>
+    <div class="reg-av-hint">Нажмите чтобы добавить фото (необязательно)</div>
+    <input class="reg-name-input" id="reg-name" type="text" placeholder="Ваше имя..." maxlength="24" autofocus/>
+    <button class="reg-btn" onclick="finishRegistration()">Войти в LIDERS CHAT →</button>
+    <div class="reg-notice">Регистрация по номеру телефона не требуется.<br>Ваш ID генерируется автоматически и хранится только на вашем устройстве.</div>
   </div>
 </div>
 
@@ -895,6 +978,17 @@ async function init() {
     if (activeChat && !activeChat.startsWith('room:')) refreshHeader();
     renderList();
   }, 60000);
+
+  // Check if first time - show welcome or go straight to app
+  const db2 = getDB();
+  if (!db2.registered) {
+    const hasInvite = new URLSearchParams(window.location.search).get('room');
+    if (hasInvite) {
+      document.getElementById('reg-screen').classList.add('show');
+    } else {
+      showWelcome();
+    }
+  }
 
   // Check invite link
   checkInviteLink();
@@ -2030,8 +2124,9 @@ document.getElementById('msg-in').addEventListener('input', function() {
   if (activeChat) saveDraft(activeChat, this.value);
 });
 
-document.getElementById('onboard-name').addEventListener('keydown', e => {
-  if (e.key === 'Enter') finishOnboard();
+// reg name enter key
+document.getElementById('reg-name')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') finishRegistration();
 });
 
 // ═══════════════════════════════════════════════
@@ -3470,6 +3565,67 @@ function loadTheme() {
   const saved = localStorage.getItem('sg_theme') || 'dark';
   setTheme(saved);
 }
+
+
+// ═══════════════════════════════════════════════
+//  WELCOME & REGISTRATION
+// ═══════════════════════════════════════════════
+let regAvatarData = null;
+
+function showWelcome() {
+  document.getElementById('welcome-screen').classList.add('show');
+  document.getElementById('reg-screen').classList.remove('show');
+}
+
+function showRegistration() {
+  document.getElementById('welcome-screen').classList.remove('show');
+  document.getElementById('reg-screen').classList.add('show');
+  setTimeout(() => document.getElementById('reg-name').focus(), 100);
+}
+
+async function regPickAvatar(input) {
+  const file = input.files[0];
+  if (!file) return;
+  try {
+    regAvatarData = await compressAvatar(file);
+    const img = document.getElementById('reg-av-img');
+    const placeholder = document.getElementById('reg-av-placeholder');
+    img.src = regAvatarData;
+    img.style.display = 'block';
+    placeholder.style.display = 'none';
+  } catch(e) { toast('Не удалось загрузить фото'); }
+}
+
+async function finishRegistration() {
+  const name = document.getElementById('reg-name').value.trim();
+  if (!name) {
+    document.getElementById('reg-name').style.borderColor = '#f87171';
+    document.getElementById('reg-name').placeholder = 'Введите имя...';
+    setTimeout(() => document.getElementById('reg-name').style.borderColor = '', 1500);
+    return;
+  }
+  // Save name
+  myName = name;
+  updateDB(db => { db.myName = name; db.registered = true; });
+  document.getElementById('my-name').textContent = name;
+  document.getElementById('my-av').textContent = initialsFor(name);
+  document.getElementById('my-av').style.background = '#5288c120';
+  document.getElementById('my-av').style.color = '#5288c1';
+  // Save avatar if picked
+  if (regAvatarData) {
+    saveAvatarData(myId, regAvatarData);
+    renderAvatarEl(document.getElementById('my-av'), myId, name);
+  }
+  // Hide registration
+  document.getElementById('reg-screen').classList.remove('show');
+  toast('Добро пожаловать, ' + name + '!');
+}
+
+// ── Override finishOnboard to use new flow ────
+function finishOnboard() {
+  finishRegistration();
+}
+
 
 // ── Swipe right to go back (mobile) ──────────
 (function() {
