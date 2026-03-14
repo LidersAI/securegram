@@ -179,6 +179,22 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 #toast.show{transform:translateX(-50%) translateY(0)}
 @keyframes popIn{from{opacity:0;transform:scale(.9) translateY(8px)}to{opacity:1;transform:scale(1) translateY(0)}}
 .bubble{animation:popIn .16s ease}
+.msg-img{max-width:260px;max-height:300px;border-radius:10px;display:block;cursor:pointer;margin-top:4px}
+.img-loading{width:200px;height:120px;border-radius:10px;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:13px}
+#photo-btn:hover{background:var(--hover)}
+#mic-btn:hover{background:var(--hover)}
+#mic-btn.recording{background:rgba(248,113,113,.2);color:#f87171;transform:scale(1.15)}
+.voice-msg{display:flex;align-items:center;gap:8px;padding:2px 0}
+.voice-play{width:32px;height:32px;border-radius:50%;border:none;background:rgba(255,255,255,.15);color:#fff;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .1s}
+.voice-play:hover{background:rgba(255,255,255,.25)}
+.voice-wave{flex:1;height:24px;position:relative;cursor:pointer}
+.voice-wave-bar{position:absolute;bottom:0;width:3px;border-radius:2px;background:rgba(255,255,255,.35);transition:background .1s}
+.voice-wave-bar.played{background:rgba(255,255,255,.8)}
+.voice-dur{font-size:11px;color:rgba(255,255,255,.5);flex-shrink:0;min-width:28px}
+.rec-indicator{display:none;align-items:center;gap:6px;padding:6px 14px;background:rgba(248,113,113,.12);border-radius:99px;font-size:13px;color:#f87171;position:absolute;bottom:70px;left:50%;transform:translateX(-50%);white-space:nowrap;z-index:10}
+.rec-indicator.show{display:flex}
+.rec-dot{width:8px;height:8px;border-radius:50%;background:#f87171;animation:recpulse 1s infinite}
+@keyframes recpulse{0%,100%{opacity:1}50%{opacity:.3}}
 @media(max-width:640px){
   #sidebar{position:fixed;left:0;top:0;bottom:0;z-index:50;width:90%;max-width:340px}
   #sidebar.hidden{transform:translateX(-110%)}
@@ -258,7 +274,15 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
     </div>
   </div>
 
+  <div id="rec-indicator" class="rec-indicator"><span class="rec-dot"></span> Запись... отпустите чтобы отправить</div>
   <div id="input-bar">
+    <label id="photo-btn" title="Отправить фото" style="width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text3);font-size:20px;flex-shrink:0">
+      📎<input type="file" accept="image/*" id="photo-input" style="display:none" onchange="sendPhoto(this)"/>
+    </label>
+    <button id="mic-btn" title="Голосовое сообщение" 
+      onmousedown="startRecord(event)" onmouseup="stopRecord(event)"
+      ontouchstart="startRecord(event)" ontouchend="stopRecord(event)"
+      style="width:40px;height:40px;border-radius:50%;border:none;background:transparent;color:var(--text3);font-size:20px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;user-select:none;-webkit-user-select:none;transition:background .1s,transform .1s">🎤</button>
     <div id="input-wrap">
       <textarea id="msg-in" rows="1" placeholder="Написать..." disabled></textarea>
     </div>
@@ -371,6 +395,12 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
     <div class="field">
       <label>Сигнальный сервер</label>
       <div class="f-hint" id="sett-srv">—</div>
+    </div>
+    <div style="border-top:1px solid rgba(255,255,255,.08);margin:16px 0 0;padding-top:14px">
+      <div style="font-size:12px;color:var(--text3);margin-bottom:8px">Управление данными</div>
+      <button onclick="clearChatHistory()" style="width:100%;padding:9px;border-radius:8px;border:none;background:rgba(248,113,113,.12);color:#f87171;font-size:13px;cursor:pointer;margin-bottom:6px;text-align:left;padding-left:14px">🗑 Очистить историю текущего чата</button>
+      <button onclick="clearAllHistory()" style="width:100%;padding:9px;border-radius:8px;border:none;background:rgba(248,113,113,.12);color:#f87171;font-size:13px;cursor:pointer;margin-bottom:6px;text-align:left;padding-left:14px">🗑 Очистить всю историю переписки</button>
+      <button onclick="resetApp()" style="width:100%;padding:9px;border-radius:8px;border:none;background:rgba(248,113,113,.2);color:#f87171;font-size:13px;cursor:pointer;font-weight:500;text-align:left;padding-left:14px">⚠ Удалить всё и начать заново</button>
     </div>
     <div class="modal-btns">
       <button class="btn-cancel" onclick="closeModal('sett-overlay')">Отмена</button>
@@ -1233,6 +1263,271 @@ document.getElementById('msg-in').addEventListener('input', function() {
 document.getElementById('onboard-name').addEventListener('keydown', e => {
   if (e.key === 'Enter') finishOnboard();
 });
+
+// ═══════════════════════════════════════════════
+//  PHOTOS
+// ═══════════════════════════════════════════════
+async function sendPhoto(input) {
+  const file = input.files[0];
+  input.value = '';
+  if (!file || !activeChat) return;
+
+  // Compress to max 600px, quality 0.75
+  const compressed = await compressImage(file, 600, 0.75);
+  if (compressed.length > 800000) { toast('Фото слишком большое, попробуйте другое'); return; }
+
+  const msgId = myId.slice(0,6) + '-' + Date.now() + '-' + Math.random().toString(36).slice(2,5);
+  const ts = nowTime(), date = nowDate();
+  const isRoom = activeChat.startsWith('room:');
+  const roomId = isRoom ? activeChat.slice(5) : null;
+  const payload = { from:myId, name:myName, photo:compressed, ts, date, roomId };
+
+  seenMsgIds.add(msgId);
+  const m = { id:msgId, from:myId, name:myName, photo:compressed, ts, date };
+  storeMsg(activeChat, m);
+  appendMsgEl(m, true);
+  renderList();
+
+  for (const [pid, sess] of Object.entries(sessions)) {
+    if (!sess.online || !sess.sharedKey) continue;
+    if (isRoom) { const db=getDB(); if (!db.rooms?.[roomId]?.members?.[pid]) continue; }
+    else { if (activeChat.slice(3) !== pid) continue; }
+    try {
+      const cipher = await Crypto.encrypt(sess.sharedKey, JSON.stringify(payload));
+      rawSend(sess.conn, { type:'MSG', id:msgId, cipher, hops:0 });
+    } catch(e) { console.error(e); }
+  }
+}
+
+function compressImage(file, maxSize, quality) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let w = img.width, h = img.height;
+      if (w > maxSize || h > maxSize) {
+        if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
+        else { w = Math.round(w * maxSize / h); h = maxSize; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
+// Override appendMsgEl to support photos
+const _origAppendMsgEl = appendMsgEl;
+window.appendMsgEl = function(m, scroll) {
+  if (!m.photo) { _origAppendMsgEl(m, scroll); return; }
+  const container = document.getElementById('messages');
+  const el = document.createElement('div');
+  const isMe = m.from === myId;
+  const color = isMe ? '#5288c1' : colorFor(m.from);
+  el.className = 'msg-wrap ' + (isMe ? 'me' : 'them');
+  el.innerHTML = `<div class="bw">
+    ${!isMe ? `<div class="msg-av-sm" style="background:${color}22;color:${color}">${initialsFor(m.name||'?')}</div>` : ''}
+    <div class="bubble" style="padding:5px 5px 5px">
+      ${!isMe ? `<div class="bubble-sender" style="color:${color};padding:0 6px 4px">${esc(m.name||'?')}</div>` : ''}
+      <img class="msg-img" src="${m.photo}" onclick="viewPhoto(this.src)" loading="lazy"/>
+      <div class="msg-meta" style="padding:0 4px">
+        ${isMe ? '<span class="lock-ico">🔒</span>' : ''}
+        <span class="msg-time">${m.ts||''}</span>
+        ${isMe ? '<span class="tick">✓✓</span>' : ''}
+      </div>
+    </div>
+  </div>`;
+  container.appendChild(el);
+  if (scroll) document.getElementById('chat-bg').scrollTop = 999999;
+};
+
+function viewPhoto(src) {
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:500;display:flex;align-items:center;justify-content:center;cursor:zoom-out';
+  ov.onclick = () => ov.remove();
+  const img = document.createElement('img');
+  img.src = src;
+  img.style.cssText = 'max-width:95vw;max-height:95vh;border-radius:8px;object-fit:contain';
+  ov.appendChild(img);
+  document.body.appendChild(ov);
+}
+
+// ═══════════════════════════════════════════════
+//  VOICE MESSAGES
+// ═══════════════════════════════════════════════
+let mediaRecorder = null;
+let audioChunks = [];
+let recordStart = 0;
+
+async function startRecord(e) {
+  e.preventDefault();
+  if (!activeChat) return;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+      ? 'audio/webm;codecs=opus' : 'audio/webm';
+    mediaRecorder = new MediaRecorder(stream, { mimeType });
+    audioChunks = [];
+    recordStart = Date.now();
+    mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+    mediaRecorder.start(100);
+    document.getElementById('mic-btn').classList.add('recording');
+    document.getElementById('rec-indicator').classList.add('show');
+  } catch(e) {
+    toast('Нет доступа к микрофону');
+    console.error(e);
+  }
+}
+
+async function stopRecord(e) {
+  e.preventDefault();
+  if (!mediaRecorder || mediaRecorder.state === 'inactive') return;
+  document.getElementById('mic-btn').classList.remove('recording');
+  document.getElementById('rec-indicator').classList.remove('show');
+
+  const duration = Math.round((Date.now() - recordStart) / 1000);
+  if (duration < 1) { mediaRecorder.stop(); mediaRecorder.stream.getTracks().forEach(t=>t.stop()); return; }
+
+  await new Promise(res => { mediaRecorder.onstop = res; mediaRecorder.stop(); });
+  mediaRecorder.stream.getTracks().forEach(t => t.stop());
+
+  const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
+  if (blob.size > 1500000) { toast('Слишком длинное сообщение (макс ~1 мин)'); return; }
+
+  // Convert to base64
+  const b64 = await new Promise(res => {
+    const reader = new FileReader();
+    reader.onload = () => res(reader.result);
+    reader.readAsDataURL(blob);
+  });
+
+  const msgId = myId.slice(0,6) + '-' + Date.now() + '-' + Math.random().toString(36).slice(2,5);
+  const ts = nowTime(), date = nowDate();
+  const isRoom = activeChat.startsWith('room:');
+  const roomId = isRoom ? activeChat.slice(5) : null;
+  const payload = { from:myId, name:myName, audio:b64, audioDur:duration, ts, date, roomId };
+
+  seenMsgIds.add(msgId);
+  const m = { id:msgId, from:myId, name:myName, audio:b64, audioDur:duration, ts, date };
+  storeMsg(activeChat, m);
+  appendMsgEl(m, true);
+  renderList();
+
+  for (const [pid, sess] of Object.entries(sessions)) {
+    if (!sess.online || !sess.sharedKey) continue;
+    if (isRoom) { const db=getDB(); if (!db.rooms?.[roomId]?.members?.[pid]) continue; }
+    else { if (activeChat.slice(3) !== pid) continue; }
+    try {
+      const cipher = await Crypto.encrypt(sess.sharedKey, JSON.stringify(payload));
+      rawSend(sess.conn, { type:'MSG', id:msgId, cipher, hops:0 });
+    } catch(err) { console.error(err); }
+  }
+}
+
+// ─── Voice message renderer ───────────────────
+function makeVoiceBubble(m, isMe) {
+  const dur = m.audioDur || 0;
+  const bars = Array.from({length:24}, (_,i) => {
+    const h = 4 + Math.round(Math.abs(Math.sin(i * 0.8 + (m.id||'').charCodeAt(0)||0)) * 18);
+    return `<div class="voice-wave-bar" style="left:${i*5}px;height:${h}px"></div>`;
+  }).join('');
+  return `<div class="voice-msg">
+    <button class="voice-play" onclick="playVoice(this,'${encodeURIComponent(m.audio)}')">▶</button>
+    <div class="voice-wave" style="width:120px" onclick="seekVoice(this,'${encodeURIComponent(m.audio)}')">${bars}</div>
+    <span class="voice-dur">${dur}с</span>
+  </div>`;
+}
+
+const activeAudio = {};
+function playVoice(btn, encodedSrc) {
+  const src = decodeURIComponent(encodedSrc);
+  const key = src.slice(0, 40);
+  if (activeAudio[key]) {
+    activeAudio[key].pause();
+    delete activeAudio[key];
+    btn.textContent = '▶';
+    return;
+  }
+  const audio = new Audio(src);
+  activeAudio[key] = audio;
+  btn.textContent = '⏸';
+  const bars = btn.parentElement.querySelectorAll('.voice-wave-bar');
+  audio.ontimeupdate = () => {
+    const pct = audio.duration ? audio.currentTime / audio.duration : 0;
+    bars.forEach((b,i) => b.classList.toggle('played', i/bars.length < pct));
+  };
+  audio.onended = () => {
+    btn.textContent = '▶';
+    bars.forEach(b => b.classList.remove('played'));
+    delete activeAudio[key];
+  };
+  audio.play().catch(e => { console.error(e); btn.textContent = '▶'; });
+}
+
+// ─── Patch appendMsgEl for audio ─────────────
+const _origAppendMsgEl2 = window.appendMsgEl;
+window.appendMsgEl = function(m, scroll) {
+  if (!m.audio) { _origAppendMsgEl2(m, scroll); return; }
+  const container = document.getElementById('messages');
+  const el = document.createElement('div');
+  const isMe = m.from === myId;
+  const color = isMe ? '#5288c1' : colorFor(m.from);
+  el.className = 'msg-wrap ' + (isMe ? 'me' : 'them');
+  el.innerHTML = `<div class="bw">
+    ${!isMe ? `<div class="msg-av-sm" style="background:${color}22;color:${color}">${initialsFor(m.name||'?')}</div>` : ''}
+    <div class="bubble">
+      ${!isMe ? `<div class="bubble-sender" style="color:${color}">${esc(m.name||'?')}</div>` : ''}
+      ${makeVoiceBubble(m, isMe)}
+      <div class="msg-meta">
+        ${isMe ? '<span class="lock-ico">🔒</span>' : ''}
+        <span class="msg-time">${m.ts||''}</span>
+        ${isMe ? '<span class="tick">✓✓</span>' : ''}
+      </div>
+    </div>
+  </div>`;
+  container.appendChild(el);
+  if (scroll) document.getElementById('chat-bg').scrollTop = 999999;
+};
+
+// ═══════════════════════════════════════════════
+//  DELETE / RESET
+// ═══════════════════════════════════════════════
+function clearChatHistory() {
+  if (!activeChat) { toast('Сначала откройте чат'); return; }
+  if (!confirm('Удалить историю этого чата? Это нельзя отменить.')) return;
+  updateDB(db => {
+    if (activeChat.startsWith('room:')) {
+      const r = db.rooms?.[activeChat.slice(5)]; if (r) r.messages = [];
+    } else {
+      const dm = db.dms?.[activeChat.slice(3)]; if (dm) dm.messages = [];
+    }
+  });
+  document.getElementById('messages').innerHTML = '';
+  closeModal('sett-overlay');
+  toast('История чата удалена');
+}
+
+function clearAllHistory() {
+  if (!confirm('Удалить всю историю переписки во всех чатах? Группы и контакты останутся.')) return;
+  updateDB(db => {
+    Object.values(db.rooms||{}).forEach(r => r.messages = []);
+    Object.values(db.dms||{}).forEach(dm => dm.messages = []);
+  });
+  if (activeChat) document.getElementById('messages').innerHTML = '';
+  closeModal('sett-overlay');
+  toast('Вся история удалена');
+}
+
+function resetApp() {
+  if (!confirm('Удалить ВСЁ — историю, группы, контакты и ваш ID? После этого вы получите новый ID и все ссылки-приглашения перестанут работать.')) return;
+  if (!confirm('Вы уверены? Это нельзя отменить.')) return;
+  localStorage.removeItem(DB_KEY);
+  location.reload();
+}
 
 init();
 </script>
