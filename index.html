@@ -3,15 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SecureGram</title>
+<title>LIDERS CHAT</title>
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#17212b">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="SecureGram">
-<meta name="description" content="P2P мессенджер с E2E шифрованием">
+<meta name="apple-mobile-web-app-title" content="LIDERS CHAT">
+<meta name="description" content="Защищённый P2P мессенджер">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
 <link rel="shortcut icon" href="favicon.ico">
@@ -28,7 +28,22 @@
   --me:#2b5278;--them:#182533;
   --hover:rgba(255,255,255,0.05);
   --font:'Inter',-apple-system,sans-serif;
+  --transition: .2s ease;
 }
+/* Light theme */
+body.light{
+  --bg:#f0f4f8;--bg2:#e8edf2;--bg3:#fff;--bg4:#3a7bd5;
+  --border:rgba(0,0,0,0.08);
+  --text:#1a1a2e;--text2:#555;--text3:#888;
+  --accent:#3a7bd5;--green:#2dca6a;--blue:#1a73e8;
+  --me:#3a7bd5;--them:#fff;
+  --hover:rgba(0,0,0,0.04);
+}
+body.light #chat-bg{background-color:var(--bg2);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Cpath d='M30 5L55 20L55 40L30 55L5 40L5 20Z' fill='none' stroke='rgba(0,0,0,0.03)' stroke-width='1'/%3E%3C/svg%3E")}
+body.light .me .bubble::after{border-color:transparent transparent var(--me) transparent}
+body.light .them .bubble{background:#fff;border-color:rgba(0,0,0,.08);color:#1a1a2e}
+body.light .them .bubble::after{border-color:transparent #fff transparent transparent}
+body.light .msg-time{color:rgba(0,0,0,.35)}
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;overflow:hidden}
 #app{display:flex;height:100vh}
 
@@ -100,6 +115,24 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 mark.hit{background:rgba(82,136,193,.4);color:#fff;border-radius:2px}
 /* Disappearing messages */
 .dis-badge{font-size:10px;color:var(--text3);background:rgba(255,255,255,.06);padding:1px 6px;border-radius:99px;margin-left:4px}
+/* File transfer */
+.file-msg{display:flex;align-items:center;gap:10px;padding:4px 0}
+.file-ico{width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.file-info{flex:1;min-width:0}
+.file-name{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.file-size{font-size:11px;color:rgba(255,255,255,.5);margin-top:2px}
+.file-dl{width:32px;height:32px;border-radius:50%;border:none;background:rgba(255,255,255,.15);color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.file-dl:hover{background:rgba(255,255,255,.25)}
+.file-progress{height:3px;background:rgba(255,255,255,.1);border-radius:2px;margin-top:4px;overflow:hidden}
+.file-progress-bar{height:100%;background:var(--accent);border-radius:2px;transition:width .3s;width:0%}
+/* Pinned message */
+#pinned-bar{display:none;padding:7px 14px;background:#17212b;border-bottom:2px solid var(--accent);align-items:center;gap:10px;cursor:pointer}
+#pinned-bar.show{display:flex}
+#pinned-bar-ico{font-size:16px;flex-shrink:0}
+#pinned-bar-body{flex:1;min-width:0}
+#pinned-bar-label{font-size:10px;color:var(--blue);font-weight:500}
+#pinned-bar-text{font-size:13px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#pinned-close{border:none;background:transparent;color:var(--text3);cursor:pointer;font-size:16px;padding:2px 4px;flex-shrink:0}
 /* Calls */
 #call-screen{display:none;position:fixed;inset:0;background:linear-gradient(180deg,#1a2a3a 0%,#0e1621 100%);z-index:600;flex-direction:column;align-items:center;justify-content:center;gap:0}
 #call-screen.show{display:flex}
@@ -264,8 +297,16 @@ mark.hit{background:rgba(82,136,193,.4);color:#fff;border-radius:2px}
 /* toast */
 #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(70px);background:#1e2d3d;color:#fff;padding:10px 20px;border-radius:10px;font-size:13px;transition:transform .25s cubic-bezier(.34,1.56,.64,1);z-index:300;pointer-events:none;white-space:nowrap;box-shadow:0 4px 24px rgba(0,0,0,.5)}
 #toast.show{transform:translateX(-50%) translateY(0)}
-@keyframes popIn{from{opacity:0;transform:scale(.9) translateY(8px)}to{opacity:1;transform:scale(1) translateY(0)}}
-.bubble{animation:popIn .16s ease}
+@keyframes popIn{from{opacity:0;transform:scale(.88) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}
+@keyframes slideInLeft{from{opacity:0;transform:translateX(-14px)}to{opacity:1;transform:translateX(0)}}
+@keyframes slideInRight{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:translateX(0)}}
+@keyframes fadeInUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes reactionPop{0%{transform:scale(0.4)}70%{transform:scale(1.2)}100%{transform:scale(1)}}
+.bubble{animation:popIn .18s cubic-bezier(.34,1.56,.64,1)}
+.msg-wrap.me .bubble{animation:slideInRight .18s cubic-bezier(.34,1.56,.64,1)}
+.msg-wrap.them .bubble{animation:slideInLeft .18s cubic-bezier(.34,1.56,.64,1)}
+.reaction{animation:reactionPop .2s cubic-bezier(.34,1.56,.64,1)}
+.modal{animation:fadeInUp .2s ease}
 .msg-img{max-width:260px;max-height:300px;border-radius:10px;display:block;cursor:pointer;margin-top:4px}
 .img-loading{width:200px;height:120px;border-radius:10px;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:13px}
 #photo-btn:hover{background:var(--hover)}
@@ -283,12 +324,32 @@ mark.hit{background:rgba(82,136,193,.4);color:#fff;border-radius:2px}
 .rec-dot{width:8px;height:8px;border-radius:50%;background:#f87171;animation:recpulse 1s infinite}
 @keyframes recpulse{0%,100%{opacity:1}50%{opacity:.3}}
 @media(max-width:768px){
-  #sidebar{position:fixed;left:0;top:0;bottom:0;z-index:50;width:88%;max-width:340px;box-shadow:4px 0 24px rgba(0,0,0,.5);transition:transform .25s ease}
+  #sidebar{position:fixed;left:0;top:0;bottom:0;z-index:50;width:88%;max-width:340px;box-shadow:4px 0 24px rgba(0,0,0,.5);transition:transform .28s cubic-bezier(.4,0,.2,1)}
   #sidebar.hidden{transform:translateX(-115%)}
   #back-btn{display:flex!important;align-items:center;justify-content:center}
   #members-panel{display:none!important}
   #main{width:100%;position:relative}
   #chat-hdr{position:sticky;top:0;z-index:10}
+  /* Bigger tap targets on mobile */
+  .hdr-btn{width:44px;height:44px}
+  #send-btn{width:50px;height:50px}
+  .call-btn{width:68px;height:68px}
+  .ic-btn{padding:14px}
+  /* Safe area for iPhone notch / home indicator */
+  #input-bar{padding-bottom:calc(10px + env(safe-area-inset-bottom))}
+  #conn-panel{padding-bottom:calc(10px + env(safe-area-inset-bottom))}
+  body{padding-top:env(safe-area-inset-top)}
+  /* Better scroll on iOS */
+  #chat-bg{-webkit-overflow-scrolling:touch}
+  #chat-list{-webkit-overflow-scrolling:touch}
+  /* Prevent text size adjustment */
+  html{-webkit-text-size-adjust:100%}
+}
+/* iPad landscape - show sidebar alongside chat */
+@media(min-width:769px) and (max-width:1024px){
+  #sidebar{width:280px}
+  #sidebar.hidden{transform:none}
+  #back-btn{display:none!important}
 }
 /* message context menu */
 .msg-menu{position:fixed;background:#232e3c;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.5);z-index:400;min-width:160px;overflow:hidden;border:1px solid rgba(255,255,255,.08)}
@@ -354,7 +415,7 @@ mark.hit{background:rgba(82,136,193,.4);color:#fff;border-radius:2px}
 
   <div id="empty">
     <div class="e-ico">💬</div>
-    <h3>SecureGram</h3>
+    <h3>LIDERS CHAT</h3>
     <p>Создайте группу или добавьте участника.<br>Все сообщения зашифрованы E2E.</p>
   </div>
 
@@ -383,6 +444,15 @@ mark.hit{background:rgba(82,136,193,.4);color:#fff;border-radius:2px}
     </div>
     <button class="search-close" onclick="closeSearch()">✕</button>
   </div>
+  <!-- Pinned message bar -->
+  <div id="pinned-bar">
+    <div id="pinned-bar-ico">📌</div>
+    <div id="pinned-bar-body" onclick="scrollToPinned()">
+      <div id="pinned-bar-label">Закреплённое сообщение</div>
+      <div id="pinned-bar-text">—</div>
+    </div>
+    <button id="pinned-close" onclick="event.stopPropagation();unpinMsg()" title="Открепить">✕</button>
+  </div>
   <div id="chat-body">
     <div id="chat-bg"><div id="messages"></div></div>
     <div id="members-panel">
@@ -409,6 +479,9 @@ mark.hit{background:rgba(82,136,193,.4);color:#fff;border-radius:2px}
   </div>
   <div id="rec-indicator" class="rec-indicator"><span class="rec-dot"></span> Запись... отпустите чтобы отправить</div>
   <div id="input-bar">
+    <label id="file-btn" title="Отправить файл" style="width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text3);font-size:18px;flex-shrink:0">
+      📄<input type="file" id="file-input" style="display:none" onchange="sendFile(this)"/>
+    </label>
     <label id="photo-btn" title="Отправить фото" style="width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text3);font-size:20px;flex-shrink:0">
       📎<input type="file" accept="image/*" id="photo-input" style="display:none" onchange="sendPhoto(this)"/>
     </label>
@@ -433,7 +506,7 @@ mark.hit{background:rgba(82,136,193,.4);color:#fff;border-radius:2px}
 <div class="overlay" id="onboard-overlay">
   <div class="modal">
     <div class="o-ico">🔒</div>
-    <h2>SecureGram</h2>
+    <h2>LIDERS CHAT</h2>
     <p>P2P мессенджер с E2E шифрованием.<br>Как вас зовут?</p>
     <input class="f-input" id="onboard-name" type="text" placeholder="Ваше имя..." maxlength="24" style="text-align:center;font-size:16px"/>
     <div class="modal-btns" style="margin-top:14px">
@@ -537,6 +610,13 @@ mark.hit{background:rgba(82,136,193,.4);color:#fff;border-radius:2px}
       <div class="f-hint" id="sett-srv">—</div>
     </div>
     <div class="field">
+      <label>Тема оформления</label>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <button onclick="setTheme('dark')" id="theme-dark-btn" style="flex:1;padding:8px;border-radius:8px;border:2px solid var(--accent);background:transparent;color:var(--text);font-size:13px;cursor:pointer">🌙 Тёмная</button>
+        <button onclick="setTheme('light')" id="theme-light-btn" style="flex:1;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:transparent;color:var(--text);font-size:13px;cursor:pointer">☀️ Светлая</button>
+      </div>
+    </div>
+    <div class="field">
       <label>Пин-код приложения</label>
       <div style="display:flex;gap:8px;align-items:center">
         <input class="f-input" id="sett-pin" type="password" placeholder="Новый пин (4 цифры)" maxlength="4" style="flex:1"/>
@@ -613,7 +693,7 @@ mark.hit{background:rgba(82,136,193,.4);color:#fff;border-radius:2px}
 <!-- PIN SCREEN -->
 <div id="pin-screen">
   <div style="font-size:48px;margin-bottom:4px">🔒</div>
-  <h2>SecureGram</h2>
+  <h2>LIDERS CHAT</h2>
   <p id="pin-prompt">Введите пин-код</p>
   <div class="pin-dots">
     <div class="pin-dot" id="pd0"></div>
@@ -719,6 +799,7 @@ async function init() {
     saveDB(db);
   }
   loadAvatars();
+  loadTheme();
   myName = db.myName || '';
   if (!myName) {
     // Show onboarding after connection
@@ -766,7 +847,7 @@ async function init() {
       document.getElementById('my-status').title = 'ID: ' + openedId + ' (нажмите чтобы скопировать)';
       document.getElementById('sett-id').textContent = openedId;
       document.getElementById('sett-srv').textContent = '✓ ' + srv.host;
-      toast('✓ Подключён');
+      toast('✓ LIDERS CHAT готов');
       break;
 
     } catch(e) {
@@ -792,6 +873,28 @@ async function init() {
 
   // Check pin lock
   checkPinOnStart();
+
+  // Load persisted last seen
+  loadLastSeen();
+
+  // Ping peers every 30s to keep lastSeen accurate
+  setInterval(async () => {
+    for (const [pid, sess] of Object.entries(sessions)) {
+      if (!sess.online || !sess.sharedKey) continue;
+      try {
+        const cipher = await Crypto.encrypt(sess.sharedKey, JSON.stringify({ from: myId, name: myName, ts: nowTime(), date: nowDate() }));
+        rawSend(sess.conn, { type: 'PING', cipher });
+      } catch {}
+    }
+    // Refresh header so lastSeen text updates even if no messages
+    if (activeChat && !activeChat.startsWith('room:')) refreshHeader();
+  }, 30000);
+
+  // Update lastSeen text every minute (for "был X минут назад")
+  setInterval(() => {
+    if (activeChat && !activeChat.startsWith('room:')) refreshHeader();
+    renderList();
+  }, 60000);
 
   // Check invite link
   checkInviteLink();
@@ -972,7 +1075,9 @@ function setupConn(conn, meta) {
   conn.on('data', raw => onData(pid, raw));
 
   conn.on('close', () => {
+    saveLastSeen(pid, Date.now());
     if (sessions[pid]) { sessions[pid].online = false; sessions[pid].sharedKey = null; sessions[pid]._helloSent = false; }
+    updateLastSeen(pid);
     sysMsg('dm:' + pid, (sessions[pid]?.name || 'Участник') + ' отключился');
     hideTyping(pid); renderList(); refreshHeader(); renderMembers();
   });
@@ -1034,6 +1139,8 @@ async function onData(fromId, raw) {
     }
 
     sysMsg('dm:' + fromId, '🔒 Канал защищён · E2E AES-256');
+    // Record their last seen as now (they just connected)
+    saveLastSeen(fromId, Date.now());
     if (!activeChat) openChat('dm:' + fromId);
     renderList(); refreshHeader(); renderMembers();
     // Send our avatar to new peer
@@ -1109,6 +1216,47 @@ async function onData(fromId, raw) {
   if (msg.type === 'TYPING') {
     const chatKey = msg.roomId ? 'room:' + msg.roomId : 'dm:' + fromId;
     if (activeChat === chatKey) showTyping(fromId);
+  }
+
+  // ── PING / LAST SEEN ────────────────────────
+  if (msg.type === 'PING') {
+    saveLastSeen(fromId, Date.now());
+    if (sess?.sharedKey) {
+      try {
+        const cipher = await Crypto.encrypt(sess.sharedKey, JSON.stringify({ from: myId, name: myName, ts: nowTime(), date: nowDate() }));
+        rawSend(sess.conn, { type: 'PONG', cipher });
+      } catch {}
+    }
+    if (activeChat && !activeChat.startsWith('room:') && activeChat.slice(3) === fromId) refreshHeader();
+    return;
+  }
+
+  if (msg.type === 'PONG') {
+    saveLastSeen(fromId, Date.now());
+    if (activeChat && !activeChat.startsWith('room:') && activeChat.slice(3) === fromId) refreshHeader();
+    return;
+  }
+
+  // ── PING (last seen heartbeat) ─────────────
+  if (msg.type === 'PING') {
+    updateLastSeen(fromId);
+    if (sessions[fromId]) sessions[fromId].online = true;
+    renderList();
+    return;
+  }
+
+  // ── PINNED ──────────────────────────────────
+  if (msg.type === 'PINNED') {
+    updateDB(db => {
+      if (!db.rooms?.[msg.roomId]) return;
+      if (msg.msgId) db.rooms[msg.roomId].pinned = { id: msg.msgId, text: msg.text, name: msg.name };
+      else delete db.rooms[msg.roomId].pinned;
+    });
+    if (activeChat === 'room:' + msg.roomId) {
+      if (msg.msgId) showPinnedBar(msg.text || 'Сообщение');
+      else document.getElementById('pinned-bar').classList.remove('show');
+    }
+    return;
   }
 
   // ── CALL SIGNAL ─────────────────────────────
@@ -1254,6 +1402,7 @@ async function sendMsg() {
   // Handle edit mode
   if (editingMsgId) { await applyEdit(text); return; }
   input.value = ''; input.style.height = 'auto';
+  if (activeChat) saveDraft(activeChat, '');
 
   const isRoom = activeChat.startsWith('room:');
   const roomId = isRoom ? activeChat.slice(5) : null;
@@ -1329,8 +1478,15 @@ function sysMsg(chatKey, text) {
 
 // Runtime unread (not persisted — resets on reload which is fine)
 const unread = {};
-function bumpUnread(chatKey) { unread[chatKey] = (unread[chatKey]||0) + 1; }
-function clearUnread(chatKey) { unread[chatKey] = 0; }
+function bumpUnread(chatKey) {
+  unread[chatKey] = (unread[chatKey]||0) + 1;
+  playNotifSound();
+  updateFaviconBadge();
+}
+function clearUnread(chatKey) {
+  unread[chatKey] = 0;
+  updateFaviconBadge();
+}
 
 // ═══════════════════════════════════════════════
 //  RENDER MESSAGES
@@ -1383,7 +1539,8 @@ function appendMsgEl(m, scroll) {
           <div class="bubble-reply-name">${esc(m.replyTo.name||'')}</div>
           <div class="bubble-reply-text">${esc((m.replyTo.text||'').slice(0,60))}</div>
         </div>` : ''}
-        <div class="msg-text">${esc(m.text)}</div>
+        ${m.file ? `<div class="file-msg"><div class="file-ico">📄</div><div class="file-info"><div class="file-name">${esc(m.file.name)}</div><div class="file-size">${formatBytes(m.file.size)}</div></div><button class="file-dl" onclick="downloadFile('${esc(m.file.name)}','${m.file.data}')" title="Скачать">⬇</button></div>` : ''}
+        ${!m.file ? `<div class="msg-text">${esc(m.text)}</div>` : ''}
         <div class="msg-meta">
           ${isMe ? '<span class="lock-ico">🔒</span>' : ''}
           <span class="msg-time">${m.ts||''}</span>
@@ -1415,6 +1572,9 @@ function showMsgMenu(m, el, x, y) {
   items.push({ icon:'😊', label:'Реакция', fn: () => showEmojiPicker(m, el) });
   items.push({ icon:'↩️', label:'Ответить', fn: () => startReply(m) });
   items.push({ icon:'📤', label:'Переслать', fn: () => startForward(m) });
+  if (activeChat && activeChat.startsWith('room:')) {
+    items.push({ icon:'📌', label:'Закрепить', fn: () => pinMessage(m) });
+  }
   // Copy always available
   items.push({ icon:'📋', label:'Копировать', fn: () => { navigator.clipboard.writeText(m.text||''); toast('Скопировано'); } });
   if (isMe && m.text) {
@@ -1554,9 +1714,19 @@ function openChat(chatKey) {
   refreshHeader();
   renderMembers();
   renderList();
+  loadDraft(chatKey);
   document.getElementById('msg-in').focus();
 
   if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
+
+  // Show pinned message if room has one
+  if (chatKey.startsWith('room:')) {
+    const room = getDB().rooms?.[chatKey.slice(5)];
+    if (room?.pinned?.text) showPinnedBar(room.pinned.text);
+    else document.getElementById('pinned-bar').classList.remove('show');
+  } else {
+    document.getElementById('pinned-bar').classList.remove('show');
+  }
 
   // Send read receipt for DMs + schedule disappearing
   if (chatKey.startsWith('dm:')) {
@@ -1616,9 +1786,9 @@ function refreshHeader() {
       av.style.background = sess.color + '22'; av.style.color = sess.color;
     }
     nm.textContent = sess.name;
-    if (!sess.online) { sub.textContent = 'не в сети'; sub.className = ''; }
-    else if (!sess.sharedKey) { sub.textContent = 'обмен ключами…'; sub.className = ''; }
-    else { sub.textContent = '🔒 зашифрован · E2E'; sub.className = 'enc'; }
+    if (!sess.online) { sub.textContent = formatLastSeen(pid); sub.className = ''; }
+    else if (!sess.sharedKey) { sub.textContent = 'подключение…'; sub.className = ''; }
+    else { sub.textContent = '🔒 в сети · E2E'; sub.className = 'enc'; }
     mb.style.display = 'none';
   }
 }
@@ -1733,7 +1903,7 @@ function renderList() {
     items.push({
       key: 'dm:' + pid,
       av: `<div class="ci-av circle" style="${dmAvStyle}">${dmAvContent}<div class="ci-dot ${online?'':'off'}"></div></div>`,
-      name, preview: last?(last.from===myId?'Вы: ':'')+last.text:'нет сообщений',
+      name, preview: last?(last.from===myId?'Вы: ':'')+last.text:(p.online&&p.sharedKey?'в сети':formatLastSeen(pid)),
       time: last?.ts||'', unread: unread['dm:'+pid]||0
     });
   });
@@ -1805,6 +1975,8 @@ function hideTyping(pid) { const el=document.getElementById('t-'+pid); if(el)el.
 // ═══════════════════════════════════════════════
 function openSettings() {
   document.getElementById('sett-name').value = myName;
+  const saved = localStorage.getItem('sg_theme') || 'dark';
+  setTheme(saved);
   renderAvatarEl(document.getElementById('sett-av'), myId, myName);
   openModal('sett-overlay');
 }
@@ -1855,6 +2027,7 @@ document.getElementById('msg-in').addEventListener('input', function() {
   this.style.height = 'auto';
   this.style.height = Math.min(this.scrollHeight, 130) + 'px';
   onTyping();
+  if (activeChat) saveDraft(activeChat, this.value);
 });
 
 document.getElementById('onboard-name').addEventListener('keydown', e => {
@@ -2663,6 +2836,46 @@ document.addEventListener('visibilitychange', () => {
 // ═══════════════════════════════════════════════
 //  CALLS (WebRTC MediaStream)
 // ═══════════════════════════════════════════════
+// lastSeen[peerId] = timestamp (ms)
+
+function loadLastSeen() {
+  try { lastSeen = JSON.parse(localStorage.getItem('sg_lastseen') || '{}'); } catch { lastSeen = {}; }
+}
+
+function saveLastSeen(pid, ts) {
+  lastSeen[pid] = ts;
+  try { localStorage.setItem('sg_lastseen', JSON.stringify(lastSeen)); } catch {}
+}
+
+function formatLastSeen(pid) {
+  const sess = sessions[pid];
+  if (sess?.online && sess?.sharedKey) return 'в сети';
+  const ts = lastSeen[pid];
+  if (!ts) return 'не в сети';
+  const diff = Math.floor((Date.now() - ts) / 1000);
+  if (diff < 60) return 'был(а) только что';
+  if (diff < 3600) {
+    const m = Math.floor(diff / 60);
+    return 'был(а) ' + m + ' ' + plural(m, 'минуту', 'минуты', 'минут') + ' назад';
+  }
+  if (diff < 86400) {
+    const h = Math.floor(diff / 3600);
+    return 'был(а) ' + h + ' ' + plural(h, 'час', 'часа', 'часов') + ' назад';
+  }
+  const d = Math.floor(diff / 86400);
+  if (d === 1) return 'был(а) вчера';
+  if (d < 7) return 'был(а) ' + d + ' ' + plural(d, 'день', 'дня', 'дней') + ' назад';
+  const date = new Date(ts);
+  return 'был(а) ' + date.toLocaleDateString('ru', {day:'numeric', month:'short'});
+}
+
+function plural(n, one, few, many) {
+  const mod10 = n % 10, mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return one;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return few;
+  return many;
+}
+
 let callState = {
   active: false,
   peerId: null,
@@ -2978,6 +3191,284 @@ function toggleSpeaker() {
   const btn = document.getElementById('btn-speaker');
   btn.textContent = callState.speakerOn ? '🔊' : '🔇';
   btn.classList.toggle('on', !callState.speakerOn);
+}
+
+
+// ═══════════════════════════════════════════════
+//  LAST SEEN & ONLINE STATUS
+// ═══════════════════════════════════════════════
+const lastSeen = {};  // peerId -> timestamp
+
+function updateLastSeen(peerId) {
+  lastSeen[peerId] = Date.now();
+}
+
+function formatLastSeen(peerId) {
+  const t = lastSeen[peerId];
+  if (!t) return 'не в сети';
+  const diff = Math.floor((Date.now() - t) / 1000);
+  if (diff < 60) return 'был(а) только что';
+  if (diff < 3600) return 'был(а) ' + Math.floor(diff / 60) + ' мин назад';
+  if (diff < 86400) return 'был(а) ' + Math.floor(diff / 3600) + ' ч назад';
+  return 'был(а) ' + Math.floor(diff / 86400) + ' д назад';
+}
+
+// Send heartbeat every 30s to update last seen
+setInterval(() => {
+  Object.entries(sessions).forEach(([pid, sess]) => {
+    if (sess.online && sess.sharedKey) {
+      Crypto.encrypt(sess.sharedKey, JSON.stringify({ from: myId, name: myName, ts: nowTime(), date: nowDate() }))
+        .then(cipher => rawSend(sess.conn, { type: 'PING', cipher }))
+        .catch(() => {});
+    }
+  });
+}, 30000);
+
+// Update header last seen every 10s
+setInterval(() => {
+  if (activeChat && !activeChat.startsWith('room:')) {
+    const pid = activeChat.slice(3);
+    const sess = sessions[pid];
+    const sub = document.getElementById('hdr-sub');
+    if (sub && !callState.active) {
+      if (sess && sess.online && sess.sharedKey) {
+        if (!document.getElementById('typing-' + pid)) {
+          sub.textContent = 'в сети';
+          sub.className = 'enc';
+        }
+      } else if (lastSeen[pid]) {
+        sub.textContent = formatLastSeen(pid);
+        sub.className = '';
+      }
+    }
+  }
+}, 10000);
+
+// ═══════════════════════════════════════════════
+//  TYPING IN HEADER
+// ═══════════════════════════════════════════════
+const _origShowTyping = showTyping;
+window.showTyping = function(pid) {
+  _origShowTyping(pid);
+  if (activeChat && !activeChat.startsWith('room:') && activeChat.slice(3) === pid) {
+    const sub = document.getElementById('hdr-sub');
+    if (sub) { sub.textContent = 'печатает...'; sub.className = 'enc'; }
+  }
+};
+
+const _origHideTyping = hideTyping;
+window.hideTyping = function(pid) {
+  _origHideTyping(pid);
+  if (activeChat && !activeChat.startsWith('room:') && activeChat.slice(3) === pid) {
+    refreshHeader();
+  }
+};
+
+// ═══════════════════════════════════════════════
+//  NOTIFICATION SOUND
+// ═══════════════════════════════════════════════
+let audioCtx = null;
+
+function playNotifSound() {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+    osc.frequency.setValueAtTime(1100, audioCtx.currentTime + 0.08);
+    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+    osc.start(audioCtx.currentTime);
+    osc.stop(audioCtx.currentTime + 0.3);
+  } catch(e) {}
+}
+
+// ═══════════════════════════════════════════════
+//  FAVICON BADGE (unread count)
+// ═══════════════════════════════════════════════
+let faviconCanvas = null;
+
+function updateFaviconBadge() {
+  const total = Object.values(unread).reduce((a, b) => a + b, 0);
+  document.title = total > 0 ? ('(' + total + ') LIDERS CHAT') : 'LIDERS CHAT';
+
+  if (!faviconCanvas) {
+    faviconCanvas = document.createElement('canvas');
+    faviconCanvas.width = 32; faviconCanvas.height = 32;
+  }
+  const ctx = faviconCanvas.getContext('2d');
+  ctx.clearRect(0, 0, 32, 32);
+
+  // Draw base icon - circle
+  ctx.beginPath();
+  ctx.arc(16, 16, 14, 0, Math.PI * 2);
+  ctx.fillStyle = '#2b5278';
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 14px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = 'bold 11px sans-serif';
+    ctx.fillText('LC', 16, 17);
+
+  if (total > 0) {
+    // Red badge
+    ctx.beginPath();
+    ctx.arc(24, 8, 8, 0, Math.PI * 2);
+    ctx.fillStyle = '#e53935';
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 9px sans-serif';
+    ctx.fillText(total > 9 ? '9+' : total, 24, 8);
+  }
+
+  let link = document.querySelector("link[rel*='icon']");
+  if (!link) { link = document.createElement('link'); link.rel = 'icon'; document.head.appendChild(link); }
+  link.href = faviconCanvas.toDataURL();
+}
+
+// ═══════════════════════════════════════════════
+//  FILE TRANSFER
+// ═══════════════════════════════════════════════
+const CHUNK_SIZE = 16384; // 16KB chunks
+const fileTransfers = {}; // msgId -> { chunks, total, received }
+
+async function sendFile(input) {
+  const file = input.files[0];
+  input.value = '';
+  if (!file || !activeChat) return;
+  if (file.size > 10 * 1024 * 1024) { toast('Файл слишком большой (макс 10MB)'); return; }
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    const b64 = e.target.result; // data:mime;base64,...
+    const msgId = myId.slice(0,6) + '-' + Date.now() + '-' + Math.random().toString(36).slice(2,5);
+    const ts = nowTime(), date = nowDate();
+    const isRoom = activeChat.startsWith('room:');
+    const roomId = isRoom ? activeChat.slice(5) : null;
+
+    const payload = {
+      from: myId, name: myName, ts, date, roomId,
+      file: { name: file.name, size: file.size, type: file.type, data: b64 }
+    };
+
+    seenMsgIds.add(msgId);
+    const m = { id: msgId, from: myId, name: myName, ts, date,
+      file: { name: file.name, size: file.size, type: file.type, data: b64 } };
+    storeMsg(activeChat, m);
+    appendMsgEl(m, true);
+    renderList();
+
+    for (const [pid, sess] of Object.entries(sessions)) {
+      if (!sess.online || !sess.sharedKey) continue;
+      if (isRoom && !getDB().rooms?.[roomId]?.members?.[pid]) continue;
+      if (!isRoom && activeChat.slice(3) !== pid) continue;
+      try {
+        const cipher = await Crypto.encrypt(sess.sharedKey, JSON.stringify(payload));
+        rawSend(sess.conn, { type: 'MSG', id: msgId, cipher, hops: 0 });
+      } catch(err) { console.error(err); }
+    }
+    toast('Файл отправлен');
+  };
+  reader.readAsDataURL(file);
+}
+
+function downloadFile(name, dataUrl) {
+  const a = document.createElement('a');
+  a.href = dataUrl;
+  a.download = name;
+  a.click();
+}
+
+function formatBytes(b) {
+  if (b < 1024) return b + ' Б';
+  if (b < 1024*1024) return (b/1024).toFixed(1) + ' КБ';
+  return (b/1024/1024).toFixed(1) + ' МБ';
+}
+
+// ═══════════════════════════════════════════════
+//  PINNED MESSAGES
+// ═══════════════════════════════════════════════
+function pinMessage(m) {
+  if (!activeChat || !activeChat.startsWith('room:')) return;
+  const roomId = activeChat.slice(5);
+  updateDB(db => {
+    if (db.rooms?.[roomId]) db.rooms[roomId].pinned = { id: m.id, text: m.text || '📎 Вложение', name: m.name };
+  });
+  showPinnedBar(m.text || '📎 Вложение');
+  // Broadcast to room members
+  broadcastToRoom(roomId, null, { type: 'PINNED', roomId, msgId: m.id, text: m.text || '📎 Вложение', name: m.name });
+  toast('Сообщение закреплено');
+}
+
+function unpinMsg() {
+  if (!activeChat || !activeChat.startsWith('room:')) return;
+  const roomId = activeChat.slice(5);
+  updateDB(db => { if (db.rooms?.[roomId]) delete db.rooms[roomId].pinned; });
+  document.getElementById('pinned-bar').classList.remove('show');
+  broadcastToRoom(roomId, null, { type: 'PINNED', roomId, msgId: null });
+}
+
+function showPinnedBar(text) {
+  document.getElementById('pinned-bar-text').textContent = text;
+  document.getElementById('pinned-bar').classList.add('show');
+}
+
+function scrollToPinned() {
+  if (!activeChat || !activeChat.startsWith('room:')) return;
+  const room = getDB().rooms?.[activeChat.slice(5)];
+  if (!room?.pinned?.id) return;
+  const el = document.querySelector('[data-msg-id="' + room.pinned.id + '"]');
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.style.transition = 'background .3s';
+    el.style.background = 'rgba(82,136,193,.2)';
+    setTimeout(() => el.style.background = '', 1200);
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  DRAFTS
+// ═══════════════════════════════════════════════
+const drafts = {};
+
+function saveDraft(chatKey, text) {
+  if (text.trim()) drafts[chatKey] = text;
+  else delete drafts[chatKey];
+  // Show draft in chat list
+  renderList();
+}
+
+function loadDraft(chatKey) {
+  const input = document.getElementById('msg-in');
+  const draft = drafts[chatKey] || '';
+  input.value = draft;
+  input.style.height = 'auto';
+  if (draft) input.style.height = Math.min(input.scrollHeight, 130) + 'px';
+}
+
+
+// ═══════════════════════════════════════════════
+//  THEME
+// ═══════════════════════════════════════════════
+function setTheme(theme) {
+  document.body.classList.toggle('light', theme === 'light');
+  localStorage.setItem('sg_theme', theme);
+  const darkBtn = document.getElementById('theme-dark-btn');
+  const lightBtn = document.getElementById('theme-light-btn');
+  if (darkBtn && lightBtn) {
+    const accentBorder = '2px solid var(--accent)';
+    const normalBorder = '1px solid rgba(255,255,255,.1)';
+    darkBtn.style.border = theme === 'dark' ? accentBorder : normalBorder;
+    lightBtn.style.border = theme === 'light' ? accentBorder : normalBorder;
+  }
+}
+
+function loadTheme() {
+  const saved = localStorage.getItem('sg_theme') || 'dark';
+  setTheme(saved);
 }
 
 // ── Swipe right to go back (mobile) ──────────
