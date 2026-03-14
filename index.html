@@ -951,7 +951,7 @@ async function init() {
 
   // Show onboarding if no name yet
   if (!myName) {
-    openModal('onboard-overlay');
+    // onboarding handled by welcome screen
   }
 
   // Check pin lock
@@ -1000,18 +1000,7 @@ async function init() {
 // ═══════════════════════════════════════════════
 //  ONBOARDING
 // ═══════════════════════════════════════════════
-function finishOnboard() {
-  const name = document.getElementById('onboard-name').value.trim();
-  if (!name) { toast('Введите имя'); return; }
-  myName = name;
-  updateDB(db => { db.myName = name; });
-  document.getElementById('my-name').textContent = name;
-  document.getElementById('my-av').textContent = initialsFor(name);
-  document.getElementById('my-av').style.background = '#5288c120';
-  document.getElementById('my-av').style.color = '#5288c1';
-  closeModal('onboard-overlay');
-  toast('Добро пожаловать, ' + name + '!');
-}
+// finishOnboard -> see finishRegistration()
 
 // ═══════════════════════════════════════════════
 //  INVITE LINKS
