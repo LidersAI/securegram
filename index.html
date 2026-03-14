@@ -2388,38 +2388,31 @@ function scrollToMsg(msgId) {
 //  FORWARD
 // ═══════════════════════════════════════════════
 function startForward(m) {
-  // Show chat picker
   const db = getDB();
   const chats = [
     ...Object.values(db.rooms || {}).map(r => ({ key: 'room:' + r.id, name: r.emoji + ' ' + r.name })),
     ...Object.entries(db.dms || {}).map(([pid, dm]) => ({ key: 'dm:' + pid, name: sessions[pid]?.name || dm.name || pid.slice(0,8) }))
   ].filter(c => c.key !== activeChat);
-
-  if (chats.length === 0) { toast('Нет других чатов для пересылки'); return; }
-
-  const choice = chats.length === 1
-    ? chats[0]
-    : chats.find(c => c.key === prompt('Куда переслать?
-' + chats.map((c,i) => i+1+'. '+c.name).join('
-') + '
-
-Введите номер:')?.split('.')[0]?.trim().replace(/^\d+$/, i => chats[parseInt(i)-1]?.key) || '');
-
-  // Simple approach: set forwardingMsg and open target chat
-  if (!choice) return;
+  if (chats.length === 0) { toast('Нет других чатов'); return; }
+  const lines = chats.map((c, i) => (i + 1) + '. ' + c.name);
+  const input = prompt('Куда переслать?\n' + lines.join('\n') + '\n\nВведите номер:');
+  if (!input) return;
+  const fwdIdx = parseInt(input.trim()) - 1;
+  if (isNaN(fwdIdx) || fwdIdx < 0 || fwdIdx >= chats.length) { toast('Неверный номер'); return; }
   forwardingMsg = m;
-  const origChat = activeChat;
-  openChat(choice.key);
+  openChat(chats[fwdIdx].key);
   setTimeout(async () => {
     const text = m.text || '';
-    if (!text && !m.photo && !m.audio) return;
     const msgId = myId.slice(0,6) + '-' + Date.now() + '-' + Math.random().toString(36).slice(2,5);
     const ts = nowTime(), date = nowDate();
     const isRoom = activeChat.startsWith('room:');
     const roomId = isRoom ? activeChat.slice(5) : null;
-    const payload = { from:myId, name:myName, text, ts, date, roomId, fwd: { from: m.name || 'неизвестно' }, photo: m.photo, audio: m.audio, audioDur: m.audioDur };
+    const payload = { from:myId, name:myName, text, ts, date, roomId,
+      fwd: { from: m.name || 'неизвестно' },
+      photo: m.photo, audio: m.audio, audioDur: m.audioDur };
     seenMsgIds.add(msgId);
-    const msg = { id:msgId, from:myId, name:myName, text, ts, date, fwd: payload.fwd, photo: m.photo, audio: m.audio, audioDur: m.audioDur };
+    const msg = { id:msgId, from:myId, name:myName, text, ts, date,
+      fwd: payload.fwd, photo: m.photo, audio: m.audio, audioDur: m.audioDur };
     storeMsg(activeChat, msg);
     appendMsgEl(msg, true);
     renderList();
@@ -2490,19 +2483,15 @@ function setDisTimer(chatKey, secs) {
 function toggleDisappearing() {
   if (!activeChat) return;
   const cur = getDisTimer(activeChat);
-  const curOpt = DIS_OPTIONS.find(o => o.value === cur) || DIS_OPTIONS[0];
-  const opts = DIS_OPTIONS.map((o,i) => `${i+1}. ${o.label}${o.value === cur ? ' ✓' : ''}`).join('
-');
-  const idx = parseInt(prompt(`Исчезающие сообщения:
-${opts}
-
-Введите номер:`)) - 1;
+  const optLines = DIS_OPTIONS.map(function(o, i) {
+    return (i + 1) + '. ' + o.label + (o.value === cur ? ' ✓' : '');
+  }).join('\n');
+  const raw = prompt('\u0418\u0441\u0447\u0435\u0437\u0430\u044e\u0449\u0438\u0435 \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u044f:\n' + optLines + '\n\n\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043d\u043e\u043c\u0435\u0440:');
+  const idx = parseInt(raw) - 1;
   if (isNaN(idx) || idx < 0 || idx >= DIS_OPTIONS.length) return;
   const chosen = DIS_OPTIONS[idx];
   setDisTimer(activeChat, chosen.value);
-  const badge = document.getElementById('dis-badge');
-  if (badge) badge.textContent = chosen.value ? chosen.label : '';
-  toast(chosen.value ? `Сообщения исчезают через ${chosen.label}` : 'Исчезающие сообщения отключены');
+  toast(chosen.value ? ('\u0421\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u044f \u0438\u0441\u0447\u0435\u0437\u0430\u044e\u0442 \u0447\u0435\u0440\u0435\u0437 ' + chosen.label) : '\u0418\u0441\u0447\u0435\u0437\u0430\u044e\u0449\u0438\u0435 \u0432\u044b\u043a\u043b\u044e\u0447\u0435\u043d\u044b');
 }
 
 function scheduleDisappear(chatKey, msgId, secs) {
@@ -2563,8 +2552,9 @@ function doSearch(q) {
   document.querySelectorAll('#messages .msg-text').forEach(el => {
     const text = el.textContent;
     if (text.toLowerCase().includes(qLow)) {
-      el.innerHTML = text.replace(new RegExp(q.replace(/[.*+?^${}()|[\]\]/g,'\$&'), 'gi'),
-        match => `<mark class="hit">${match}</mark>`);
+      const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      el.innerHTML = text.replace(new RegExp(escaped, 'gi'),
+        match => '<mark class="hit">' + match + '</mark>');
       searchHits.push(...el.querySelectorAll('mark.hit'));
     }
   });
