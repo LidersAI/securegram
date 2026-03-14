@@ -971,9 +971,6 @@ async function init() {
   // Check pin lock
   checkPinOnStart();
 
-  // Load persisted last seen
-  loadLastSeen();
-
   // Ping peers every 30s to keep lastSeen accurate
   setInterval(async () => {
     for (const [pid, sess] of Object.entries(sessions)) {
@@ -1009,7 +1006,7 @@ async function init() {
     updateDB(db => { db.registered = true; });
   }
 
-  // Check invite link
+  // Check invite link (after connection established)
   checkInviteLink();
 
   // Render saved chats
@@ -1079,6 +1076,7 @@ function doJoin() {
     }
   });
   closeModal('join-overlay');
+  renderList();
   // Connect to host
   const conn = myPeer.connect(pendingJoin.hostId, { reliable: true });
   setupConn(conn, { joinRoom: pendingJoin.roomId, pin: pendingJoin.pin || '' });
