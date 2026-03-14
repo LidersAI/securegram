@@ -309,10 +309,11 @@ html, body { height: 100%; background: var(--tg-bg); color: var(--tg-text); font
 //  CONFIG — замени YOUR-RAILWAY-DOMAIN на свой после деплоя
 // ═══════════════════════════════════════════════════════
 const SIGNAL_SERVERS = [
-  // Твой сервер на Railway — ЗАМЕНИ после деплоя:
-  { host: 'securegram-signal-production.up.railway.app', port: 443, path: '/signal', secure: true },
+  // Railway сервер — path должен совпадать с тем что в server.js (path: '/signal')
+  // PeerJS добавляет /peerjs внутри, поэтому снаружи указываем просто /signal
+  { host: 'securegram-signal-production.up.railway.app', port: 443, path: '/signal', secure: true, key: 'peerjs' },
 
-  // Публичный fallback (всегда работает, но может быть заблокирован)
+  // Публичный fallback
   { host: '0.peerjs.com', port: 443, path: '/', secure: true },
 ];
 
@@ -416,14 +417,18 @@ async function init() {
 
 function tryConnect(srv) {
   return new Promise((resolve, reject) => {
-    const peer = new Peer({
-      host: srv.host, port: srv.port, path: srv.path, secure: srv.secure,
+    const peer = new Peer(undefined, {
+      host: srv.host,
+      port: srv.port,
+      path: srv.path,
+      secure: srv.secure,
+      key: srv.key || 'peerjs',
       config: { iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' },
       ]}
     });
-    const t = setTimeout(() => { peer.destroy(); reject(new Error('timeout')); }, 6000);
+    const t = setTimeout(() => { peer.destroy(); reject(new Error('timeout')); }, 8000);
     peer.on('open', () => { clearTimeout(t); resolve(peer); });
     peer.on('error', e => { clearTimeout(t); peer.destroy(); reject(e); });
   });
