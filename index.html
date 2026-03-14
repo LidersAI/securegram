@@ -995,13 +995,18 @@ async function init() {
 
   // Check if first time - show welcome or go straight to app
   const db2 = getDB();
-  if (!db2.registered) {
+  // Consider registered if they have a name OR myId saved (existing users)
+  const isRegistered = db2.registered || db2.myName || db2.myId;
+  if (!isRegistered) {
     const hasInvite = new URLSearchParams(window.location.search).get('room');
     if (hasInvite) {
       document.getElementById('reg-screen').classList.add('show');
     } else {
       showWelcome();
     }
+  } else {
+    // Mark as registered for future
+    updateDB(db => { db.registered = true; });
   }
 
   // Check invite link
