@@ -3636,12 +3636,10 @@ function finishOnboard() {
   }, { passive: true });
 })();
 
-// ── Service Worker registration ───────────────
+// ── Service Worker - unregister old ones ───────
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js', { scope: './' })
-      .then(reg => console.log('[SW] registered, scope:', reg.scope))
-      .catch(err => console.warn('[SW] registration failed:', err));
+  navigator.serviceWorker.getRegistrations().then(regs => {
+    regs.forEach(reg => reg.unregister());
   });
 }
 
