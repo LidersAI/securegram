@@ -1,0 +1,26 @@
+[Unit]
+Description=SecureGram Signaling Server
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/opt/securegram-signal
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=securegram-signal
+
+# Переменные окружения
+Environment=PORT=9000
+Environment=USE_SSL=false
+# Environment=PEER_SECRET=your-secret-here
+
+# Безопасность
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
