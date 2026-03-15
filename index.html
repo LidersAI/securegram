@@ -602,7 +602,8 @@ mark.hit{background:rgba(82,136,193,.4);color:inherit;border-radius:2px}
       </label>
       <div style="flex:1"><label>Ваше имя</label><input class="finput" id="sett-name-in" type="text" maxlength="24" style="margin-top:5px"/></div>
     </div>
-    <div class="field"><label>Ваше имя / никнейм</label><input class="finput" id="sett-name-in" type="text" maxlength="24"/><div class="fhint">Это имя видят все собеседники. Используйте вместо телефона.</div></div>
+    <div class="field"><label>Ваше имя / никнейм</label><input class="finput" id="sett-name-in" type="text" maxlength="24"/></div>
+    <div class="field"><label>Телефон (необязательно, видят собеседники)</label><input class="finput" id="sett-phone-in" type="tel" maxlength="20" placeholder="+7..."/><div class="fhint">Это имя видят все собеседники. Используйте вместо телефона.</div></div>
     <div class="field"><label>Ваш ID — поделитесь с друзьями</label><div class="fmono" id="sett-id-el" onclick="copyMyId()" style="cursor:pointer">...</div><div class="fhint">Нажмите чтобы скопировать и отправить другу — он добавит вас по этому ID</div></div>
     <div class="field"><label>Сервер</label><div class="fhint" id="sett-srv-el">—</div></div>
     <div class="field">
@@ -736,6 +737,7 @@ async function connectSignal(savedId) {
     document.getElementById('sett-id-el').textContent = id;
     renderAv(document.getElementById('my-av'), id, myName);
     renderAv(document.getElementById('sett-av'), id, myName);
+    document.getElementById('my-name-el').textContent = myName || 'Аноним';
     document.getElementById('sett-srv-el').textContent = '✓ ' + SIGNAL.replace('https://','');
     hideBanner();
 
@@ -871,7 +873,7 @@ function setupDC(dc, peerId) {
       c.sent = true;
       var meta = c._pendingMeta || {};
       Cry.expPub(kp.publicKey).then(function(pub) {
-        var pl = { type:'HELLO', pub:pub, name:myName||'Аноним' };
+        var db3=getDB(); var pl = { type:'HELLO', pub:pub, name:myName||'Аноним', phone:db3.myPhone||'' };
         if (meta.joinRoom) { pl.joinRoom = meta.joinRoom; pl.joinPin = meta.pin||''; }
         rawSend(c.conn, pl);
       });
@@ -1725,12 +1727,14 @@ function toggleMembers(){
 // =============================================
 function openSett(){
   document.getElementById('sett-name-in').value=myName;
+  var db2=getDB(); if(document.getElementById('sett-phone-in')) document.getElementById('sett-phone-in').value=db2.myPhone||'';
   openModal('sett-modal');
 }
 function saveSett(){
   var name=document.getElementById('sett-name-in').value.trim();
   if(!name){toast('Введите имя');return;}
-  myName=name; updDB(function(db){db.myName=name;});
+  var phone=(document.getElementById('sett-phone-in')||{}).value||'';
+  myName=name; updDB(function(db){db.myName=name; db.myPhone=phone;});
   document.getElementById('my-name-el').textContent=name;
   document.getElementById('my-av').textContent=ini(name);
   for(var pid in conns){var c=conns[pid];if(c.online)rawSend(c.conn,{type:'NAME',name:name});}
@@ -2456,40 +2460,51 @@ function getOrMakeAudioEl(){
 // PEER PROFILE POPUP
 // =============================================
 function openPeerProfile(peerId){
-  if(peerId === myId) return;
-  var c = conns[peerId];
-  var db = getDB();
-  var name = (c&&c.name) || peerId.slice(0,8);
-  // Find name from rooms members too
-  Object.values(db.rooms||{}).forEach(function(r){ if(r.members&&r.members[peerId]) name=r.members[peerId]; });
-
-  var existing = document.getElementById('peer-profile-popup');
-  if(existing) existing.remove();
-
-  var popup = document.createElement('div');
-  popup.id = 'peer-profile-popup';
-  popup.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px';
-  popup.onclick = function(e){ if(e.target===popup) popup.remove(); };
-
-  var color = clr(peerId);
-  popup.innerHTML = '<div style="background:#232e3c;border-radius:14px;width:100%;max-width:300px;padding:24px;text-align:center">'
-    +'<div style="width:72px;height:72px;border-radius:50%;background:'+color+'22;color:'+color+';display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;margin:0 auto 12px">'+ini(name)+'</div>'
-    +'<div style="font-size:19px;font-weight:600;margin-bottom:6px">'+esc(name)+'</div>'
-    +'<div style="font-size:11px;color:#6c7883;margin-bottom:4px">ID</div>'
-        +'<div id="ppid" style="font-family:monospace;font-size:11px;background:#0e1621;border-radius:8px;padding:8px 12px;color:#5288c1;word-break:break-all;cursor:pointer;margin-bottom:16px">'+peerId+'</div>'
-    +'<div style="display:flex;gap:8px">'
-        +'<button id="pp-close-btn" style="flex:1;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:transparent;color:#aaa;font-size:14px;cursor:pointer">Закрыть</button>'
-
-    +'</div></div>';
+  if(peerId===myId) return;
+  var c2=conns[peerId];
+  var db3=getDB();
+  var name=(c2&&c2.name)||(db3.dms&&db3.dms[peerId]&&db3.dms[peerId].name)||peerId.slice(0,8);
+  Object.values(db3.rooms||{}).forEach(function(r){if(r.members&&r.members[peerId])name=r.members[peerId];});
+  var existing=document.getElementById('peer-profile-popup');
+  if(existing)existing.remove();
+  var popup=document.createElement('div');
+  popup.id='peer-profile-popup';
+  popup.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px';
+  popup.onclick=function(e){if(e.target===popup)popup.remove();};
+  var color=clr(peerId);
+  var phone=(c2&&c2.phone)||'';
+  var commonGroups=[];
+  Object.values(db3.rooms||{}).forEach(function(r){if(r.members&&r.members[peerId])commonGroups.push(r.emoji+' '+r.name);});
+  var inner=document.createElement('div');
+  inner.style.cssText='background:#232e3c;border-radius:14px;width:100%;max-width:300px;padding:24px;text-align:center';
+  var avDiv=document.createElement('div');
+  avDiv.style.cssText='width:72px;height:72px;border-radius:50%;background:'+color+'22;color:'+color+';display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;margin:0 auto 12px';
+  avDiv.textContent=ini(name); inner.appendChild(avDiv);
+  var nameDiv=document.createElement('div');
+  nameDiv.style.cssText='font-size:19px;font-weight:600;margin-bottom:4px';
+  nameDiv.textContent=name; inner.appendChild(nameDiv);
+  if(phone){var phDiv=document.createElement('div');phDiv.style.cssText='font-size:13px;color:#aaa;margin-bottom:6px';phDiv.textContent='☎ '+phone;inner.appendChild(phDiv);}
+  if(commonGroups.length){var grpDiv=document.createElement('div');grpDiv.style.cssText='font-size:12px;color:#6c7883;margin-bottom:10px';grpDiv.textContent='Общие: '+commonGroups.join(', ');inner.appendChild(grpDiv);}
+  var idLbl=document.createElement('div');idLbl.style.cssText='font-size:11px;color:#6c7883;margin-bottom:4px';idLbl.textContent='ID';inner.appendChild(idLbl);
+  var idDiv=document.createElement('div');
+  idDiv.style.cssText='font-family:monospace;font-size:11px;background:#0e1621;border-radius:8px;padding:8px 12px;color:#5288c1;word-break:break-all;cursor:pointer;margin-bottom:16px';
+  idDiv.textContent=peerId;
+  idDiv.onclick=function(){navigator.clipboard.writeText(peerId).then(function(){toast('Скопирован');});};
+  inner.appendChild(idDiv);
+  var btns=document.createElement('div');btns.style.cssText='display:flex;gap:8px';
+  var dmBtn=document.createElement('button');
+  dmBtn.style.cssText='flex:1;padding:10px;border-radius:8px;border:none;background:#5288c1;color:#fff;font-size:14px;font-weight:500;cursor:pointer';
+  dmBtn.textContent='💬 Написать';
+  dmBtn.onclick=function(){popup.remove();openOrCreateDM(peerId,name);};
+  var closeBtn=document.createElement('button');
+  closeBtn.style.cssText='flex:1;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:transparent;color:#aaa;font-size:14px;cursor:pointer';
+  closeBtn.textContent='Закрыть';
+  closeBtn.onclick=function(){popup.remove();};
+  btns.appendChild(dmBtn);btns.appendChild(closeBtn);inner.appendChild(btns);
+  popup.appendChild(inner);
   document.body.appendChild(popup);
-  // Wire up buttons after DOM insert
-  var idEl = document.getElementById('ppid');
-  if(idEl) idEl.onclick = function(){ navigator.clipboard.writeText(peerId).then(function(){toast('ID скопирован ✓');}); };
-  var dmBtn = document.getElementById('pp-dm-btn');
-  if(dmBtn) dmBtn.onclick = function(){ popup.remove(); openOrCreateDM(peerId, name); };
-  var closeBtn = document.getElementById('pp-close-btn');
-  if(closeBtn) closeBtn.onclick = function(){ popup.remove(); };
 }
+
 
 function openOrCreateDM(peerId, name){
   // Only save DM if explicitly added (not mesh)
@@ -3008,6 +3023,38 @@ function drawQR(canvas, text, px){
   ctx.fillStyle='#000';
   for(var i=0;i<n;i++)for(var j=0;j<n;j++)
     if(M[i][j]) ctx.fillRect(j*cell+4,i*cell+4,cell,cell);
+}
+
+
+function addContactToGroup(){
+  if(!active||!active.startsWith('room:')) return;
+  var roomId=active.slice(5);
+  var db=getDB();
+  // Get contacts not already in group
+  var room=db.rooms&&db.rooms[roomId]; if(!room) return;
+  var contacts=[];
+  Object.entries(db.dms||{}).forEach(function(e){
+    var pid=e[0], dm=e[1];
+    if(!room.members||!room.members[pid]){
+      var name=(conns[pid]&&conns[pid].name)||dm.name||pid.slice(0,8);
+      contacts.push({pid:pid,name:name});
+    }
+  });
+  if(!contacts.length){ toast('Нет контактов для добавления'); return; }
+  var lines=contacts.map(function(c,i){return (i+1)+'. '+c.name;}).join('\n');
+  var input=prompt('Выберите контакт:\n'+lines);
+  if(!input) return;
+  var idx2=parseInt(input.trim())-1;
+  if(isNaN(idx2)||idx2<0||idx2>=contacts.length){ toast('Неверный номер'); return; }
+  var contact=contacts[idx2];
+  // Add to group members
+  updDB(function(db2){ if(db2.rooms&&db2.rooms[roomId]) db2.rooms[roomId].members[contact.pid]=contact.name; });
+  // Connect and notify
+  if(!conns[contact.pid]||!conns[contact.pid].online){
+    setupConn(contact.pid,{initiator:true});
+  }
+  toast(contact.name+' добавлен(а) в группу');
+  renderList();
 }
 
 
