@@ -958,23 +958,7 @@ async function handleMsgSignal(fromId, data){
   await processRelayMsg({id:data.id,cipher:data.cipher,from:fromId}, c);
 }
 
-function addPeer(){
-  var id = document.getElementById('add-in').value.trim();
-  if(!id||id===myId){ toast('Некорректный ID'); return; }
-  document.getElementById('add-in').value = '';
-  updDB(function(db){ if(!db.dms)db.dms={}; if(!db.dms[id])db.dms[id]={name:id.slice(0,8),messages:[],explicit:true}; else db.dms[id].explicit=true; });
-  if(conns[id]&&conns[id].online){ openChat('dm:'+id); return; }
-  setupConn(id, {initiator:true});
-  openChat('dm:'+id);
-  toast('Подключаемся...');
-}
 
-function reconnectDroppedSessions(){
-  var db=getDB();
-  Object.keys(db.dms||{}).forEach(function(pid){
-    if(conns[pid]&&!conns[pid].online) setupConn(pid, {initiator:true});
-  });
-}
 
 // =============================================
 // ONBOARDING
@@ -1105,50 +1089,7 @@ function createGrp(){
 // =============================================
 // CONNECTIONS
 // =============================================
-function addPeer(){
-  var id = document.getElementById('add-in').value.trim();
-  if(!id||id===myId){ toast('Некорректный ID'); return; }
-  document.getElementById('add-in').value = '';
-  // Mark as explicit
-  updDB(function(db){ if(!db.dms)db.dms={}; if(!db.dms[id])db.dms[id]={name:id.slice(0,8),messages:[],explicit:true}; else db.dms[id].explicit=true; });
-  if(conns[id]){ openChat('dm:'+id); return; }
-  setupConn(id, {initiator:true});
-}
 
-function setupConn(conn, meta){
-  var pid = conn.peer;
-  if(!conns[pid]) conns[pid] = {conn:conn, key:null, name:pid.slice(0,8), color:clr(pid), online:false, sent:false};
-  else conns[pid].conn = conn;
-  // Ensure DM exists in DB
-  updDB(function(db){
-    if(!db.dms) db.dms = {};
-    if(!db.dms[pid]) db.dms[pid] = {name:conns[pid].name, messages:[]};
-  });
-
-  conn.on('open', function(){
-    conns[pid].online = true;
-    if(!conns[pid].sent){
-      conns[pid].sent = true;
-      Cry.expPub(kp.publicKey).then(function(pub){
-        var pl = {type:'HELLO', pub:pub, name:myName||'Аноним'};
-        if(meta && meta.joinRoom){ pl.joinRoom=meta.joinRoom; pl.joinPin=meta.pin||''; }
-        rawSend(conn, pl);
-      });
-    }
-    if(!meta || !meta.mesh) sysMsg('dm:'+pid, 'Соединение установлено…');
-    renderList(); refreshHdr();
-  });
-
-  conn.on('data', function(raw){ handleData(pid, raw); });
-
-  conn.on('close', function(){
-    if(conns[pid]){ conns[pid].online=false; conns[pid].key=null; conns[pid].sent=false; }
-    sysMsg('dm:'+pid, (conns[pid]&&conns[pid].name||'Участник')+' отключился');
-    hideTyp(pid); renderList(); refreshHdr();
-  });
-
-  conn.on('error', function(e){ console.error('[conn]', pid, e.type); });
-}
 
 // =============================================
 // PROTOCOL
@@ -2637,34 +2578,6 @@ function doReconnect(){
   tryServer();
 }
 
-function reconnectDroppedSessions(){
-  var db = getDB();
-  // Reconnect to all known DM contacts that were online recently
-  Object.keys(db.dms||{}).forEach(function(pid){
-    if(!conns[pid] || !conns[pid].online){
-      // Try to reconnect silently
-      if(pollActive){
-        try{
-          setupConn(pid, {initiator:true});
-        }catch(e){}
-      }
-    }
-  });
-  // Also reconnect to room hosts
-  Object.values(db.rooms||{}).forEach(function(r){
-    if(!r.isHost){
-      Object.keys(r.members||{}).forEach(function(pid){
-        if(pid !== myId && (!conns[pid] || !conns[pid].online)){
-          if(pollActive){
-            try{
-              setupConn(pid, {initiator:true});
-            }catch(e){}
-          }
-        }
-      });
-    }
-  });
-}
 
 // Heartbeat - ping connected peers every 25s to keep connection alive
 // Also detects dead connections
