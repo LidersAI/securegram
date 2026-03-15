@@ -706,7 +706,7 @@ async function init(){
 
 function connectSignal(savedId){
   var socket = io(SIGNAL_URL, {
-    transports: ['websocket','polling'], // try WS first, fall back to polling
+    transports: ['polling','websocket'], // polling first - more reliable in RU without VPN
     reconnection: true,
     reconnectionDelay: 2000,
     reconnectionAttempts: 10,
@@ -714,7 +714,7 @@ function connectSignal(savedId){
   });
 
   socket.on('connect', function(){
-    console.log('[signal] connected via', socket.conn.transport.name);
+    console.log('[signal] connected via', socket.conn && socket.conn.transport && socket.conn.transport.name || 'unknown');
     var id = savedId || gid();
     socket.emit('register', id);
     myId = id;
