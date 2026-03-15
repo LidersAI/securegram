@@ -436,6 +436,7 @@ mark.hit{background:rgba(82,136,193,.4);color:inherit;border-radius:2px}
       <div id="hdr-status">—</div>
     </div>
     <button class="hdr-btn" id="members-btn" onclick="toggleMembers()" style="display:none">👥</button>
+    <button class="hdr-btn" id="add-member-btn" onclick="addMemberPrompt()" style="display:none" title="Добавить участника по ID">➕</button>
     <button class="hdr-btn" id="call-audio-btn" onclick="startCall(false)" title="Аудиозвонок" style="display:none">📞</button>
     <button class="hdr-btn" id="call-video-btn" onclick="startCall(true)" title="Видеозвонок" style="display:none">📹</button>
     <button class="hdr-btn" onclick="openSearchBar()" title="Поиск">🔍</button>
@@ -1613,6 +1614,7 @@ function openChat(chatKey){
   var isDM=!chatKey.startsWith('room:');
   document.getElementById('call-audio-btn').style.display=isDM?'flex':'none';
   document.getElementById('call-video-btn').style.display=isDM?'flex':'none';
+  document.getElementById('add-member-btn').style.display=!isDM?'flex':'none';
   // Pinned bar for rooms
   loadPinnedBar();
   // Send read receipt for DMs
@@ -3026,6 +3028,38 @@ function drawQR(canvas, text, px){
 }
 
 
+function addToGroupByID(){
+  if(!active||!active.startsWith('room:')) return;
+  var roomId=active.slice(5);
+  var id=document.getElementById('mp-add-id').value.trim();
+  if(!id||id===myId){ toast('Некорректный ID'); return; }
+  document.getElementById('mp-add-id').value='';
+  var name=id.slice(0,8);
+  // Add to room members
+  updDB(function(db){
+    if(db.rooms&&db.rooms[roomId]){
+      db.rooms[roomId].members[id]=name;
+    }
+  });
+  // Connect to them and send join info
+  if(!conns[id]||!conns[id].online){
+    setupConn(id, {joinRoom:roomId, pin:''});
+  } else if(conns[id].key) {
+    // Already connected - send room invite signal
+    var room=(getDB().rooms||{})[roomId];
+    if(room){
+      Cry.enc(conns[id].key, JSON.stringify({
+        type:'JOIN_OK', roomId:room.id, roomName:room.name, roomEmoji:room.emoji,
+        members:room.members, history:[], from:myId, name:myName, ts:nowTs(), date:dateStr()
+      })).then(function(cipher){
+        rawSend(conns[id].conn, {type:'MSG_SYS', cipher:cipher});
+      }).catch(function(){});
+    }
+  }
+  renderList(); renderMembers();
+  toast('Добавлен в группу, подключаемся...');
+}
+
 function addContactToGroup(){
   if(!active||!active.startsWith('room:')) return;
   var roomId=active.slice(5);
@@ -3055,6 +3089,23 @@ function addContactToGroup(){
   }
   toast(contact.name+' добавлен(а) в группу');
   renderList();
+}
+
+
+function addMemberPrompt(){
+  if(!active||!active.startsWith('room:')) return;
+  var roomId=active.slice(5);
+  var id=prompt('Введите ID участника:');
+  if(!id||!id.trim()) return;
+  id=id.trim();
+  if(id===myId){ toast('Это ваш ID'); return; }
+  var room=(getDB().rooms||{})[roomId]; if(!room) return;
+  // Add to members
+  updDB(function(db){if(db.rooms&&db.rooms[roomId])db.rooms[roomId].members[id]=id.slice(0,8);});
+  // Connect
+  setupConn(id,{joinRoom:roomId,pin:''});
+  renderList();
+  toast('Подключаемся к '+id.slice(0,8)+'...');
 }
 
 
