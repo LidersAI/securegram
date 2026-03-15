@@ -5,6 +5,14 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>LIDERS CHAT</title>
 <script>
+// Save invite params immediately before any redirect
+(function(){
+  var p = new URLSearchParams(window.location.search);
+  if(p.get('room')&&p.get('host')&&p.get('name')){
+    try{sessionStorage.setItem('lc_invite',JSON.stringify({room:p.get('room'),host:p.get('host'),name:p.get('name'),emoji:p.get('emoji'),pin:p.get('pin')}));}catch(e){}
+  }
+})();
+
 // Register service worker for PWA
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function() {
@@ -981,9 +989,18 @@ function finishOb(){
 // INVITE LINKS
 // =============================================
 function checkInvite(){
+  // Try URL params first, then sessionStorage (in case SW lost them)
   var p = new URLSearchParams(window.location.search);
   var roomId=p.get('room'), hostId=p.get('host'), roomName=p.get('name');
   var emoji=p.get('emoji')||'👥', hasPin=p.get('pin')==='1';
+
+  // Fallback to sessionStorage
+  if(!roomId||!hostId||!roomName){
+    try{
+      var saved = sessionStorage.getItem('lc_invite');
+      if(saved){ var sp=JSON.parse(saved); roomId=sp.room; hostId=sp.host; roomName=sp.name; emoji=sp.emoji||'👥'; hasPin=sp.pin==='1'; sessionStorage.removeItem('lc_invite'); }
+    }catch(e){}
+  }
   if(!roomId||!hostId||!roomName) return;
 
   document.getElementById('join-ico').textContent = emoji;
