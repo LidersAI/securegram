@@ -444,7 +444,7 @@ mark.hit{background:rgba(82,136,193,.4);color:inherit;border-radius:2px}
 </div>
 
 <!-- ONBOARDING -->
-<div class="ov on" id="ob-modal">
+<div class="ov" id="ob-modal">
   <div class="modal" style="text-align:center">
     <div style="font-size:48px;margin-bottom:10px">💬</div>
     <div style="font-size:22px;font-weight:700;margin-bottom:6px">LIDERS CHAT</div>
@@ -619,7 +619,7 @@ async function init(){
   if(false){
     openModal('ob-modal');
   } else {
-    document.getElementById('my-name-el').textContent = myName;
+    document.getElementById('my-name-el').textContent = myName || 'Аноним';
     document.getElementById('my-av').textContent = ini(myName);
   }
 
@@ -1401,7 +1401,7 @@ function renderList(){
   Object.values(rooms).forEach(function(r){
     var msgs=(r.messages||[]).filter(function(m){return !m.sys;});
     var last=msgs[msgs.length-1];
-    var preview=last?(last.from===myId?'Вы: ':last.name+': ')+last.text:'Группа создана';
+    var preview=last?(last.from===myId?'Вы: ':(last.name||'?')+': ')+(last.text||'📷'):'Группа создана';
     var u=unread['room:'+r.id]||0;
     html+='<div class="ci'+(active==='room:'+r.id?' active':'')+'" onclick="openChat(\'room:'+r.id+'\')">'
       +'<div class="ci-av sq" style="background:'+clr(r.id)+'22">'+r.emoji+'</div>'
@@ -1420,7 +1420,7 @@ function renderList(){
     var name=(c&&c.name)||dm.name||pid.slice(0,8);
     var msgs=(dm.messages||[]).filter(function(m){return !m.sys;});
     var last=msgs[msgs.length-1];
-    var preview=last?(last.from===myId?'Вы: ':'')+last.text:'нет сообщений';
+    var preview=last?(last.from===myId?'Вы: ':'')+(last.text||'📷'):'нет сообщений';
     var online=c&&c.online&&c.key;
     var u=unread['dm:'+pid]||0;
     html+='<div class="ci'+(active==='dm:'+pid?' active':'')+'" onclick="openChat(\'dm:'+pid+'\')">'
