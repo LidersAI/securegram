@@ -582,35 +582,41 @@ mark.hit{background:rgba(59,130,246,.35);color:inherit;border-radius:3px}
   </div>
 </div>
 
-<!-- QR SYNC -->
+<!-- SYNC MODAL -->
 <div class="ov" id="qr-modal">
   <div class="modal">
-    <div class="mtitle">📱 Синхронизация устройств</div>
+    <div class="mtitle">📱 Перенос на другое устройство</div>
     <div class="qr-tabs">
-      <button class="qr-tab active" id="qr-tab-show" onclick="switchQrTab('show')">Показать QR</button>
-      <button class="qr-tab" id="qr-tab-scan" onclick="switchQrTab('scan')">Сканировать</button>
+      <button class="qr-tab active" id="qr-tab-show" onclick="switchQrTab('show')">Экспорт</button>
+      <button class="qr-tab" id="qr-tab-scan" onclick="switchQrTab('scan')">Импорт</button>
     </div>
 
-    <!-- Show QR tab -->
+    <!-- Export tab -->
     <div id="qr-show-panel">
-      <div id="qr-code-wrap">
-        <canvas id="qr-canvas"></canvas>
-        <div class="qr-hint">Отсканируйте этот QR с нового устройства.<br>Код действителен 5 минут и одноразовый.</div>
-        <button id="qr-refresh-btn" onclick="generateQR()" style="padding:8px 16px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-size:13px;cursor:pointer">🔄 Обновить QR</button>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:12px;line-height:1.5">
+        Скопируй ключ и вставь на новом устройстве во вкладке «Импорт».
+      </div>
+      <div id="export-key" onclick="copyExportKey()" style="font-family:var(--font-mono);font-size:11px;background:rgba(0,0,0,.3);border-radius:12px;padding:12px;color:var(--accent2);word-break:break-all;line-height:1.6;cursor:pointer;border:1px solid var(--border);min-height:60px">
+        Загрузка...
+      </div>
+      <button onclick="copyExportKey()" style="width:100%;margin-top:10px;padding:11px;border-radius:12px;border:none;background:var(--accent);color:#fff;font-size:14px;font-weight:600;cursor:pointer">
+        📋 Скопировать ключ
+      </button>
+      <div style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.5;text-align:center">
+        Нажми чтобы скопировать. Ключ действителен 10 минут.
       </div>
     </div>
 
-    <!-- Scan QR tab -->
+    <!-- Import tab -->
     <div id="qr-scan-panel" style="display:none">
-      <div id="qr-scan-wrap">
-        <div id="qr-video-wrap">
-          <video id="qr-video" autoplay playsinline muted></video>
-          <div id="qr-scan-line"></div>
-        </div>
-        <canvas id="qr-scan-canvas"></canvas>
-        <div class="qr-hint">Наведите камеру на QR код с другого устройства</div>
-        <div id="qr-status"></div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:12px;line-height:1.5">
+        Вставь ключ с другого устройства.
       </div>
+      <textarea id="import-key-input" placeholder="Вставь ключ сюда..." style="width:100%;height:100px;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:12px;padding:12px;color:var(--text);font-family:var(--font-mono);font-size:11px;resize:none;outline:none;line-height:1.5"></textarea>
+      <div id="qr-status"></div>
+      <button onclick="doImportKey()" style="width:100%;margin-top:10px;padding:11px;border-radius:12px;border:none;background:var(--accent);color:#fff;font-size:14px;font-weight:600;cursor:pointer">
+        ✓ Импортировать
+      </button>
     </div>
 
     <div class="mbtns" style="margin-top:14px">
@@ -2854,10 +2860,10 @@ var qrToken = null;
 function openQR(){
   openModal('qr-modal');
   switchQrTab('show');
+  setTimeout(generateQR, 100);
 }
 
 function closeQR(){
-  stopQRScan();
   closeModal('qr-modal');
 }
 
@@ -2867,56 +2873,67 @@ function switchQrTab(tab){
   document.getElementById('qr-show-panel').style.display = tab==='show' ? '' : 'none';
   document.getElementById('qr-scan-panel').style.display = tab==='scan' ? '' : 'none';
   if(tab==='show') generateQR();
-  else { stopQRScan(); startQRScan(); }
+  else { var st=document.getElementById('qr-status'); if(st){st.textContent='';st.className='qr-status';} }
 }
 
 // ── Generate QR with account data ────────────────────────────────────
 async function generateQR(){
-
-  // Pack account data - ID, name, rooms, dms (without messages for compactness)
+  // Generate export key (text based, no QR image needed)
   var db = getDB();
-  var token = Math.random().toString(36).slice(2,10);
-  qrToken = token;
-  qrExpiry = Date.now() + 5*60*1000; // 5 min
-
   var payload = {
-    v: 1,
-    token: token,
+    v: 2,
     myId: db.myId || myId,
     myName: db.myName || myName,
-    // Transfer group membership (not messages)
+    myPhone: db.myPhone || '',
     rooms: {},
+    dms: {},
     ts: Date.now()
   };
-
-  // Include room stubs (id, name, emoji, pin, members - no messages)
   Object.entries(db.rooms||{}).forEach(function(e){
-    var r = e[1];
-    payload.rooms[e[0]] = {
-      id: r.id, name: r.name, emoji: r.emoji, pin: r.pin||null,
-      members: r.members||{}, isHost: r.isHost||false, messages: []
-    };
+    var r=e[1];
+    payload.rooms[e[0]]={id:r.id,name:r.name,emoji:r.emoji,pin:r.pin||null,members:r.members||{},isHost:r.isHost||false,messages:[]};
   });
-
-  // Include DM contacts (no messages)
-  payload.dms = {};
   Object.entries(db.dms||{}).forEach(function(e){
-    payload.dms[e[0]] = { name: e[1].name, messages: [], explicit: true };
+    payload.dms[e[0]]={name:e[1].name,messages:[],explicit:true};
   });
-
-  var json = JSON.stringify(payload);
-
-  // Check size - QR can hold ~2KB comfortably
-  if(json.length > 2000){
-    // Too large - only send essential data
-    payload.rooms = {};
-    payload.dms = {};
-    json = JSON.stringify(payload);
-  }
-
-  var canvas = document.getElementById('qr-canvas');
-  drawQR(canvas, json, 240);
+  var key = btoa(JSON.stringify(payload));
+  var el = document.getElementById('export-key');
+  if(el) el.textContent = key;
+  // Store for copy
+  window._exportKey = key;
 }
+
+function copyExportKey(){
+  var key = window._exportKey || document.getElementById('export-key').textContent;
+  if(!key || key === 'Загрузка...') { toast('Подождите...'); return; }
+  navigator.clipboard.writeText(key).then(function(){
+    toast('Ключ скопирован ✓');
+  }).catch(function(){
+    toast('Скопируйте вручную');
+  });
+}
+
+function doImportKey(){
+  var input = document.getElementById('import-key-input');
+  var key = input.value.trim();
+  if(!key){ toast('Вставьте ключ'); return; }
+  try{
+    var payload = JSON.parse(atob(key));
+    if(!payload.v || !payload.myId){ throw new Error('bad'); }
+    if(Date.now() - payload.ts > 10*60*1000){ 
+      document.getElementById('qr-status').textContent = 'Ключ устарел. Создайте новый на другом устройстве.';
+      document.getElementById('qr-status').className = 'qr-status err';
+      return;
+    }
+    document.getElementById('qr-status').textContent = '✓ Импортирую...';
+    document.getElementById('qr-status').className = 'qr-status ok';
+    applyQRData(payload);
+  }catch(e){
+    document.getElementById('qr-status').textContent = 'Неверный ключ';
+    document.getElementById('qr-status').className = 'qr-status err';
+  }
+}
+
 
 // ── Scan QR with camera ───────────────────────────────────────────────
 async function startQRScan(){
