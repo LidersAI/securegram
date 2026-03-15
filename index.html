@@ -679,7 +679,7 @@ function connectToServer(srv, savedId){
     var p = new Peer(savedId || undefined, {
       host:srv.host, port:srv.port, path:srv.path,
       secure:srv.secure, key:srv.key||'peerjs',
-      config:{iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}]}
+      config:{iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},{urls:'stun:stun.cloudflare.com:3478'},{urls:'stun:stun.relay.metered.ca:80'},{urls:'turn:global.relay.metered.ca:80',username:'openrelayproject',credential:'openrelayproject'},{urls:'turn:global.relay.metered.ca:80?transport=tcp',username:'openrelayproject',credential:'openrelayproject'},{urls:'turn:global.relay.metered.ca:443',username:'openrelayproject',credential:'openrelayproject'},{urls:'turns:global.relay.metered.ca:443?transport=tcp',username:'openrelayproject',credential:'openrelayproject'}]}
     });
     var t = setTimeout(function(){ p.destroy(); reject(new Error('timeout')); }, 8000);
     p.on('open', function(id){
@@ -695,7 +695,7 @@ function connectToServer(srv, savedId){
         var p2 = new Peer(undefined, {
           host:srv.host, port:srv.port, path:srv.path,
           secure:srv.secure, key:srv.key||'peerjs',
-          config:{iceServers:[{urls:'stun:stun.l.google.com:19302'}]}
+          config:{iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},{urls:'stun:stun.cloudflare.com:3478'},{urls:'stun:stun.relay.metered.ca:80'},{urls:'turn:global.relay.metered.ca:80',username:'openrelayproject',credential:'openrelayproject'},{urls:'turn:global.relay.metered.ca:80?transport=tcp',username:'openrelayproject',credential:'openrelayproject'},{urls:'turn:global.relay.metered.ca:443',username:'openrelayproject',credential:'openrelayproject'},{urls:'turns:global.relay.metered.ca:443?transport=tcp',username:'openrelayproject',credential:'openrelayproject'}]}
         });
         var t2 = setTimeout(function(){ p2.destroy(); reject(new Error('timeout')); }, 8000);
         p2.on('open', function(id){ clearTimeout(t2); peer=p2; resolve(id); });
@@ -2038,7 +2038,7 @@ function markRead(chatKey){
 // =============================================
 var callState={active:false,peerId:null,isVideo:false,pc:null,localStream:null,timerInterval:null,timerSecs:0,muted:false};
 var pendingCall=null;
-var ICE_CFG={iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}]};
+var ICE_CFG={iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},{urls:'stun:stun.cloudflare.com:3478'},{urls:'stun:stun.relay.metered.ca:80'},{urls:'turn:global.relay.metered.ca:80',username:'openrelayproject',credential:'openrelayproject'},{urls:'turn:global.relay.metered.ca:80?transport=tcp',username:'openrelayproject',credential:'openrelayproject'},{urls:'turn:global.relay.metered.ca:443',username:'openrelayproject',credential:'openrelayproject'},{urls:'turns:global.relay.metered.ca:443?transport=tcp',username:'openrelayproject',credential:'openrelayproject'}]};
 
 async function startCall(isVideo){
   if(!active||active.startsWith('room:')){ toast('Звонки только в личных сообщениях'); return; }
