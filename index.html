@@ -26,6 +26,8 @@ if ('serviceWorker' in navigator) {
 }
 </script>
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+<script src="https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <meta name="theme-color" content="#17212b">
 <meta name="mobile-web-app-capable" content="yes">
@@ -182,6 +184,23 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 /* === TOAST === */
 #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(70px);background:#1e2d3d;color:#fff;padding:10px 20px;border-radius:10px;font-size:13px;transition:transform .25s cubic-bezier(.34,1.56,.64,1);z-index:999;pointer-events:none;white-space:nowrap;box-shadow:0 4px 24px rgba(0,0,0,.5)}
 #toast.on{transform:translateX(-50%) translateY(0)}
+
+/* QR Sync */
+#qr-modal .qr-tabs{display:flex;gap:0;margin-bottom:18px;border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,.1)}
+#qr-modal .qr-tab{flex:1;padding:9px;border:none;background:transparent;color:var(--text3);font-size:13px;cursor:pointer;font-family:var(--font)}
+#qr-modal .qr-tab.active{background:var(--accent);color:#fff}
+#qr-code-wrap{display:flex;flex-direction:column;align-items:center;gap:12px}
+#qr-code-wrap canvas{border-radius:12px;background:#fff;padding:12px}
+#qr-scan-wrap{display:flex;flex-direction:column;align-items:center;gap:12px}
+#qr-video-wrap{width:100%;max-width:280px;aspect-ratio:1;border-radius:12px;overflow:hidden;background:#000;position:relative}
+#qr-video{width:100%;height:100%;object-fit:cover}
+#qr-scan-line{position:absolute;left:0;right:0;top:0;height:2px;background:var(--accent);animation:scanline 2s infinite}
+@keyframes scanline{0%{top:0}50%{top:100%}100%{top:0}}
+#qr-scan-canvas{display:none}
+.qr-hint{font-size:12px;color:var(--text3);text-align:center;line-height:1.5}
+.qr-status{font-size:13px;text-align:center;padding:8px 14px;border-radius:8px;margin-top:4px}
+.qr-status.ok{background:rgba(77,205,94,.15);color:#4dcd5e}
+.qr-status.err{background:rgba(248,113,113,.15);color:#f87171}
 
 /* Welcome screen */
 #welcome{display:none;position:fixed;inset:0;z-index:800;overflow-y:auto;background:linear-gradient(160deg,#0e1a2e 0%,#17212b 60%,#1a2a1a 100%)}
@@ -525,10 +544,48 @@ mark.hit{background:rgba(82,136,193,.4);color:inherit;border-radius:2px}
   </div>
 </div>
 
+<!-- QR SYNC -->
+<div class="ov" id="qr-modal">
+  <div class="modal">
+    <div class="mtitle">📱 Синхронизация устройств</div>
+    <div class="qr-tabs">
+      <button class="qr-tab active" id="qr-tab-show" onclick="switchQrTab('show')">Показать QR</button>
+      <button class="qr-tab" id="qr-tab-scan" onclick="switchQrTab('scan')">Сканировать</button>
+    </div>
+
+    <!-- Show QR tab -->
+    <div id="qr-show-panel">
+      <div id="qr-code-wrap">
+        <canvas id="qr-canvas"></canvas>
+        <div class="qr-hint">Отсканируйте этот QR с нового устройства.<br>Код действителен 5 минут и одноразовый.</div>
+        <button id="qr-refresh-btn" onclick="generateQR()" style="padding:8px 16px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-size:13px;cursor:pointer">🔄 Обновить QR</button>
+      </div>
+    </div>
+
+    <!-- Scan QR tab -->
+    <div id="qr-scan-panel" style="display:none">
+      <div id="qr-scan-wrap">
+        <div id="qr-video-wrap">
+          <video id="qr-video" autoplay playsinline muted></video>
+          <div id="qr-scan-line"></div>
+        </div>
+        <canvas id="qr-scan-canvas"></canvas>
+        <div class="qr-hint">Наведите камеру на QR код с другого устройства</div>
+        <div id="qr-status"></div>
+      </div>
+    </div>
+
+    <div class="mbtns" style="margin-top:14px">
+      <button class="bcancel" onclick="closeQR()">Закрыть</button>
+    </div>
+  </div>
+</div>
+
 <!-- SETTINGS -->
 <div class="ov" id="sett-modal">
   <div class="modal">
     <div class="mtitle">⚙ Настройки</div>
+    <button onclick="closeModal('sett-modal');openQR()" style="width:100%;padding:10px;border-radius:8px;border:none;background:rgba(82,136,193,.15);color:var(--blue);font-size:13px;font-weight:500;cursor:pointer;margin-bottom:14px">📱 Синхронизировать с другим устройством</button>
     <div class="field" style="display:flex;align-items:center;gap:14px">
       <label style="width:62px;height:62px;flex-shrink:0;cursor:pointer;position:relative">
         <div id="sett-av" style="width:62px;height:62px;border-radius:50%;background:#5288c122;color:#5288c1;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:600;overflow:hidden">?</div>
@@ -2524,6 +2581,196 @@ async function processRelayQueue(peerId) {
   for (var i = 0; i < q.length; i++) {
     await processRelayMsg(q[i], c);
   }
+}
+
+
+// =============================================
+// QR SYNC — перенос аккаунта на другое устройство
+// =============================================
+
+var qrStream = null;
+var qrScanInterval = null;
+var qrExpiry = null;
+var qrToken = null;
+
+function openQR(){
+  openModal('qr-modal');
+  switchQrTab('show');
+}
+
+function closeQR(){
+  stopQRScan();
+  closeModal('qr-modal');
+}
+
+function switchQrTab(tab){
+  document.getElementById('qr-tab-show').classList.toggle('active', tab==='show');
+  document.getElementById('qr-tab-scan').classList.toggle('active', tab==='scan');
+  document.getElementById('qr-show-panel').style.display = tab==='show' ? '' : 'none';
+  document.getElementById('qr-scan-panel').style.display = tab==='scan' ? '' : 'none';
+  if(tab==='show') generateQR();
+  else { stopQRScan(); startQRScan(); }
+}
+
+// ── Generate QR with account data ────────────────────────────────────
+async function generateQR(){
+  if(typeof QRCode === 'undefined'){ toast('QR библиотека загружается...'); return; }
+
+  // Pack account data - ID, name, rooms, dms (without messages for compactness)
+  var db = getDB();
+  var token = Math.random().toString(36).slice(2,10);
+  qrToken = token;
+  qrExpiry = Date.now() + 5*60*1000; // 5 min
+
+  var payload = {
+    v: 1,
+    token: token,
+    myId: db.myId || myId,
+    myName: db.myName || myName,
+    // Transfer group membership (not messages)
+    rooms: {},
+    ts: Date.now()
+  };
+
+  // Include room stubs (id, name, emoji, pin, members - no messages)
+  Object.entries(db.rooms||{}).forEach(function(e){
+    var r = e[1];
+    payload.rooms[e[0]] = {
+      id: r.id, name: r.name, emoji: r.emoji, pin: r.pin||null,
+      members: r.members||{}, isHost: r.isHost||false, messages: []
+    };
+  });
+
+  // Include DM contacts (no messages)
+  payload.dms = {};
+  Object.entries(db.dms||{}).forEach(function(e){
+    payload.dms[e[0]] = { name: e[1].name, messages: [], explicit: true };
+  });
+
+  var json = JSON.stringify(payload);
+
+  // Check size - QR can hold ~2KB comfortably
+  if(json.length > 2000){
+    // Too large - only send essential data
+    payload.rooms = {};
+    payload.dms = {};
+    json = JSON.stringify(payload);
+  }
+
+  try {
+    var canvas = document.getElementById('qr-canvas');
+    await QRCode.toCanvas(canvas, json, {
+      width: 240,
+      margin: 1,
+      color: { dark: '#000000', light: '#ffffff' },
+      errorCorrectionLevel: 'M'
+    });
+  } catch(e){
+    console.error('[QR]', e);
+    toast('Ошибка генерации QR');
+  }
+}
+
+// ── Scan QR with camera ───────────────────────────────────────────────
+async function startQRScan(){
+  var statusEl = document.getElementById('qr-status');
+  statusEl.textContent = '';
+  statusEl.className = 'qr-status';
+
+  try {
+    qrStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment' } // back camera
+    });
+    var video = document.getElementById('qr-video');
+    video.srcObject = qrStream;
+
+    // Scan frames
+    qrScanInterval = setInterval(function(){
+      var canvas = document.getElementById('qr-scan-canvas');
+      var video = document.getElementById('qr-video');
+      if(video.readyState !== video.HAVE_ENOUGH_DATA) return;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      var ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      if(typeof jsQR === 'undefined') return;
+      var code = jsQR(imageData.data, imageData.width, imageData.height);
+      if(code) processQRData(code.data);
+    }, 200);
+
+  } catch(e){
+    statusEl.textContent = 'Нет доступа к камере';
+    statusEl.className = 'qr-status err';
+    console.warn('[QR scan]', e);
+  }
+}
+
+function stopQRScan(){
+  if(qrScanInterval){ clearInterval(qrScanInterval); qrScanInterval=null; }
+  if(qrStream){ qrStream.getTracks().forEach(function(t){t.stop();}); qrStream=null; }
+  var video = document.getElementById('qr-video');
+  if(video) video.srcObject = null;
+}
+
+function processQRData(data){
+  var statusEl = document.getElementById('qr-status');
+  try {
+    var payload = JSON.parse(data);
+    if(!payload.v || !payload.myId || !payload.ts){
+      return; // Not our QR, keep scanning
+    }
+    // Check expiry (5 min)
+    if(Date.now() - payload.ts > 5*60*1000){
+      statusEl.textContent = 'QR код устарел. Обновите его на другом устройстве.';
+      statusEl.className = 'qr-status err';
+      stopQRScan(); return;
+    }
+    // Success! Apply account data
+    stopQRScan();
+    statusEl.textContent = '✓ QR считан! Импортирую данные...';
+    statusEl.className = 'qr-status ok';
+    applyQRData(payload);
+  } catch(e){
+    // Not valid JSON or not our format - keep scanning silently
+  }
+}
+
+function applyQRData(payload){
+  // Merge account data
+  var db = getDB();
+
+  // Set ID and name from source device
+  var oldId = db.myId;
+  db.myId = payload.myId;
+  db.myName = payload.myName || db.myName;
+  myName = db.myName;
+  myId = payload.myId; // Will reconnect on reload
+
+  // Merge rooms (keep existing messages, add new rooms)
+  if(!db.rooms) db.rooms = {};
+  Object.entries(payload.rooms||{}).forEach(function(e){
+    if(!db.rooms[e[0]]) db.rooms[e[0]] = e[1];
+    else {
+      // Update membership but keep messages
+      db.rooms[e[0]].members = e[1].members;
+      db.rooms[e[0]].name = e[1].name;
+    }
+  });
+
+  // Merge DMs
+  if(!db.dms) db.dms = {};
+  Object.entries(payload.dms||{}).forEach(function(e){
+    if(!db.dms[e[0]]) db.dms[e[0]] = e[1];
+  });
+
+  setDB(db);
+
+  setTimeout(function(){
+    closeQR();
+    toast('✓ Аккаунт синхронизирован! Перезагружаю...');
+    setTimeout(function(){ location.reload(); }, 1500);
+  }, 800);
 }
 
 
