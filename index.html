@@ -615,8 +615,8 @@ async function init(){
   var db = getDB();
   myName = db.myName || '';
 
-  // Show onboarding only if no name at all
-  if(!myName && !db.myName){
+  // Don't auto-show onboarding - user can set name in settings
+  if(false){
     openModal('ob-modal');
   } else {
     document.getElementById('my-name-el').textContent = myName;
@@ -641,6 +641,7 @@ async function init(){
   renderAv(document.getElementById('sett-av'),id,myName);
       if(myName) document.getElementById('my-av').textContent = ini(myName);
       document.getElementById('sett-srv-el').textContent = '✓ '+srv.host;
+      startHeartbeat();
       break;
     }catch(e){
       console.warn('[signal] failed:', srv.host, e.message);
@@ -655,12 +656,22 @@ async function init(){
   peer.on('connection', function(c){ setupConn(c); });
   peer.on('error', function(e){
     console.error('[peer]', e.type, e.message);
-    if(['network','server-error','socket-error'].includes(e.type)) setTimeout(init, 5000);
+    if(['network','server-error','socket-error','disconnected'].includes(e.type)){
+      showBanner('🔄 Потеря связи, переподключаемся...');
+      clearTimeout(reconnectTimer);
+      reconnectTimer = setTimeout(doReconnect, 3000);
+    }
+  });
+  peer.on('disconnected', function(){
+    showBanner('🔄 Отключено от сервера...');
+    clearTimeout(reconnectTimer);
+    reconnectTimer = setTimeout(doReconnect, 3000);
   });
 
-  checkFirstRun();
   checkInvite();
   renderList();
+  // Try to reconnect to previously known peers
+  setTimeout(reconnectDroppedSessions, 2000);
 }
 
 function connectToServer(srv, savedId){
@@ -701,7 +712,7 @@ function connectToServer(srv, savedId){
 // =============================================
 function finishOb(){
   var name = document.getElementById('ob-name').value.trim();
-  if(!name){ toast('Введите имя'); return; }
+  if(!name){ closeModal('ob-modal'); return; }
   myName = name;
   updDB(function(db){ db.myName=name; });
   document.getElementById('my-name-el').textContent = name;
@@ -737,8 +748,7 @@ function checkInvite(){
 
 function doJoin(){
   if(!pendJoin) return;
-  var name = document.getElementById('join-name-in').value.trim() || myName;
-  if(!name){ toast('Введите имя'); return; }
+  var name = document.getElementById('join-name-in').value.trim() || myName || 'Аноним';
   if(pendJoin.hasPin){
     var pin = document.getElementById('join-pin-in').value.trim();
     if(!pin){ toast('Введите пин-код'); return; }
@@ -968,6 +978,11 @@ async function handleData(from, raw){
     c.name=msg.name;
     updDB(function(db){ if(db.dms&&db.dms[from]) db.dms[from].name=msg.name; Object.values(db.rooms||{}).forEach(function(r){ if(r.members&&r.members[from]) r.members[from]=msg.name; }); });
     renderList(); refreshHdr();
+  }
+
+  if(msg.type === 'PING'){
+    // Just receiving a ping keeps the connection alive - no response needed
+    return;
   }
 
   if(msg.type === 'PINNED'){
@@ -1498,7 +1513,11 @@ function closeModal(id){document.getElementById(id).classList.remove('on');}
 document.querySelectorAll('.ov').forEach(function(el){el.addEventListener('click',function(e){if(e.target===el)el.classList.remove('on');});});
 function rawSend(conn,obj){try{conn.send(JSON.stringify(obj));}catch(e){console.error(e);}}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');}
-function showBanner(t){var b=document.getElementById('banner');b.textContent=t;b.classList.add('on');}
+function showBanner(t){
+  var b=document.getElementById('banner');
+  b.textContent=t;
+  b.classList.add('on');
+}
 function hideBanner(){document.getElementById('banner').classList.remove('on');}
 function viewImg(src){var ov=document.createElement('div');ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:999;display:flex;align-items:center;justify-content:center;cursor:zoom-out';ov.onclick=function(){ov.remove();};var img=document.createElement('img');img.src=src;img.style.cssText='max-width:95vw;max-height:95vh;border-radius:8px;object-fit:contain';ov.appendChild(img);document.body.appendChild(ov);}
 function notif(name,text){if(Notification.permission==='granted')new Notification('LIDERS CHAT · '+name,{body:text,icon:'icon-192.png'});}
@@ -1902,7 +1921,6 @@ function showWelcome(){
 }
 function startFromWelcome(){
   document.getElementById('welcome').classList.remove('on');
-  if(!myName) openModal('ob-modal');
 }
 function checkFirstRun(){
   var db=getDB();
@@ -2213,6 +2231,156 @@ function openOrCreateDM(peerId, name){
   }
   openChat('dm:'+peerId);
 }
+
+
+// =============================================
+// AUTO RECONNECT & HEARTBEAT
+// =============================================
+var lastActive = Date.now();
+var reconnectTimer = null;
+var heartbeatTimer = null;
+var networkOk = true;
+
+// Track when user leaves / returns
+document.addEventListener('visibilitychange', function(){
+  if(document.hidden){
+    lastActive = Date.now();
+  } else {
+    // Returned to app - check if we need to reconnect
+    var away = Date.now() - lastActive;
+    if(away > 15000){ // away for 15+ seconds
+      checkAndReconnect();
+    }
+  }
+});
+
+// Also handle page focus (desktop)
+window.addEventListener('focus', function(){
+  var away = Date.now() - lastActive;
+  if(away > 15000) checkAndReconnect();
+});
+window.addEventListener('blur', function(){
+  lastActive = Date.now();
+});
+
+// Online/offline detection
+window.addEventListener('online', function(){
+  networkOk = true;
+  showBanner('📶 Сеть восстановлена, переподключаемся...');
+  setTimeout(checkAndReconnect, 1000);
+});
+window.addEventListener('offline', function(){
+  networkOk = false;
+  showBanner('📵 Нет сети...');
+});
+
+function checkAndReconnect(){
+  if(!peer || peer.destroyed || peer.disconnected){
+    // Full reconnect needed
+    doReconnect();
+  } else {
+    // Peer alive - just reconnect dropped sessions
+    reconnectDroppedSessions();
+  }
+}
+
+function doReconnect(){
+  clearTimeout(reconnectTimer);
+  showBanner('🔄 Переподключение...');
+  // Destroy old peer
+  if(peer){ try{ peer.destroy(); }catch(e){} }
+  peer = null;
+  // Reconnect to signal server
+  var db = getDB();
+  var tried = 0;
+  function tryServer(){
+    if(tried >= SERVERS.length){
+      showBanner('❌ Нет связи. Попробуем снова через 10 сек...');
+      reconnectTimer = setTimeout(doReconnect, 10000);
+      return;
+    }
+    var srv = SERVERS[tried++];
+    connectToServer(srv, db.myId).then(function(id){
+      myId = id;
+      updDB(function(db2){ db2.myId = id; });
+      document.getElementById('my-id-el').textContent = id.slice(0,18)+'…';
+      document.getElementById('my-id-el').title = id;
+      document.getElementById('sett-id-el').textContent = id;
+      peer.on('connection', function(c){ setupConn(c); });
+      peer.on('error', function(e){
+        if(['network','server-error','socket-error','disconnected'].includes(e.type)){
+          reconnectTimer = setTimeout(doReconnect, 5000);
+        }
+      });
+      hideBanner();
+      // Reconnect known peers
+      reconnectDroppedSessions();
+      startHeartbeat();
+    }).catch(function(){
+      tryServer();
+    });
+  }
+  tryServer();
+}
+
+function reconnectDroppedSessions(){
+  var db = getDB();
+  // Reconnect to all known DM contacts that were online recently
+  Object.keys(db.dms||{}).forEach(function(pid){
+    if(!conns[pid] || !conns[pid].online){
+      // Try to reconnect silently
+      if(peer && !peer.destroyed){
+        try{
+          var c = peer.connect(pid, {reliable:true});
+          setupConn(c);
+        }catch(e){}
+      }
+    }
+  });
+  // Also reconnect to room hosts
+  Object.values(db.rooms||{}).forEach(function(r){
+    if(!r.isHost){
+      Object.keys(r.members||{}).forEach(function(pid){
+        if(pid !== myId && (!conns[pid] || !conns[pid].online)){
+          if(peer && !peer.destroyed){
+            try{
+              var c = peer.connect(pid, {reliable:true});
+              setupConn(c);
+            }catch(e){}
+          }
+        }
+      });
+    }
+  });
+}
+
+// Heartbeat - ping connected peers every 25s to keep connection alive
+// Also detects dead connections
+function startHeartbeat(){
+  clearInterval(heartbeatTimer);
+  heartbeatTimer = setInterval(function(){
+    var now = Date.now();
+    for(var pid in conns){
+      var c = conns[pid];
+      if(!c.online) continue;
+      // Check if connection is actually alive
+      if(c.conn && c.conn.open){
+        // Send lightweight ping
+        try{ rawSend(c.conn, {type:'PING'}); }catch(e){
+          // Connection dead
+          c.online = false; c.key = null; c.sent = false;
+          renderList(); refreshHdr();
+        }
+      } else {
+        c.online = false; c.key = null; c.sent = false;
+        renderList(); refreshHdr();
+      }
+    }
+  }, 25000);
+}
+
+// Handle PING in data handler (add to handleData)
+// Also update peer error handler to trigger reconnect
 
 
 init();
