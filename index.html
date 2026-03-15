@@ -1202,7 +1202,8 @@ function openChat(chatKey){
   document.getElementById('chat-hdr').style.display='flex';
   document.getElementById('chat-bg').style.display='block';
   document.getElementById('input-bar').classList.add('on');
-  document.getElementById('sidebar').classList.add('hidden');
+  // Hide sidebar only on mobile
+  if(window.innerWidth <= 768) document.getElementById('sidebar').classList.add('hidden');
   document.getElementById('msg-in').disabled=false;
   renderMsgs(); refreshHdr(); renderList();
   document.getElementById('msg-in').focus();
