@@ -843,7 +843,7 @@ function saveDB(db) {
   try { localStorage.setItem(DB_KEY, JSON.stringify(db)); } catch(e) { console.error('saveDB', e); }
 }
 function getDB() { return loadDB(); }
-undefined { const db=loadDB(); fn(db); saveDB(db); }
+undefined {const db=loadDB(); fn(db); saveDB(db); }
 
 // ═══════════════════════════════════════════════
 //  STATE
