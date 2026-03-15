@@ -483,7 +483,7 @@ body.light #toast{background:rgba(15,23,42,.9)}
     <button id="back-btn" onclick="showSidebar()">←</button>
     <div id="hdr-av"></div>
     <div style="flex:1;min-width:0">
-      <div id="hdr-name" style="cursor:pointer" onclick="renameContact()" title="Нажмите чтобы переименовать">—</div>
+      <div id="hdr-name" style="cursor:pointer" onclick="onHdrNameClick()" title="Нажмите для профиля / переименования">—</div>
       <div id="hdr-status">—</div>
     </div>
     <button class="hdr-btn" id="members-btn" onclick="toggleMembers()" style="display:none">👥</button>
@@ -1710,59 +1710,99 @@ function refreshHdr(){
 
 function renderList(){
   var db=getDB();
-  var list=document.getElementById('chat-list');
-  var html='';
+  var pinned=db.pinned||{};
   var rooms=db.rooms||{};
   var dms=db.dms||{};
+  var pinnedItems=[], normalItems=[];
 
+  // Build room items
   Object.values(rooms).forEach(function(r){
     var msgs=(r.messages||[]).filter(function(m){return !m.sys;});
     var last=msgs[msgs.length-1];
     var preview=last?(last.from===myId?'Вы: ':(last.name||'?')+': ')+(last.text||'📷'):'Группа создана';
-    var u=unread['room:'+r.id]||0;
-    html+='<div class="ci'+(active==='room:'+r.id?' active':'')+'" onclick="openChat(\'room:'+r.id+'\')">'
-      +'<div class="ci-av sq" style="background:'+clr(r.id)+'22">'+r.emoji+'</div>'
-      +'<div class="ci-body">'
-        +'<div class="ci-top"><div class="ci-name">'+esc(r.name)+'</div><div class="ci-time">'+(last&&last.ts||'')+'</div></div>'
-        +'<div class="ci-bot"><div class="ci-prev">'+esc((preview||'').slice(0,40))+'</div>'
-        +'<div class="ci-badge'+(u>0?' on':'')+'">'+( u||'')+'</div></div>'
-      +'</div>'
-      +'<button class="ci-del" onclick="event.stopPropagation();delChat(\'room:'+r.id+'\')">✕</button>'
-      +'</div>';
+    var isPinned=!!pinned['room:'+r.id];
+    (isPinned?pinnedItems:normalItems).push({
+      key:'room:'+r.id, name:r.name,
+      av:'<div class="ci-av sq" style="background:'+clr(r.id)+'22;font-size:22px">'+r.emoji+'</div>',
+      preview:preview, time:last&&last.ts||'', unread:unread['room:'+r.id]||0, isPinned:isPinned
+    });
   });
 
+  // Build DM items
   Object.entries(dms).forEach(function(entry){
     var pid=entry[0], dm=entry[1];
-    // Skip ghost DMs: no messages, not explicitly added, no active connection
-    var hasMsg=(dm.messages||[]).filter(function(m){return !m.sys;}).length>0;
-    if(!hasMsg && !dm.explicit && !(conns[pid]&&conns[pid].online)) return;
     var c=conns[pid];
     var name=(c&&c.name)||dm.name||pid.slice(0,8);
     var msgs=(dm.messages||[]).filter(function(m){return !m.sys;});
     var last=msgs[msgs.length-1];
     var preview=last?(last.from===myId?'Вы: ':'')+(last.text||'📷'):'нет сообщений';
     var online=c&&c.online&&c.key;
-    var u=unread['dm:'+pid]||0;
-    html+='<div class="ci'+(active==='dm:'+pid?' active':'')+'" onclick="openChat(\'dm:'+pid+'\')">'
-      +'<div class="ci-av" style="background:'+clr(pid)+'22;color:'+clr(pid)+'">'+ini(name)
-        +'<div class="ci-dot'+(online?' on':'')+'"></div></div>'
-      +'<div class="ci-body">'
-        +'<div class="ci-top"><div class="ci-name">'+esc(name)+'</div><div class="ci-time">'+(last&&last.ts||'')+'</div></div>'
-        +'<div class="ci-bot"><div class="ci-prev">'+esc((preview||'').slice(0,40))+'</div>'
-        +'<div class="ci-badge'+(u>0?' on':'')+'">'+( u||'')+'</div></div>'
-      +'</div>'
-      +'<button class="ci-del" onclick="event.stopPropagation();delChat(\'dm:'+pid+'\')">✕</button>'
-      +'</div>';
+    if(!msgs.length&&!dm.explicit&&!online) return;
+    var isPinned=!!pinned['dm:'+pid];
+    (isPinned?pinnedItems:normalItems).push({
+      key:'dm:'+pid, name:name,
+      av:'<div class="ci-av" style="background:'+clr(pid)+'22;color:'+clr(pid)+'">'+ini(name)+'<div class="ci-dot'+(online?' on':'')+'"></div></div>',
+      preview:preview, time:last&&last.ts||'', unread:unread['dm:'+pid]||0, isPinned:isPinned
+    });
   });
 
-  if(!html) html='<div style="padding:20px;color:var(--text3);font-size:13px;text-align:center;line-height:1.7">Нет чатов.<br>Создайте группу ✏️<br>или добавьте участника.</div>';
-  list.innerHTML=html;
+  function renderItem(item){
+    var isActive=active===item.key;
+    var div=document.createElement('div');
+    div.className='ci'+(isActive?' active':'')+(item.isPinned?' pinned':'');
+    div.dataset.key=item.key;
+    div.innerHTML=item.av
+      +'<div class="ci-body">'
+        +'<div class="ci-top">'
+          +'<div class="ci-name">'+esc(item.name)+'</div>'
+          +(item.isPinned
+            ?'<span style="font-size:11px;opacity:.6">📌</span>'
+            :'<div class="ci-time">'+esc(item.time)+'</div>')
+        +'</div>'
+        +'<div class="ci-bot">'
+          +'<div class="ci-prev">'+esc((item.preview||'').slice(0,50))+'</div>'
+          +'<div class="ci-badge'+(item.unread>0?' on':'')+'">'+( item.unread||'')+'</div>'
+        +'</div>'
+      +'</div>'
+      +'<button class="ci-del" data-del="'+item.key+'" title="Удалить">✕</button>';
+    return div;
+  }
+
+  var list=document.getElementById('chat-list');
+  list.innerHTML='';
+
+  if(pinnedItems.length){
+    var pHdr=document.createElement('div');
+    pHdr.style.cssText='padding:8px 12px 4px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.7px';
+    pHdr.textContent='Закреплённые';
+    list.appendChild(pHdr);
+    pinnedItems.forEach(function(item){ list.appendChild(renderItem(item)); });
+    if(normalItems.length){
+      var div=document.createElement('div');
+      div.style.cssText='height:1px;background:var(--border);margin:6px 10px 4px';
+      list.appendChild(div);
+      var nHdr=document.createElement('div');
+      nHdr.style.cssText='padding:4px 12px 4px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.7px';
+      nHdr.textContent='Все чаты';
+      list.appendChild(nHdr);
+    }
+  }
+  normalItems.forEach(function(item){ list.appendChild(renderItem(item)); });
+
+  if(!pinnedItems.length&&!normalItems.length){
+    list.innerHTML='<div style="padding:32px 16px;color:var(--text3);font-size:13px;text-align:center;line-height:2">Нет чатов.<br>Создайте группу ✏️<br>или добавьте по ID.</div>';
+  }
 }
 
+
 function filterChats(q){
-  document.querySelectorAll('.ci').forEach(function(el){
-    var n=el.querySelector('.ci-name');
-    el.style.display=(!q||!n||n.textContent.toLowerCase().includes(q.toLowerCase()))?'':'none';
+  q=(q||'').toLowerCase().trim();
+  var items=document.querySelectorAll('#chat-list .ci');
+  items.forEach(function(el){
+    if(!q){ el.style.display=''; return; }
+    var name=(el.querySelector('.ci-name')||{}).textContent||'';
+    var prev=(el.querySelector('.ci-prev')||{}).textContent||'';
+    el.style.display=(name.toLowerCase().includes(q)||prev.toLowerCase().includes(q))?'':'none';
   });
 }
 
@@ -3070,16 +3110,24 @@ function applyQRData(payload){
 function renameContact(){
   if(!active||active.startsWith('room:')) return;
   var pid=active.slice(3);
-  var current=(conns[pid]&&conns[pid].name)||pid.slice(0,8);
+  var db=getDB();
+  var current=(conns[pid]&&conns[pid].name)||(db.dms&&db.dms[pid]&&db.dms[pid].name)||pid.slice(0,8);
   var newName=prompt('Имя контакта:', current);
   if(!newName||!newName.trim()) return;
   newName=newName.trim();
+  // Update everywhere
   if(conns[pid]) conns[pid].name=newName;
-  updDB(function(db){
-    if(db.dms&&db.dms[pid]) db.dms[pid].name=newName;
+  updDB(function(db2){
+    if(!db2.dms) db2.dms={};
+    if(!db2.dms[pid]) db2.dms[pid]={messages:[],explicit:true};
+    db2.dms[pid].name=newName;
+    // Update in all rooms too
+    Object.values(db2.rooms||{}).forEach(function(r){
+      if(r.members&&r.members[pid]) r.members[pid]=newName;
+    });
   });
   refreshHdr(); renderList();
-  toast('Имя изменено');
+  toast('Имя сохранено');
 }
 
 
@@ -3276,6 +3324,17 @@ function addContactToGroup(){
 }
 
 
+function onHdrNameClick(){
+  if(!active) return;
+  if(active.startsWith('room:')){
+    openInvite();
+  } else {
+    var pid=active.slice(3);
+    openPeerProfile(pid);
+  }
+}
+
+
 function addMemberPrompt(){
   if(!active||!active.startsWith('room:')) return;
   var roomId=active.slice(5);
@@ -3308,7 +3367,66 @@ function togglePinChat(chatKey){
 }
 
 
-// Long-press on chat item to pin/unpin
+// Chat list event delegation
+(function(){
+  var pressTimer;
+  var chatList = document.getElementById('chat-list');
+
+  // Click delegation
+  chatList.addEventListener('click', function(e){
+    var delBtn = e.target.closest('[data-del]');
+    if(delBtn){ e.stopPropagation(); delChat(delBtn.dataset.del); return; }
+    var ci = e.target.closest('.ci');
+    if(ci && ci.dataset.key) openChat(ci.dataset.key);
+  });
+
+  // Long-press to pin (mobile)
+  chatList.addEventListener('touchstart', function(e){
+    var ci = e.target.closest('.ci');
+    if(!ci || !ci.dataset.key) return;
+    pressTimer = setTimeout(function(){ showChatMenu(ci.dataset.key, null, null); }, 600);
+  }, {passive:true});
+  chatList.addEventListener('touchend', function(){ clearTimeout(pressTimer); }, {passive:true});
+  chatList.addEventListener('touchmove', function(){ clearTimeout(pressTimer); }, {passive:true});
+
+  // Right-click to pin (desktop)
+  chatList.addEventListener('contextmenu', function(e){
+    var ci = e.target.closest('.ci');
+    if(!ci || !ci.dataset.key) return;
+    e.preventDefault();
+    showChatMenu(ci.dataset.key, e.clientX, e.clientY);
+  });
+})();
+
+function showChatMenu(chatKey, x, y){
+  closeCtx();
+  var db=getDB();
+  var isPinned=db.pinned&&db.pinned[chatKey];
+  var menu=document.createElement('div');
+  menu.className='msg-menu'; ctxEl=menu;
+  var items=[
+    {ico:isPinned?'📌':'📌', txt:isPinned?'Открепить':'Закрепить', fn:function(){togglePinChat(chatKey);}},
+    {ico:'🗑', txt:'Удалить чат', fn:function(){delChat(chatKey);}, danger:true}
+  ];
+  items.forEach(function(it){
+    var d=document.createElement('div');
+    d.className='msg-menu-item'+(it.danger?' danger':'');
+    d.innerHTML='<span>'+it.ico+'</span><span>'+it.txt+'</span>';
+    d.onclick=function(){closeCtx();it.fn();};
+    menu.appendChild(d);
+  });
+  document.body.appendChild(menu);
+  if(x!==null){
+    if(x+180>window.innerWidth-8) x=window.innerWidth-188;
+    if(y+80>window.innerHeight-8) y=y-80;
+    menu.style.cssText='left:'+x+'px;top:'+y+'px';
+  } else {
+    menu.style.cssText='left:50%;top:50%;transform:translate(-50%,-50%)';
+  }
+  setTimeout(function(){document.addEventListener('click',closeCtx,{once:true});},10);
+}
+
+// Long-press on chat item to pin/unpin - LEGACY (keeping structure)
 (function(){
   var pressTimer, pressTarget;
   var chatList = document.getElementById('chat-list');
