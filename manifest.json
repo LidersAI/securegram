@@ -1,14 +1,10 @@
 {
   "name": "LIDERS CHAT",
   "short_name": "LIDERS CHAT",
-  "description": "Защищённый P2P мессенджер",
-  "start_url": "/securegram/",
+  "description": "Защищённый P2P мессенджер с E2E шифрованием",
+  "start_url": "/securegram/?source=pwa",
   "scope": "/securegram/",
   "display": "standalone",
-  "display_override": [
-    "window-controls-overlay",
-    "standalone"
-  ],
   "background_color": "#0e1621",
   "theme_color": "#17212b",
   "orientation": "portrait-primary",
@@ -73,6 +69,15 @@
       "purpose": "maskable"
     }
   ],
+  "screenshots": [
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "LIDERS CHAT"
+    }
+  ],
   "shortcuts": [
     {
       "name": "Открыть чаты",
@@ -84,12 +89,5 @@
         }
       ]
     }
-  ],
-  "share_target": {
-    "action": "/securegram/",
-    "method": "GET",
-    "params": {
-      "text": "text"
-    }
-  }
+  ]
 }

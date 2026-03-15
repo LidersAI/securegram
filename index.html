@@ -5,10 +5,23 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>LIDERS CHAT</title>
 <script>
-// Kill any old service workers immediately
+// Register service worker for PWA
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then(function(regs) {
-    regs.forEach(function(r) { r.unregister(); });
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('./sw.js')
+      .then(function(reg) {
+        console.log('[SW] registered:', reg.scope);
+        // Check for updates
+        reg.addEventListener('updatefound', function() {
+          var newSW = reg.installing;
+          newSW.addEventListener('statechange', function() {
+            if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+              console.log('[SW] new version available');
+            }
+          });
+        });
+      })
+      .catch(function(e) { console.warn('[SW] failed:', e); });
   });
 }
 </script>
@@ -18,6 +31,10 @@ if ('serviceWorker' in navigator) {
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="LIDERS CHAT">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="favicon.ico">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="apple-touch-icon" sizes="152x152" href="icon-152.png">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -680,7 +697,7 @@ function connectToServer(srv, savedId){
     var p = new Peer(savedId || undefined, {
       host:srv.host, port:srv.port, path:srv.path,
       secure:srv.secure, key:srv.key||'peerjs',
-      config:{iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},{urls:'stun:stun.cloudflare.com:3478'},{urls:'stun:stun.relay.metered.ca:80'},{urls:'turn:global.relay.metered.ca:80',username:'openrelayproject',credential:'openrelayproject'},{urls:'turn:global.relay.metered.ca:80?transport=tcp',username:'openrelayproject',credential:'openrelayproject'},{urls:'turn:global.relay.metered.ca:443',username:'openrelayproject',credential:'openrelayproject'},{urls:'turns:global.relay.metered.ca:443?transport=tcp',username:'openrelayproject',credential:'openrelayproject'}]}
+      config:{iceServers:[{urls:'stun:stun.cloudflare.com:3478'},{urls:'stun:stun.relay.metered.ca:80'},{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},{urls:'turn:global.relay.metered.ca:80',username:'openrelayproject',credential:'openrelayproject'},{urls:'turn:global.relay.metered.ca:80?transport=tcp',username:'openrelayproject',credential:'openrelayproject'},{urls:'turn:global.relay.metered.ca:443',username:'openrelayproject',credential:'openrelayproject'},{urls:'turns:global.relay.metered.ca:443?transport=tcp',username:'openrelayproject',credential:'openrelayproject'},{urls:'turn:numb.viagenie.ca',username:'webrtc@live.com',credential:'muazkh'},{urls:'stun:stun.stunprotocol.org:3478'},{urls:'stun:stun.voip.blackberry.com:3478'}]}
     });
     var t = setTimeout(function(){ p.destroy(); reject(new Error('timeout')); }, 8000);
     p.on('open', function(id){
@@ -696,7 +713,7 @@ function connectToServer(srv, savedId){
         var p2 = new Peer(undefined, {
           host:srv.host, port:srv.port, path:srv.path,
           secure:srv.secure, key:srv.key||'peerjs',
-          config:{iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},{urls:'stun:stun.cloudflare.com:3478'},{urls:'stun:stun.relay.metered.ca:80'},{urls:'turn:global.relay.metered.ca:80',username:'openrelayproject',credential:'openrelayproject'},{urls:'turn:global.relay.metered.ca:80?transport=tcp',username:'openrelayproject',credential:'openrelayproject'},{urls:'turn:global.relay.metered.ca:443',username:'openrelayproject',credential:'openrelayproject'},{urls:'turns:global.relay.metered.ca:443?transport=tcp',username:'openrelayproject',credential:'openrelayproject'}]}
+          config:{iceServers:[{urls:'stun:stun.cloudflare.com:3478'},{urls:'stun:stun.relay.metered.ca:80'},{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},{urls:'turn:global.relay.metered.ca:80',username:'openrelayproject',credential:'openrelayproject'},{urls:'turn:global.relay.metered.ca:80?transport=tcp',username:'openrelayproject',credential:'openrelayproject'},{urls:'turn:global.relay.metered.ca:443',username:'openrelayproject',credential:'openrelayproject'},{urls:'turns:global.relay.metered.ca:443?transport=tcp',username:'openrelayproject',credential:'openrelayproject'},{urls:'turn:numb.viagenie.ca',username:'webrtc@live.com',credential:'muazkh'},{urls:'stun:stun.stunprotocol.org:3478'},{urls:'stun:stun.voip.blackberry.com:3478'}]}
         });
         var t2 = setTimeout(function(){ p2.destroy(); reject(new Error('timeout')); }, 8000);
         p2.on('open', function(id){ clearTimeout(t2); peer=p2; resolve(id); });
@@ -2068,13 +2085,15 @@ function markRead(chatKey){
 // =============================================
 var callState={active:false,peerId:null,isVideo:false,pc:null,localStream:null,timerInterval:null,timerSecs:0,muted:false};
 var pendingCall=null;
-var ICE_CFG={iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},{urls:'stun:stun.cloudflare.com:3478'},{urls:'stun:stun.relay.metered.ca:80'},{urls:'turn:global.relay.metered.ca:80',username:'openrelayproject',credential:'openrelayproject'},{urls:'turn:global.relay.metered.ca:80?transport=tcp',username:'openrelayproject',credential:'openrelayproject'},{urls:'turn:global.relay.metered.ca:443',username:'openrelayproject',credential:'openrelayproject'},{urls:'turns:global.relay.metered.ca:443?transport=tcp',username:'openrelayproject',credential:'openrelayproject'}]};
+var ICE_CFG={iceServers:[{urls:'stun:stun.cloudflare.com:3478'},{urls:'stun:stun.relay.metered.ca:80'},{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},{urls:'turn:global.relay.metered.ca:80',username:'openrelayproject',credential:'openrelayproject'},{urls:'turn:global.relay.metered.ca:80?transport=tcp',username:'openrelayproject',credential:'openrelayproject'},{urls:'turn:global.relay.metered.ca:443',username:'openrelayproject',credential:'openrelayproject'},{urls:'turns:global.relay.metered.ca:443?transport=tcp',username:'openrelayproject',credential:'openrelayproject'},{urls:'turn:numb.viagenie.ca',username:'webrtc@live.com',credential:'muazkh'},{urls:'stun:stun.stunprotocol.org:3478'},{urls:'stun:stun.voip.blackberry.com:3478'}]};
 
 async function startCall(isVideo){
   if(!active||active.startsWith('room:')){ toast('Звонки только в личных сообщениях'); return; }
   if(callState.active){ toast('Звонок уже идёт'); return; }
   var pid=active.slice(3); var c=conns[pid];
-  if(!c||!c.online||!c.key){ toast('Собеседник не в сети'); return; }
+  if(!c){ toast('Сначала добавьте контакт'); return; }
+  if(!c.online){ toast('Собеседник не в сети — дождитесь подключения'); return; }
+  if(!c.key){ toast('Ключи не обменяны — подождите несколько секунд'); return; }
   try{
     var stream=await navigator.mediaDevices.getUserMedia({audio:true,video:isVideo});
     callState={active:true,peerId:pid,isVideo:isVideo,pc:null,localStream:stream,timerInterval:null,timerSecs:0,muted:false};
@@ -2087,7 +2106,14 @@ async function startCall(isVideo){
       if(!isVideo){ var a=getOrMakeAudioEl(); a.srcObject=e.streams[0]; }
     };
     pc.onicecandidate=async function(e){ if(e.candidate) await sendCallSig(pid,{type:'ice',candidate:e.candidate}); };
-    pc.oniceconnectionstatechange=function(){ if(['connected','completed'].includes(pc.iceConnectionState)) onCallConnected(); else if(['disconnected','failed','closed'].includes(pc.iceConnectionState)) endCall(); };
+    pc.oniceconnectionstatechange=function(){
+      console.log('[call] ICE state:', pc.iceConnectionState);
+      if(['connected','completed'].includes(pc.iceConnectionState)) onCallConnected();
+      else if(pc.iceConnectionState==='failed'){
+        toast('Не удалось установить соединение. Попробуйте ещё раз.');
+        endCall();
+      } else if(['disconnected','closed'].includes(pc.iceConnectionState)) endCall();
+    };
     var offer=await pc.createOffer({offerToReceiveAudio:true,offerToReceiveVideo:isVideo});
     await pc.setLocalDescription(offer);
     await sendCallSig(pid,{type:'offer',sdp:offer,isVideo:isVideo});
@@ -2124,7 +2150,14 @@ async function acceptCall(){
       if(!isVideo){ var a=getOrMakeAudioEl(); a.srcObject=e.streams[0]; }
     };
     pc.onicecandidate=async function(e){ if(e.candidate) await sendCallSig(fromId,{type:'ice',candidate:e.candidate}); };
-    pc.oniceconnectionstatechange=function(){ if(['connected','completed'].includes(pc.iceConnectionState)) onCallConnected(); else if(['disconnected','failed','closed'].includes(pc.iceConnectionState)) endCall(); };
+    pc.oniceconnectionstatechange=function(){
+      console.log('[call] ICE state:', pc.iceConnectionState);
+      if(['connected','completed'].includes(pc.iceConnectionState)) onCallConnected();
+      else if(pc.iceConnectionState==='failed'){
+        toast('Не удалось установить соединение. Попробуйте ещё раз.');
+        endCall();
+      } else if(['disconnected','closed'].includes(pc.iceConnectionState)) endCall();
+    };
     await pc.setRemoteDescription(new RTCSessionDescription({type:'offer',sdp:offer.sdp||offer}));
     var answer=await pc.createAnswer();
     await pc.setLocalDescription(answer);

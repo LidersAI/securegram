@@ -1,58 +1,60 @@
-// SecureGram Service Worker
-const CACHE = 'securegram-v1';
-const ASSETS = [
-  '/securegram/',
-  '/securegram/index.html',
-  '/securegram/manifest.json',
+// LIDERS CHAT Service Worker v2
+// Стратегия: HTML всегда с сети, иконки кешируем
+
+const CACHE = 'liders-chat-v2';
+const STATIC = [
   '/securegram/icon-192.png',
   '/securegram/icon-512.png',
+  '/securegram/icon-192-maskable.png',
+  '/securegram/manifest.json',
+  '/securegram/favicon.ico',
 ];
 
-// Install — cache core assets
 self.addEventListener('install', e => {
   e.waitUntil(
-    caches.open(CACHE).then(cache => cache.addAll(ASSETS))
+    caches.open(CACHE)
+      .then(c => c.addAll(STATIC))
       .then(() => self.skipWaiting())
   );
 });
 
-// Activate — clean old caches
 self.addEventListener('activate', e => {
   e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
-    ).then(() => self.clients.claim())
+    caches.keys()
+      .then(keys => Promise.all(
+        keys.filter(k => k !== CACHE).map(k => caches.delete(k))
+      ))
+      .then(() => self.clients.claim())
   );
 });
 
-// Fetch — cache first for assets, network first for API
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
 
-  // Skip non-GET and cross-origin (PeerJS, fonts, etc)
+  // Skip non-GET, cross-origin, PeerJS, API calls
   if (e.request.method !== 'GET') return;
   if (url.origin !== location.origin) return;
+  if (url.pathname.includes('/relay')) return;
+  if (url.pathname.includes('/signal')) return;
 
-  // Network first for HTML (always get latest version)
-  if (e.request.headers.get('accept')?.includes('text/html')) {
+  // HTML — ALWAYS network first, never serve stale
+  if (e.request.headers.get('accept')?.includes('text/html') ||
+      url.pathname.endsWith('.html') ||
+      url.pathname === '/securegram/' ||
+      url.pathname === '/securegram') {
     e.respondWith(
-      fetch(e.request)
-        .then(res => {
-          const clone = res.clone();
-          caches.open(CACHE).then(c => c.put(e.request, clone));
-          return res;
-        })
-        .catch(() => caches.match(e.request))
+      fetch(e.request, {cache: 'no-cache'})
+        .catch(() => caches.match('/securegram/') || caches.match('/securegram/index.html'))
     );
     return;
   }
 
-  // Cache first for everything else (icons, manifest)
+  // Icons and manifest — cache first
   e.respondWith(
     caches.match(e.request).then(cached => {
       if (cached) return cached;
       return fetch(e.request).then(res => {
-        if (res.ok) {
+        if (res.ok && res.status === 200) {
           const clone = res.clone();
           caches.open(CACHE).then(c => c.put(e.request, clone));
         }
@@ -60,22 +62,4 @@ self.addEventListener('fetch', e => {
       });
     })
   );
-});
-
-// Push notifications (for future use)
-self.addEventListener('push', e => {
-  if (!e.data) return;
-  const data = e.data.json();
-  self.registration.showNotification(data.title || 'SecureGram', {
-    body: data.body || '',
-    icon: '/securegram/icon-192.png',
-    badge: '/securegram/icon-96.png',
-    vibrate: [200, 100, 200],
-    data: data,
-  });
-});
-
-self.addEventListener('notificationclick', e => {
-  e.notification.close();
-  e.waitUntil(clients.openWindow('/securegram/'));
 });
