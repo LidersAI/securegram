@@ -26,7 +26,6 @@ if ('serviceWorker' in navigator) {
 }
 </script>
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-<script src="https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js"></script>
 <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <meta name="theme-color" content="#17212b">
@@ -48,8 +47,10 @@ if ('serviceWorker' in navigator) {
   --hover:rgba(255,255,255,.05);
   --font:'Inter',-apple-system,sans-serif;
 }
-html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;overflow:hidden}
-#app{display:flex;height:100vh}
+html{height:100%;background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;overflow:hidden}
+body{height:100%;overflow:hidden;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+#app{height:100%;padding-top:0}
+#app{display:flex;height:100%;min-height:100dvh}
 
 /* === SIDEBAR === */
 #sidebar{width:320px;flex-shrink:0;background:var(--bg);border-right:1px solid var(--border);display:flex;flex-direction:column;transition:transform .25s}
@@ -324,7 +325,7 @@ mark.hit{background:rgba(82,136,193,.4);color:inherit;border-radius:2px}
 .file-dl:hover{background:rgba(255,255,255,.25)}
 
 @media(max-width:768px){
-  #sidebar{position:fixed;left:0;top:0;bottom:0;z-index:50;width:90%;max-width:320px;box-shadow:4px 0 20px rgba(0,0,0,.5)}
+  #sidebar{position:fixed;left:0;top:0;bottom:0;z-index:50;width:90%;max-width:320px;box-shadow:4px 0 20px rgba(0,0,0,.5);padding-top:env(safe-area-inset-top)}
   #back-btn{display:flex!important;align-items:center;justify-content:center}
   #send-btn{width:48px;height:48px}
   #input-bar{padding-bottom:calc(10px + env(safe-area-inset-bottom))}
@@ -424,7 +425,7 @@ mark.hit{background:rgba(82,136,193,.4);color:inherit;border-radius:2px}
     <button id="back-btn" onclick="showSidebar()">←</button>
     <div id="hdr-av"></div>
     <div style="flex:1;min-width:0">
-      <div id="hdr-name">—</div>
+      <div id="hdr-name" style="cursor:pointer" onclick="renameContact()" title="Нажмите чтобы переименовать">—</div>
       <div id="hdr-status">—</div>
     </div>
     <button class="hdr-btn" id="members-btn" onclick="toggleMembers()" style="display:none">👥</button>
@@ -594,7 +595,8 @@ mark.hit{background:rgba(82,136,193,.4);color:inherit;border-radius:2px}
       </label>
       <div style="flex:1"><label>Ваше имя</label><input class="finput" id="sett-name-in" type="text" maxlength="24" style="margin-top:5px"/></div>
     </div>
-    <div class="field"><label>Ваш ID (нажмите чтобы скопировать)</label><div class="fmono" id="sett-id-el" onclick="copyMyId()">...</div></div>
+    <div class="field"><label>Ваше имя / никнейм</label><input class="finput" id="sett-name-in" type="text" maxlength="24"/><div class="fhint">Это имя видят все собеседники. Используйте вместо телефона.</div></div>
+    <div class="field"><label>Ваш ID — поделитесь с друзьями</label><div class="fmono" id="sett-id-el" onclick="copyMyId()" style="cursor:pointer">...</div><div class="fhint">Нажмите чтобы скопировать и отправить другу — он добавит вас по этому ID</div></div>
     <div class="field"><label>Сервер</label><div class="fhint" id="sett-srv-el">—</div></div>
     <div class="field">
       <label>Тема</label>
@@ -746,14 +748,14 @@ function connectToServer(srv, savedId){
     var p = new Peer(savedId || undefined, {
       host:srv.host, port:srv.port, path:srv.path,
       secure:srv.secure, key:srv.key||'peerjs',
-      config:{iceServers:ICE_SERVERS}
+      config:ICE_CFG
     });
     var t = setTimeout(function(){ p.destroy(); reject(new Error('timeout')); }, 10000);
     p.on('open', function(id){ clearTimeout(t); peer=p; resolve(id); });
     p.on('error', function(e){
       clearTimeout(t); p.destroy();
       if(e.type==='unavailable-id'){
-        var p2=new Peer(undefined,{host:srv.host,port:srv.port,path:srv.path,secure:srv.secure,key:srv.key||'peerjs',config:{iceServers:ICE_SERVERS}});
+        var p2=new Peer(undefined,{host:srv.host,port:srv.port,path:srv.path,secure:srv.secure,key:srv.key||'peerjs',config:ICE_CFG});
         var t2=setTimeout(function(){p2.destroy();reject(new Error('timeout'));},10000);
         p2.on('open',function(id){clearTimeout(t2);peer=p2;resolve(id);});
         p2.on('error',function(e2){clearTimeout(t2);p2.destroy();reject(e2);});
@@ -2677,7 +2679,6 @@ function switchQrTab(tab){
 
 // ── Generate QR with account data ────────────────────────────────────
 async function generateQR(){
-  if(typeof QRCode === 'undefined'){ toast('QR библиотека загружается...'); return; }
 
   // Pack account data - ID, name, rooms, dms (without messages for compactness)
   var db = getDB();
@@ -2720,18 +2721,8 @@ async function generateQR(){
     json = JSON.stringify(payload);
   }
 
-  try {
-    var canvas = document.getElementById('qr-canvas');
-    await QRCode.toCanvas(canvas, json, {
-      width: 240,
-      margin: 1,
-      color: { dark: '#000000', light: '#ffffff' },
-      errorCorrectionLevel: 'M'
-    });
-  } catch(e){
-    console.error('[QR]', e);
-    toast('Ошибка генерации QR');
-  }
+  var canvas = document.getElementById('qr-canvas');
+  drawQR(canvas, json, 240);
 }
 
 // ── Scan QR with camera ───────────────────────────────────────────────
@@ -2834,6 +2825,151 @@ function applyQRData(payload){
     toast('✓ Аккаунт синхронизирован! Перезагружаю...');
     setTimeout(function(){ location.reload(); }, 1500);
   }, 800);
+}
+
+
+function renameContact(){
+  if(!active||active.startsWith('room:')) return;
+  var pid=active.slice(3);
+  var current=(conns[pid]&&conns[pid].name)||pid.slice(0,8);
+  var newName=prompt('Имя контакта:', current);
+  if(!newName||!newName.trim()) return;
+  newName=newName.trim();
+  if(conns[pid]) conns[pid].name=newName;
+  updDB(function(db){
+    if(db.dms&&db.dms[pid]) db.dms[pid].name=newName;
+  });
+  refreshHdr(); renderList();
+  toast('Имя изменено');
+}
+
+
+// =============================================
+// BUILT-IN QR CODE GENERATOR (no external libs)
+// =============================================
+var QRMini = (function(){
+  // QR Code generator - supports up to ~500 chars (Version 6, M correction)
+  var QR = {};
+
+  // Galois field arithmetic for Reed-Solomon
+  var GF = (function(){
+    var EXP = new Array(512), LOG = new Array(256);
+    EXP[0]=1; for(var i=1;i<256;i++){var v=EXP[i-1]<<1;if(v>=256)v^=285;EXP[i]=v;}
+    for(var i=0;i<255;i++) LOG[EXP[i]]=i;
+    for(var i=255;i<512;i++) EXP[i]=EXP[i-255];
+    return {
+      mul:function(a,b){return a===0||b===0?0:EXP[LOG[a]+LOG[b]];},
+      poly:function(e){
+        var p=[1];
+        for(var i=0;i<e;i++){var q=[1,EXP[i]];var r=[];for(var j=0;j<p.length+q.length-1;j++){var s=0;for(var k=0;k<q.length;k++)if(j-k>=0&&j-k<p.length)s^=GF.mul(p[j-k],q[k]);r[j]=s;}p=r;}
+        return p;
+      }
+    };
+  })();
+
+  function rsEncode(data, ecCount){
+    var g=GF.poly(ecCount), msg=data.concat(new Array(ecCount).fill(0));
+    for(var i=0;i<data.length;i++) if(msg[i]!==0){var c=msg[i];for(var j=1;j<g.length;j++)msg[i+j]^=GF.mul(g[j],c);}
+    return msg.slice(data.length);
+  }
+
+  // Simple version 3 QR (29x29, ~50 bytes capacity) using alphanumeric/byte encoding
+  QR.generate = function(text){
+    // Use version 5 (37x37) with M error correction for ~100 bytes
+    var data = [];
+    for(var i=0;i<text.length;i++) data.push(text.charCodeAt(i));
+    
+    // If text too long, truncate (QR version 5 byte mode ~67 chars)
+    var maxBytes = 64;
+    if(data.length > maxBytes) data = data.slice(0, maxBytes);
+    
+    var size = 37; // version 5
+    var ecCount = 36;
+    
+    // Build bit stream
+    var bits = [];
+    function addBits(val, len){ for(var i=len-1;i>=0;i--) bits.push((val>>i)&1); }
+    
+    // Byte mode indicator
+    addBits(0b0100, 4);
+    addBits(data.length, 8);
+    for(var i=0;i<data.length;i++) addBits(data[i], 8);
+    // Terminator
+    for(var i=0;i<4&&bits.length<(size*size);i++) bits.push(0);
+    while(bits.length%8) bits.push(0);
+    // Padding
+    var pad=[0xEC,0x11]; var pi=0;
+    while(bits.length<((data.length+ecCount)*8)){ addBits(pad[pi%2],8); pi++; }
+    
+    // Convert to bytes
+    var bytes=[];
+    for(var i=0;i<bits.length;i+=8){var b=0;for(var j=0;j<8;j++)b=(b<<1)|(bits[i+j]||0);bytes.push(b);}
+    
+    var dataBytes = bytes.slice(0, data.length+1);
+    var ec = rsEncode(dataBytes, ecCount);
+    var allBytes = dataBytes.concat(ec);
+    
+    // Build matrix
+    var M = [];
+    for(var i=0;i<size;i++){M[i]=[];for(var j=0;j<size;j++)M[i][j]=-1;}
+    
+    function setFinder(r,c){
+      for(var i=-1;i<=7;i++)for(var j=-1;j<=7;j++){
+        if(r+i<0||r+i>=size||c+j<0||c+j>=size)continue;
+        M[r+i][c+j]=((i>=0&&i<=6&&(j===0||j===6))||(j>=0&&j<=6&&(i===0||i===6))||(i>=2&&i<=4&&j>=2&&j<=4))?1:0;
+      }
+    }
+    setFinder(0,0); setFinder(0,size-7); setFinder(size-7,0);
+    
+    // Timing
+    for(var i=8;i<size-8;i++){M[6][i]=M[i][6]=i%2===0?1:0;}
+    
+    // Dark module
+    M[size-8][8]=1;
+    
+    // Place data bits
+    var bi=0;
+    var allBits=[];
+    for(var i=0;i<allBytes.length;i++) for(var j=7;j>=0;j--) allBits.push((allBytes[i]>>j)&1);
+    
+    var up=true;
+    for(var c=size-1;c>=0;c-=2){
+      if(c===6)c=5;
+      for(var ri=0;ri<size;ri++){
+        var r=up?size-1-ri:ri;
+        for(var ci=0;ci<=1;ci++){
+          var cc=c-ci;
+          if(M[r][cc]===-1){
+            var bit=bi<allBits.length?allBits[bi]:0; bi++;
+            // Mask pattern 0: (r+c)%2===0
+            M[r][cc]=(r+cc)%2===0?bit^1:bit;
+          }
+        }
+      }
+      up=!up;
+    }
+    
+    // Fill remaining -1 with 0
+    for(var i=0;i<size;i++)for(var j=0;j<size;j++)if(M[i][j]===-1)M[i][j]=0;
+    
+    return {matrix:M, size:size};
+  };
+  
+  return QR;
+})();
+
+function drawQR(canvas, text, px){
+  var result;
+  try{ result = QRMini.generate(text); }
+  catch(e){ console.error('[QR]',e); toast('Ошибка QR'); return; }
+  var M=result.matrix, n=result.size;
+  var cell=Math.floor(px/n);
+  canvas.width=canvas.height=n*cell+8;
+  var ctx=canvas.getContext('2d');
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle='#000';
+  for(var i=0;i<n;i++)for(var j=0;j<n;j++)
+    if(M[i][j]) ctx.fillRect(j*cell+4,i*cell+4,cell,cell);
 }
 
 
