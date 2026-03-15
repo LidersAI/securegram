@@ -859,7 +859,7 @@ function setupConn(conn, meta){
     if(!conns[pid].sent){
       conns[pid].sent = true;
       Cry.expPub(kp.publicKey).then(function(pub){
-        var pl = {type:'HELLO', pub:pub, name:myName};
+        var pl = {type:'HELLO', pub:pub, name:myName||'Аноним'};
         if(meta && meta.joinRoom){ pl.joinRoom=meta.joinRoom; pl.joinPin=meta.pin||''; }
         rawSend(conn, pl);
       });
@@ -1093,7 +1093,7 @@ async function sendMsg(){
   var now = ts(), day = dateStr();
   var isRoom = active.startsWith('room:');
   var roomId = isRoom ? active.slice(5) : null;
-  var payload = {from:myId, name:myName, text:text, ts:now, date:day, roomId:roomId, replyTo:replyRef};
+  var payload = {from:myId, name:myName||'Аноним', text:text, ts:now, date:day, roomId:roomId, replyTo:replyRef};
 
   seen.add(msgId);
   var m = {id:msgId, from:myId, name:myName, text:text, ts:now, date:day, replyTo:replyRef};
