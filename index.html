@@ -25,7 +25,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 </script>
-<script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 <script src="https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js"></script>
 <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -624,7 +624,11 @@ mark.hit{background:rgba(82,136,193,.4);color:inherit;border-radius:2px}
 // =============================================
 // CONFIG
 // =============================================
-var SIGNAL_URL = 'https://liders-chat-signal.onrender.com';
+var SERVERS = [
+  {host:'liders-chat-signal.onrender.com',port:443,path:'/signal',secure:true,key:'peerjs'},
+  {host:'0.peerjs.com',port:443,path:'/',secure:true},
+];
+var RELAY = 'https://liders-chat-signal.onrender.com';
 var BASE = 'https://lidersai.github.io/securegram/';
 var DB_KEY = 'sg_v1';
 
@@ -694,9 +698,42 @@ async function init(){
     document.getElementById('my-av').textContent = ini(myName);
   }
 
-  // Connect via socket.io (works with HTTP polling when WebSocket is blocked)
+  // Connect to signal server
   showBanner('⏳ Подключение...');
-  connectSignal(db.myId || gid());
+  var ok = false;
+  for(var i=0; i<SERVERS.length; i++){
+    var srv = SERVERS[i];
+    try{
+      var id = await connectToServer(srv, db.myId);
+      myId = id; ok = true;
+      updDB(function(db){ db.myId=id; });
+      hideBanner();
+      document.getElementById('my-id-el').textContent = id.slice(0,18)+'…';
+      document.getElementById('my-id-el').title = id;
+      document.getElementById('sett-id-el').textContent = id;
+      renderAv(document.getElementById('my-av'),id,myName);
+      renderAv(document.getElementById('sett-av'),id,myName);
+      document.getElementById('sett-srv-el').textContent = '✓ '+srv.host;
+      setTimeout(relayFetch, 1500);
+      startHeartbeat();
+      break;
+    }catch(e){ console.warn('[signal] failed:', srv.host, e.message); }
+  }
+  if(!ok){ showBanner('❌ Нет связи. Обновите страницу.'); return; }
+  peer.on('connection', function(c){ setupConn(c); });
+  peer.on('error', function(e){
+    console.error('[peer]', e.type, e.message);
+    if(['network','server-error','socket-error','disconnected'].includes(e.type)){
+      showBanner('🔄 Переподключение...');
+      clearTimeout(reconnectTimer);
+      reconnectTimer = setTimeout(doReconnect, 3000);
+    }
+  });
+  peer.on('disconnected', function(){
+    showBanner('🔄 Отключено...');
+    clearTimeout(reconnectTimer);
+    reconnectTimer = setTimeout(doReconnect, 3000);
+  });
 
   checkInvite();
   renderList();
@@ -704,177 +741,76 @@ async function init(){
   setTimeout(reconnectDroppedSessions, 2000);
 }
 
-function connectSignal(savedId){
-  var socket = io(SIGNAL_URL, {
-    transports: ['polling','websocket'], // polling first - more reliable in RU without VPN
-    reconnection: true,
-    reconnectionDelay: 2000,
-    reconnectionAttempts: 10,
-    timeout: 10000,
-  });
-
-  socket.on('connect', function(){
-    console.log('[signal] connected via', socket.conn && socket.conn.transport && socket.conn.transport.name || 'unknown');
-    var id = savedId || gid();
-    socket.emit('register', id);
-    myId = id;
-    updDB(function(db){ db.myId=id; });
-    hideBanner();
-    document.getElementById('my-id-el').textContent = id.slice(0,18)+'…';
-    document.getElementById('my-id-el').title = id;
-    document.getElementById('sett-id-el').textContent = id;
-    document.getElementById('sett-srv-el').textContent = '✓ '+SIGNAL_URL.replace('https://','');
-    renderAv(document.getElementById('my-av'),id,myName);
-    renderAv(document.getElementById('sett-av'),id,myName);
-    if(myName) document.getElementById('my-name-el').textContent = myName;
-    // Store socket globally
-    window._socket = socket;
-    setTimeout(relayFetch, 1000);
-    startHeartbeat();
-    // Reconnect to known peers
-    setTimeout(reconnectDroppedSessions, 2000);
-    checkInvite();
-    renderList();
-  });
-
-  // Incoming signal (offer/answer/ice/etc)
-  socket.on('signal', function(msg){
-    var fromId = msg.from;
-    if(!fromId) return;
-    // Ensure conn entry exists
-    if(!conns[fromId]) conns[fromId]={conn:null,key:null,name:fromId.slice(0,8),color:clr(fromId),online:false,sent:false};
-    var data = msg.data;
-    if(data.type==='hello') handleHelloSignal(fromId, data);
-    else if(data.type==='offer') handleOfferSignal(fromId, data);
-    else if(data.type==='answer') handleAnswerSignal(fromId, data);
-    else if(data.type==='ice') handleIceSignal(fromId, data);
-    else if(data.type==='call') handleCallSig(fromId, {cipher:data.cipher});
-    else if(data.type==='msg') handleMsgSignal(fromId, data);
-  });
-
-  // Queued offline messages delivered on connect
-  socket.on('queued', function(msgs){
-    console.log('[relay] got', msgs.length, 'queued msgs');
-    msgs.forEach(function(m){ processQueuedMsg(m); });
-  });
-
-  socket.on('peer_offline', function(d){
-    console.log('[signal] peer offline:', d.peerId && d.peerId.slice(0,8));
-  });
-
-  socket.on('disconnect', function(reason){
-    console.log('[signal] disconnected:', reason);
-    showBanner('🔄 Переподключение...');
-    // Reconnect handled by socket.io automatically
-  });
-
-  socket.on('reconnect', function(){
-    hideBanner();
-    if(myId) socket.emit('register', myId);
-    setTimeout(relayFetch, 500);
-  });
-
-  socket.on('connect_error', function(e){
-    console.warn('[signal] connect error:', e.message);
-    showBanner('⚠ Нет связи... попытка через HTTP...');
+function connectToServer(srv, savedId){
+  return new Promise(function(resolve, reject){
+    var p = new Peer(savedId || undefined, {
+      host:srv.host, port:srv.port, path:srv.path,
+      secure:srv.secure, key:srv.key||'peerjs',
+      config:{iceServers:ICE_SERVERS}
+    });
+    var t = setTimeout(function(){ p.destroy(); reject(new Error('timeout')); }, 10000);
+    p.on('open', function(id){ clearTimeout(t); peer=p; resolve(id); });
+    p.on('error', function(e){
+      clearTimeout(t); p.destroy();
+      if(e.type==='unavailable-id'){
+        var p2=new Peer(undefined,{host:srv.host,port:srv.port,path:srv.path,secure:srv.secure,key:srv.key||'peerjs',config:{iceServers:ICE_SERVERS}});
+        var t2=setTimeout(function(){p2.destroy();reject(new Error('timeout'));},10000);
+        p2.on('open',function(id){clearTimeout(t2);peer=p2;resolve(id);});
+        p2.on('error',function(e2){clearTimeout(t2);p2.destroy();reject(e2);});
+      } else { reject(e); }
+    });
   });
 }
 
-// ── Send signal to peer ──────────────────────────────────────────────
-function sendSignal(toPeerId, data){
-  if(window._socket && window._socket.connected){
-    window._socket.emit('signal', {to: toPeerId, data: data});
-  }
-}
-
-// ── WebRTC connection via socket.io signaling ────────────────────────
-async function setupConn(peerId, meta){
-  if(conns[peerId] && conns[peerId].online) return; // already connected
-  if(!conns[peerId]) conns[peerId]={conn:null,key:null,name:peerId.slice(0,8),color:clr(peerId),online:false,sent:false};
-  
-  var pc = new RTCPeerConnection({iceServers:ICE_SERVERS});
-  conns[peerId].pc = pc;
-
-  // Data channel for messages
-  var dc = null;
-  var isInitiator = !!meta && !meta.isAnswer;
-
-  if(isInitiator){
-    dc = pc.createDataChannel('liders', {ordered:true});
-    setupDC(dc, peerId);
-    conns[peerId].conn = {send: function(d){ if(dc&&dc.readyState==='open')dc.send(d); }, peer:peerId};
-  } else {
-    pc.ondatachannel = function(e){ dc=e.channel; setupDC(dc,peerId); conns[peerId].conn={send:function(d){if(dc&&dc.readyState==='open')dc.send(d);},peer:peerId}; };
-  }
-
-  pc.onicecandidate = function(e){
-    if(e.candidate) sendSignal(peerId, {type:'ice', candidate:e.candidate});
-  };
-  pc.onconnectionstatechange = function(){
-    if(pc.connectionState==='connected'){ conns[peerId].online=true; renderList(); refreshHdr(); }
-    else if(['disconnected','failed','closed'].includes(pc.connectionState)){
-      conns[peerId].online=false; conns[peerId].key=null; conns[peerId].sent=false;
-      sysMsg('dm:'+peerId,(conns[peerId]&&conns[peerId].name||'Участник')+' отключился');
-      renderList(); refreshHdr();
-    }
-  };
-
-  if(isInitiator){
-    var offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    sendSignal(peerId, {type:'offer', sdp:pc.localDescription, meta:meta||{}});
-  }
-}
-
-function setupDC(dc, peerId){
-  dc.onopen = function(){
-    conns[peerId].online = true;
-    if(!conns[peerId].sent){
-      conns[peerId].sent = true;
+function setupConn(conn, meta){
+  var pid=conn.peer;
+  if(!conns[pid]) conns[pid]={conn:conn,key:null,name:pid.slice(0,8),color:clr(pid),online:false,sent:false};
+  else conns[pid].conn=conn;
+  updDB(function(db){
+    if(!db.dms) db.dms={};
+    if(!db.dms[pid]&&(!meta||!meta.mesh)) db.dms[pid]={name:conns[pid].name,messages:[]};
+  });
+  conn.on('open',function(){
+    conns[pid].online=true;
+    if(!conns[pid].sent){
+      conns[pid].sent=true;
       Cry.expPub(kp.publicKey).then(function(pub){
         var pl={type:'HELLO',pub:pub,name:myName||'Аноним'};
-        rawSend(conns[peerId].conn, pl);
+        if(meta&&meta.joinRoom){pl.joinRoom=meta.joinRoom;pl.joinPin=meta.pin||'';}
+        rawSend(conn,pl);
       });
     }
-    sysMsg('dm:'+peerId,'Соединение установлено…');
+    if(!meta||!meta.mesh) sysMsg('dm:'+pid,'Соединение установлено…');
     renderList(); refreshHdr();
-  };
-  dc.onclose = function(){ conns[peerId].online=false; conns[peerId].key=null; conns[peerId].sent=false; };
-  dc.onmessage = function(e){ handleData(peerId, e.data); };
+  });
+  conn.on('data',function(raw){ handleData(pid,raw); });
+  conn.on('close',function(){
+    if(conns[pid]){conns[pid].online=false;conns[pid].key=null;conns[pid].sent=false;}
+    sysMsg('dm:'+pid,(conns[pid]&&conns[pid].name||'Участник')+' отключился');
+    hideTyp(pid); renderList(); refreshHdr();
+  });
+  conn.on('error',function(e){ console.error('[conn]',pid,e.type); });
 }
 
-async function handleOfferSignal(fromId, data){
-  var pc = new RTCPeerConnection({iceServers:ICE_SERVERS});
-  if(!conns[fromId]) conns[fromId]={conn:null,key:null,name:fromId.slice(0,8),color:clr(fromId),online:false,sent:false};
-  conns[fromId].pc = pc;
-  pc.ondatachannel = function(e){ var dc=e.channel; setupDC(dc,fromId); conns[fromId].conn={send:function(d){if(dc&&dc.readyState==='open')dc.send(d);},peer:fromId}; };
-  pc.onicecandidate = function(e){ if(e.candidate) sendSignal(fromId,{type:'ice',candidate:e.candidate}); };
-  pc.onconnectionstatechange = function(){
-    if(pc.connectionState==='connected'){ conns[fromId].online=true; renderList(); refreshHdr(); }
-    else if(['disconnected','failed','closed'].includes(pc.connectionState)){ conns[fromId].online=false; conns[fromId].key=null; renderList(); refreshHdr(); }
-  };
-  await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
-  var answer = await pc.createAnswer();
-  await pc.setLocalDescription(answer);
-  sendSignal(fromId, {type:'answer', sdp:pc.localDescription});
-  // Join room if specified
-  if(data.meta && data.meta.joinRoom) conns[fromId]._pendingJoin = data.meta;
+function addPeer(){
+  var id=document.getElementById('add-in').value.trim();
+  if(!id||id===myId){ toast('Некорректный ID'); return; }
+  document.getElementById('add-in').value='';
+  updDB(function(db){if(!db.dms)db.dms={};if(!db.dms[id])db.dms[id]={name:id.slice(0,8),messages:[],explicit:true};else db.dms[id].explicit=true;});
+  if(conns[id]&&conns[id].online){ openChat('dm:'+id); return; }
+  setupConn(peer.connect(id,{reliable:true}));
+  openChat('dm:'+id);
 }
 
-async function handleAnswerSignal(fromId, data){
-  var c = conns[fromId]; if(!c||!c.pc) return;
-  await c.pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+function reconnectDroppedSessions(){
+  var db=getDB();
+  Object.keys(db.dms||{}).forEach(function(pid){
+    if(conns[pid]&&!conns[pid].online&&peer&&!peer.destroyed){
+      try{ setupConn(peer.connect(pid,{reliable:true})); }catch(e){}
+    }
+  });
 }
 
-async function handleIceSignal(fromId, data){
-  var c = conns[fromId]; if(!c||!c.pc) return;
-  try{ await c.pc.addIceCandidate(new RTCIceCandidate(data.candidate)); }catch(e){}
-}
-
-async function handleHelloSignal(fromId, data){
-  // HELLO via signal channel (before DC open) - rare case
-  handleData(fromId, JSON.stringify(data));
-}
 
 async function processQueuedMsg(m){
   if(!m.from||!m.cipher||!m.id) return;
@@ -893,7 +829,6 @@ async function handleMsgSignal(fromId, data){
   await processRelayMsg({id:data.id,cipher:data.cipher,from:fromId}, c);
 }
 
-// Patch addPeer to use socket.io signaling
 function addPeer(){
   var id = document.getElementById('add-in').value.trim();
   if(!id||id===myId){ toast('Некорректный ID'); return; }
@@ -1137,7 +1072,7 @@ async function handleData(from, raw){
 
   if(msg.type === 'PEERS'){
     (msg.peers||[]).forEach(function(pid){
-      if(pid!==myId && !conns[pid]) setupConn(pid, {mesh:true});
+      if(pid!==myId && !conns[pid]) setupConn(peer.connect(pid,{reliable:true}),{mesh:true});
     });
   }
 
@@ -2478,8 +2413,8 @@ function openOrCreateDM(peerId, name){
     });
   }
   // Connect if not connected
-  if(!conns[peerId]||!conns[peerId].online){
-    setupConn(peerId,{initiator:true});
+  if((!conns[peerId]||!conns[peerId].online)&&peer&&!peer.destroyed){
+    setupConn(peer.connect(peerId,{reliable:true}));
   }
   openChat('dm:'+peerId);
 }
@@ -2529,7 +2464,7 @@ window.addEventListener('offline', function(){
 });
 
 function checkAndReconnect(){
-  if(!window._socket || !window._socket.connected){
+  if(!peer || peer.destroyed || peer.disconnected){
     // Full reconnect needed
     doReconnect();
   } else {
@@ -2583,7 +2518,7 @@ function reconnectDroppedSessions(){
   Object.keys(db.dms||{}).forEach(function(pid){
     if(!conns[pid] || !conns[pid].online){
       // Try to reconnect silently
-      if(window._socket && window._socket.connected){
+      if(peer && !peer.destroyed){
         try{
           setupConn(pid, {initiator:true});
         }catch(e){}
@@ -2595,7 +2530,7 @@ function reconnectDroppedSessions(){
     if(!r.isHost){
       Object.keys(r.members||{}).forEach(function(pid){
         if(pid !== myId && (!conns[pid] || !conns[pid].online)){
-          if(window._socket && window._socket.connected){
+          if(peer && !peer.destroyed){
             try{
               setupConn(pid, {initiator:true});
             }catch(e){}
