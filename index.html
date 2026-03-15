@@ -840,6 +840,8 @@ function addPeer(){
   var id = document.getElementById('add-in').value.trim();
   if(!id||id===myId){ toast('Некорректный ID'); return; }
   document.getElementById('add-in').value = '';
+  // Mark as explicit
+  updDB(function(db){ if(!db.dms)db.dms={}; if(!db.dms[id])db.dms[id]={name:id.slice(0,8),messages:[],explicit:true}; else db.dms[id].explicit=true; });
   if(conns[id]){ openChat('dm:'+id); return; }
   setupConn(peer.connect(id, {reliable:true}));
 }
@@ -864,7 +866,7 @@ function setupConn(conn, meta){
         rawSend(conn, pl);
       });
     }
-    sysMsg('dm:'+pid, 'Соединение установлено…');
+    if(!meta || !meta.mesh) sysMsg('dm:'+pid, 'Соединение установлено…');
     renderList(); refreshHdr();
   });
 
@@ -919,13 +921,16 @@ async function handleData(from, raw){
     }
 
     sysMsg('dm:'+from, '🔒 Зашифровано · E2E');
-    if(!active) openChat('dm:'+from);
+    // Only auto-open chat if this peer is in our DMs (explicitly added)
+    if(!active){
+      var db2=getDB(); if(db2.dms&&db2.dms[from]) openChat('dm:'+from);
+    }
     renderList(); refreshHdr();
   }
 
   if(msg.type === 'PEERS'){
     (msg.peers||[]).forEach(function(pid){
-      if(pid!==myId && !conns[pid]) setupConn(peer.connect(pid,{reliable:true}));
+      if(pid!==myId && !conns[pid]) setupConn(peer.connect(pid,{reliable:true}), {mesh:true});
     });
   }
 
@@ -1416,6 +1421,9 @@ function renderList(){
 
   Object.entries(dms).forEach(function(entry){
     var pid=entry[0], dm=entry[1];
+    // Skip ghost DMs: no messages, not explicitly added, no active connection
+    var hasMsg=(dm.messages||[]).filter(function(m){return !m.sys;}).length>0;
+    if(!hasMsg && !dm.explicit && !(conns[pid]&&conns[pid].online)) return;
     var c=conns[pid];
     var name=(c&&c.name)||dm.name||pid.slice(0,8);
     var msgs=(dm.messages||[]).filter(function(m){return !m.sys;});
@@ -2220,11 +2228,13 @@ function openPeerProfile(peerId){
 }
 
 function openOrCreateDM(peerId, name){
-  // Ensure DM entry exists
-  updDB(function(db){
-    if(!db.dms) db.dms={};
-    if(!db.dms[peerId]) db.dms[peerId]={name:name,messages:[]};
-  });
+  // Only save DM if explicitly added (not mesh)
+  if(!meta || !meta.mesh){
+    updDB(function(db){
+      if(!db.dms) db.dms={};
+      if(!db.dms[peerId]) db.dms[peerId]={name:name,messages:[]};
+    });
+  }
   // Connect if not connected
   if(!conns[peerId] && peer){
     setupConn(peer.connect(peerId,{reliable:true}));
