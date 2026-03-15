@@ -843,7 +843,7 @@ function saveDB(db) {
   try { localStorage.setItem(DB_KEY, JSON.stringify(db)); } catch(e) { console.error('saveDB', e); }
 }
 function getDB() { return loadDB(); }
-undefined {const db=loadDB(); fn(db); saveDB(db); }
+function updateDB(fn) { const db=loadDB(); fn(db); saveDB(db); }
 
 // ═══════════════════════════════════════════════
 //  STATE
@@ -2003,7 +2003,7 @@ function renderList() {
     items.push({
       key: 'dm:' + pid,
       av: `<div class="ci-av circle" style="${dmAvStyle}">${dmAvContent}<div class="ci-dot ${online?'':'off'}"></div></div>`,
-      name, preview: last ? (last.from===myId?'Вы: ':'')+last.text:(sess.online&&p.sharedKey?'в сети':formatLastSeen(pid)),
+      name, preview: last?(last.from===myId?'Вы: ':'')+last.text:(p.online&&p.sharedKey?'в сети':formatLastSeen(pid)),
       time: last?.ts||'', unread: unread['dm:'+pid]||0
     });
   });
