@@ -353,6 +353,28 @@ mark.hit{background:rgba(59,130,246,.35);color:inherit;border-radius:3px}
 /* Onboarding */
 #ob-modal .modal{text-align:center}
 
+/* Light theme */
+body.light{
+  --bg:#f0f6ff;--bg2:#e8f0fe;--bg3:#ffffff;--bg4:#dbeafe;
+  --border:rgba(0,0,0,.08);--border2:rgba(0,0,0,.12);
+  --text:#0f172a;--text2:#334155;--text3:#64748b;
+  --accent:#2563eb;--accent2:#3b82f6;--green:#16a34a;--blue:#2563eb;
+  --me:#2563eb;--them:#ffffff;
+  --hover:rgba(0,0,0,.04);
+}
+body.light .me .bub{background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff}
+body.light .them .bub{background:#fff;border-color:rgba(0,0,0,.08);color:#0f172a;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+body.light .bub-time{color:rgba(0,0,0,.35)}
+body.light #chat-bg{background:#e8f0fe}
+body.light .date-sep{background:rgba(0,0,0,.06);color:#64748b}
+body.light .sys{background:rgba(0,0,0,.05);color:#64748b}
+body.light #banner{background:rgba(234,179,8,.1);border-color:rgba(234,179,8,.2)}
+body.light .msg-menu{background:rgba(255,255,255,.97);border-color:rgba(0,0,0,.1)}
+body.light .msg-menu-item{color:#0f172a}
+body.light .modal{background:#fff;border-color:rgba(0,0,0,.1)}
+body.light .finput{background:rgba(0,0,0,.04);border-color:rgba(0,0,0,.1)}
+body.light #toast{background:rgba(15,23,42,.9)}
+
 /* Mobile */
 @media(max-width:768px){
   #sidebar{position:fixed;left:0;top:0;bottom:0;z-index:50;width:92%;max-width:320px;box-shadow:8px 0 32px rgba(0,0,0,.5)}
@@ -603,7 +625,8 @@ mark.hit{background:rgba(59,130,246,.35);color:inherit;border-radius:3px}
         📋 Скопировать ключ
       </button>
       <div style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.5;text-align:center">
-        Нажми чтобы скопировать. Ключ действителен 10 минут.
+        Нажми чтобы скопировать. Ключ действителен 10 минут.<br>
+        <span style="color:#fbbf24">⚠ Не отправляй ключ по незащищённым каналам</span>
       </div>
     </div>
 
@@ -2313,8 +2336,12 @@ function setTheme(t){
   localStorage.setItem('sg_theme',t);
   var d=document.getElementById('theme-dark'), l=document.getElementById('theme-light');
   if(d&&l){
-    d.style.border=t==='dark'?'2px solid var(--accent)':'1px solid rgba(255,255,255,.1)';
-    l.style.border=t==='light'?'2px solid var(--accent)':'1px solid rgba(255,255,255,.1)';
+    d.style.border=t==='dark'?'2px solid var(--accent)':'1px solid rgba(255,255,255,.12)';
+    d.style.color=t==='dark'?'var(--accent2)':'var(--text3)';
+    d.style.fontWeight=t==='dark'?'700':'400';
+    l.style.border=t==='light'?'2px solid var(--accent)':'1px solid rgba(255,255,255,.12)';
+    l.style.color=t==='light'?'var(--accent2)':'var(--text3)';
+    l.style.fontWeight=t==='light'?'700':'400';
   }
 }
 (function(){ setTheme(localStorage.getItem('sg_theme')||'dark'); })();
@@ -2872,7 +2899,7 @@ function switchQrTab(tab){
   document.getElementById('qr-tab-scan').classList.toggle('active', tab==='scan');
   document.getElementById('qr-show-panel').style.display = tab==='show' ? '' : 'none';
   document.getElementById('qr-scan-panel').style.display = tab==='scan' ? '' : 'none';
-  if(tab==='show') generateQR();
+  if(tab==='show') setTimeout(generateQR, 50);
   else { var st=document.getElementById('qr-status'); if(st){st.textContent='';st.className='qr-status';} }
 }
 
@@ -2896,10 +2923,12 @@ async function generateQR(){
   Object.entries(db.dms||{}).forEach(function(e){
     payload.dms[e[0]]={name:e[1].name,messages:[],explicit:true};
   });
-  var key = btoa(JSON.stringify(payload));
+  var key = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
   var el = document.getElementById('export-key');
-  if(el) el.textContent = key;
-  // Store for copy
+  if(el){
+    el.textContent = key;
+    el.style.color = 'var(--accent2)';
+  }
   window._exportKey = key;
 }
 
@@ -2918,7 +2947,7 @@ function doImportKey(){
   var key = input.value.trim();
   if(!key){ toast('Вставьте ключ'); return; }
   try{
-    var payload = JSON.parse(atob(key));
+    var payload = JSON.parse(decodeURIComponent(escape(atob(key))));
     if(!payload.v || !payload.myId){ throw new Error('bad'); }
     if(Date.now() - payload.ts > 10*60*1000){ 
       document.getElementById('qr-status').textContent = 'Ключ устарел. Создайте новый на другом устройстве.';
