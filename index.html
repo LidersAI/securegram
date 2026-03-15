@@ -901,6 +901,8 @@ async function setupConn(peerId, meta) {
                       color:clr(peerId), online:false, sent:false };
   }
   var c = conns[peerId];
+  // Store meta so dc.onopen can use it for HELLO
+  if (meta) c._pendingMeta = meta;
   if (c.online) return;
 
   updDB(function(db) {
