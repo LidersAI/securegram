@@ -719,7 +719,9 @@ async function init(){
       setTimeout(relayFetch, 1500);
       startHeartbeat();
       break;
-    }catch(e){ console.warn('[signal] failed:', srv.host, e.message); }
+    }catch(e){ console.warn('[signal] failed:', srv.host, e.message);
+      showBanner('⏳ Сервер просыпается, ждите...');
+    }
   }
   if(!ok){ showBanner('❌ Нет связи. Обновите страницу.'); return; }
   peer.on('connection', function(c){ setupConn(c); });
@@ -750,13 +752,13 @@ function connectToServer(srv, savedId){
       secure:srv.secure, key:srv.key||'peerjs',
       config:ICE_CFG
     });
-    var t = setTimeout(function(){ p.destroy(); reject(new Error('timeout')); }, 10000);
+    var t = setTimeout(function(){ p.destroy(); reject(new Error('timeout')); }, 35000); // 35s for Render cold start
     p.on('open', function(id){ clearTimeout(t); peer=p; resolve(id); });
     p.on('error', function(e){
       clearTimeout(t); p.destroy();
       if(e.type==='unavailable-id'){
         var p2=new Peer(undefined,{host:srv.host,port:srv.port,path:srv.path,secure:srv.secure,key:srv.key||'peerjs',config:ICE_CFG});
-        var t2=setTimeout(function(){p2.destroy();reject(new Error('timeout'));},10000);
+        var t2=setTimeout(function(){p2.destroy();reject(new Error('timeout'));},35000);
         p2.on('open',function(id){clearTimeout(t2);peer=p2;resolve(id);});
         p2.on('error',function(e2){clearTimeout(t2);p2.destroy();reject(e2);});
       } else { reject(e); }
@@ -800,6 +802,7 @@ function addPeer(){
   document.getElementById('add-in').value='';
   updDB(function(db){if(!db.dms)db.dms={};if(!db.dms[id])db.dms[id]={name:id.slice(0,8),messages:[],explicit:true};else db.dms[id].explicit=true;});
   if(conns[id]&&conns[id].online){ openChat('dm:'+id); return; }
+  if(!peer||!peer.open){ toast('Подключение ещё не установлено, подождите...'); return; }
   setupConn(peer.connect(id,{reliable:true}));
   openChat('dm:'+id);
 }
@@ -808,7 +811,7 @@ function reconnectDroppedSessions(){
   var db=getDB();
   Object.keys(db.dms||{}).forEach(function(pid){
     if(conns[pid]&&!conns[pid].online&&peer&&!peer.destroyed){
-      try{ setupConn(peer.connect(pid,{reliable:true})); }catch(e){}
+      try{ if(peer&&peer.open) setupConn(peer.connect(pid,{reliable:true})); }catch(e){}
     }
   });
 }
@@ -837,7 +840,7 @@ function addPeer(){
   document.getElementById('add-in').value = '';
   updDB(function(db){ if(!db.dms)db.dms={}; if(!db.dms[id])db.dms[id]={name:id.slice(0,8),messages:[],explicit:true}; else db.dms[id].explicit=true; });
   if(conns[id]&&conns[id].online){ openChat('dm:'+id); return; }
-  setupConn(id, {initiator:true});
+  if(peer&&peer.open) setupConn(peer.connect(id,{reliable:true}));
   openChat('dm:'+id);
   toast('Подключаемся...');
 }
@@ -845,7 +848,7 @@ function addPeer(){
 function reconnectDroppedSessions(){
   var db=getDB();
   Object.keys(db.dms||{}).forEach(function(pid){
-    if(conns[pid]&&!conns[pid].online) setupConn(pid,{initiator:true});
+    if(conns[pid]&&!conns[pid].online) if(peer&&peer.open) setupConn(peer.connect(pid,{reliable:true}));
   });
 }
 
@@ -985,7 +988,7 @@ function addPeer(){
   // Mark as explicit
   updDB(function(db){ if(!db.dms)db.dms={}; if(!db.dms[id])db.dms[id]={name:id.slice(0,8),messages:[],explicit:true}; else db.dms[id].explicit=true; });
   if(conns[id]){ openChat('dm:'+id); return; }
-  setupConn(id, {initiator:true});
+  if(peer&&peer.open) setupConn(peer.connect(id,{reliable:true}));
 }
 
 function setupConn(conn, meta){
@@ -2416,7 +2419,7 @@ function openOrCreateDM(peerId, name){
   }
   // Connect if not connected
   if((!conns[peerId]||!conns[peerId].online)&&peer&&!peer.destroyed){
-    setupConn(peer.connect(peerId,{reliable:true}));
+    if(peer&&peer.open) setupConn(peer.connect(peerId,{reliable:true}));
   }
   openChat('dm:'+peerId);
 }
@@ -2522,7 +2525,7 @@ function reconnectDroppedSessions(){
       // Try to reconnect silently
       if(peer && !peer.destroyed){
         try{
-          setupConn(pid, {initiator:true});
+          if(peer&&peer.open) setupConn(peer.connect(pid,{reliable:true}));
         }catch(e){}
       }
     }
@@ -2534,7 +2537,7 @@ function reconnectDroppedSessions(){
         if(pid !== myId && (!conns[pid] || !conns[pid].online)){
           if(peer && !peer.destroyed){
             try{
-              setupConn(pid, {initiator:true});
+              if(peer&&peer.open) setupConn(peer.connect(pid,{reliable:true}));
             }catch(e){}
           }
         }
@@ -2546,26 +2549,12 @@ function reconnectDroppedSessions(){
 // Heartbeat - ping connected peers every 25s to keep connection alive
 // Also detects dead connections
 function startHeartbeat(){
-  clearInterval(heartbeatTimer);
-  heartbeatTimer = setInterval(function(){
-    var now = Date.now();
-    for(var pid in conns){
-      var c = conns[pid];
-      if(!c.online) continue;
-      // Check if connection is actually alive
-      if(c.conn && c.conn.open){
-        // Send lightweight ping
-        try{ rawSend(c.conn, {type:'PING'}); }catch(e){
-          // Connection dead
-          c.online = false; c.key = null; c.sent = false;
-          renderList(); refreshHdr();
-        }
-      } else {
-        c.online = false; c.key = null; c.sent = false;
-        renderList(); refreshHdr();
-      }
-    }
-  }, 25000);
+  // Ping server every 10 min to prevent Render.com sleep
+  setInterval(function(){
+    fetch('https://liders-chat-signal.onrender.com/health')
+      .then(function(r){ if(!r.ok) throw new Error('bad'); })
+      .catch(function(){ console.log('[keepalive] server unreachable'); });
+  }, 10 * 60 * 1000);
 }
 
 // Handle PING in data handler (add to handleData)
