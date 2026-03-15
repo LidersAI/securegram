@@ -641,6 +641,7 @@ async function init(){
   renderAv(document.getElementById('sett-av'),id,myName);
       if(myName) document.getElementById('my-av').textContent = ini(myName);
       document.getElementById('sett-srv-el').textContent = '✓ '+srv.host;
+      setTimeout(relayFetch, 1500);
       startHeartbeat();
       break;
     }catch(e){
@@ -925,6 +926,8 @@ async function handleData(from, raw){
     if(!active){
       var db2=getDB(); if(db2.dms&&db2.dms[from]) openChat('dm:'+from);
     }
+    // Process any queued relay messages for this peer
+    processRelayQueue(from);
     renderList(); refreshHdr();
   }
 
@@ -1107,14 +1110,33 @@ async function sendMsg(){
   renderList();
 
   var db = getDB();
+  var delivered = {};
   for(var pid in conns){
     var c=conns[pid]; if(!c.online||!c.key) continue;
-    if(isRoom && !(db.rooms&&db.rooms[roomId]&&db.rooms[roomId].members&&db.rooms[roomId].members[pid])) continue;
-    if(!isRoom && active.slice(3)!==pid) continue;
+    if(isRoom&&!(db.rooms&&db.rooms[roomId]&&db.rooms[roomId].members&&db.rooms[roomId].members[pid])) continue;
+    if(!isRoom&&active.slice(3)!==pid) continue;
     try{
       var cipher = await Cry.enc(c.key, JSON.stringify(payload));
       rawSend(c.conn, {type:'MSG', id:msgId, cipher:cipher, hops:0});
+      delivered[pid] = true;
     }catch(e){ console.error('[send]', e); }
+  }
+  // Relay for offline peers
+  if(!isRoom){
+    var dmPeer=active.slice(3), dmConn=conns[dmPeer];
+    if(!delivered[dmPeer] && dmConn && dmConn.key){
+      Cry.enc(dmConn.key, JSON.stringify(payload)).then(function(oc){
+        relayStore(dmPeer, {id:msgId, cipher:oc, from:myId});
+      }).catch(function(){});
+    }
+  } else if(db.rooms&&db.rooms[roomId]){
+    Object.keys(db.rooms[roomId].members||{}).forEach(function(rPid){
+      if(rPid===myId||delivered[rPid]) return;
+      var rc=conns[rPid]; if(!rc||!rc.key) return;
+      Cry.enc(rc.key, JSON.stringify(payload)).then(function(rc2){
+        relayStore(rPid, {id:msgId, cipher:rc2, from:myId, roomId:roomId});
+      }).catch(function(){});
+    });
   }
 }
 
@@ -2261,6 +2283,8 @@ document.addEventListener('visibilitychange', function(){
     if(away > 15000){ // away for 15+ seconds
       checkAndReconnect();
     }
+    // Always fetch relay messages when returning
+    setTimeout(relayFetch, 500);
   }
 });
 
@@ -2391,6 +2415,82 @@ function startHeartbeat(){
 
 // Handle PING in data handler (add to handleData)
 // Also update peer error handler to trigger reconnect
+
+
+// ═══════════════════════════════════════════
+//  RELAY — офлайн доставка сообщений
+// ═══════════════════════════════════════════
+var RELAY = 'https://securegram-signal-production.up.railway.app';
+
+// Отправить сообщение на relay если peer офлайн
+async function relayStore(toPeerId, msgObj) {
+  try {
+    await fetch(RELAY + '/relay', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to: toPeerId, msgs: [msgObj] })
+    });
+  } catch(e) { /* тихо игнорируем */ }
+}
+
+// Забрать очередь с relay при подключении
+async function relayFetch() {
+  if (!myId) return;
+  try {
+    var r = await fetch(RELAY + '/relay?peer=' + myId);
+    if (!r.ok) return;
+    var data = await r.json();
+    if (!data.msgs || !data.msgs.length) return;
+    console.log('[relay] fetched', data.msgs.length, 'queued msgs');
+    // Process each message as if received from sender
+    for (var i = 0; i < data.msgs.length; i++) {
+      var m = data.msgs[i];
+      if (!m.from || !m.cipher || !m.id) continue;
+      if (seen.has(m.id)) continue;
+      // Find or create session for this sender
+      if (!conns[m.from]) {
+        conns[m.from] = { conn: null, key: null, name: m.from.slice(0,8), color: clr(m.from), online: false, sent: false };
+      }
+      // Try to decrypt if we have a key, else queue for later
+      var c = conns[m.from];
+      if (c.key) {
+        await processRelayMsg(m, c);
+      } else {
+        // Store for processing after key exchange
+        if (!c._relayQueue) c._relayQueue = [];
+        c._relayQueue.push(m);
+      }
+    }
+  } catch(e) { console.warn('[relay] fetch failed', e.message); }
+}
+
+async function processRelayMsg(m, c) {
+  if (seen.has(m.id)) return;
+  seen.add(m.id);
+  try {
+    var plain = await Cry.dec(c.key, m.cipher);
+    var data = JSON.parse(plain);
+    var chatKey = data.roomId ? 'room:' + data.roomId : 'dm:' + m.from;
+    var msg = { id: m.id, from: m.from, name: data.name, text: data.text,
+      photo: data.photo, audio: data.audio, audioDur: data.audioDur,
+      file: data.file, replyTo: data.replyTo, ts: data.ts, date: data.date };
+    saveMsg(chatKey, msg);
+    if (active === chatKey) appendMsg(msg, true);
+    else { unread[chatKey] = (unread[chatKey]||0) + 1; }
+    renderList();
+  } catch(e) { console.warn('[relay] decrypt failed', e); }
+}
+
+// Process pending relay queue after key exchange
+async function processRelayQueue(peerId) {
+  var c = conns[peerId];
+  if (!c || !c.key || !c._relayQueue || !c._relayQueue.length) return;
+  var q = c._relayQueue;
+  c._relayQueue = [];
+  for (var i = 0; i < q.length; i++) {
+    await processRelayMsg(q[i], c);
+  }
+}
 
 
 init();
