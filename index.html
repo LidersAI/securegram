@@ -625,8 +625,8 @@ mark.hit{background:rgba(82,136,193,.4);color:inherit;border-radius:2px}
 // CONFIG
 // =============================================
 var SERVERS = [
+  {host:'liders-chat-signal.onrender.com',port:443,path:'/signal',secure:true,key:'peerjs'},
   {host:'0.peerjs.com',port:443,path:'/',secure:true},
-  {host:'securegram-signal-production.up.railway.app',port:443,path:'/signal',secure:true,key:'peerjs'},
 ];
 var BASE = 'https://lidersai.github.io/securegram/';
 var DB_KEY = 'sg_v1';
@@ -2510,7 +2510,7 @@ function startHeartbeat(){
 // ═══════════════════════════════════════════
 //  RELAY — офлайн доставка сообщений
 // ═══════════════════════════════════════════
-var RELAY = 'https://securegram-signal-production.up.railway.app';
+var RELAY = 'https://liders-chat-signal.onrender.com';
 var RELAY_OK = true; // track if relay is reachable
 
 // Отправить сообщение на relay если peer офлайн
