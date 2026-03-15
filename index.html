@@ -1764,8 +1764,9 @@ function showMembersPanel(){
     av.appendChild(dot);
 
     var info=document.createElement('div');
+    info.style.cssText='flex:1;min-width:0';
     var nm=document.createElement('div');
-    nm.style.cssText='font-size:14px;font-weight:500';
+    nm.style.cssText='font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
     nm.textContent=(mname||pid.slice(0,8))+(isMe?' (вы)':'');
     var st=document.createElement('div');
     st.style.cssText='font-size:11px;color:var(--text3);margin-top:2px';
@@ -1773,6 +1774,29 @@ function showMembersPanel(){
     info.appendChild(nm); info.appendChild(st);
 
     row.appendChild(av); row.appendChild(info);
+
+    // Remove button (not for self)
+    if(!isMe){
+      var rmBtn=document.createElement('button');
+      rmBtn.style.cssText='border:none;background:transparent;color:#f87171;cursor:pointer;font-size:16px;padding:4px;opacity:0;transition:opacity .1s;flex-shrink:0';
+      rmBtn.textContent='✕';
+      rmBtn.title='Удалить из группы';
+      rmBtn.onclick=function(e){
+        e.stopPropagation();
+        if(!confirm('Удалить '+mname+' из группы?')) return;
+        var roomId=active.slice(5);
+        updDB(function(db){if(db.rooms&&db.rooms[roomId]&&db.rooms[roomId].members) delete db.rooms[roomId].members[pid];});
+        row.remove();
+        // Update member count
+        var hdrSpan=panel.querySelector('span');
+        if(hdrSpan){var room2=(getDB().rooms||{})[roomId];hdrSpan.textContent='УЧАСТНИКИ ('+(room2?Object.keys(room2.members||{}).length:0)+')';}
+        renderList();
+        toast(mname+' удалён из группы');
+      };
+      row.onmouseenter=function(){row.style.background='var(--hover)';rmBtn.style.opacity='1';};
+      row.onmouseleave=function(){row.style.background='';rmBtn.style.opacity='0';};
+      row.appendChild(rmBtn);
+    }
     list.appendChild(row);
   });
   panel.appendChild(list);
@@ -2595,17 +2619,16 @@ function openPeerProfile(peerId){
 
 
 function openOrCreateDM(peerId, name){
-  // Only save DM if explicitly added (not mesh)
-  if(!meta || !meta.mesh){
-    updDB(function(db){
-      if(!db.dms) db.dms={};
-      if(!db.dms[peerId]) db.dms[peerId]={name:name,messages:[]};
-    });
-  }
-  // Connect if not connected
-  if((!conns[peerId]||!conns[peerId].online)&&peer&&!peer.destroyed){
+  updDB(function(db){
+    if(!db.dms) db.dms={};
+    if(!db.dms[peerId]) db.dms[peerId]={name:name||peerId.slice(0,8),messages:[],explicit:true};
+    else db.dms[peerId].explicit=true;
+  });
+  if(!conns[peerId]||!conns[peerId].online){
     setupConn(peerId, {initiator:true});
   }
+  // Close members panel if open
+  var mp=document.getElementById('members-panel-popup'); if(mp) mp.remove();
   openChat('dm:'+peerId);
 }
 
