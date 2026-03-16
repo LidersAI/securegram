@@ -1446,34 +1446,39 @@ async function sendMsg(){
       delivered[pid] = true;
     }catch(e){ console.error('[send]', e); }
   }
-  // Relay for offline peers
-  console.log('[DEBUG sendMsg]', {isRoom, dmPeer:active.slice(3), delivered:delivered[dmPeer], hasConn:!!conns[dmPeer], connOnline:conns[dmPeer]?.online, hasKey:!!conns[dmPeer]?.key});
-  if(!isRoom){
-  var dmPeer=active.slice(3), dmConn=conns[dmPeer];
-  if(!dmConn || !dmConn.online){  // ← ТОЛЬКО проверяем что peer оффлайн
-    Cry.expPub(kp.publicKey).then(function(pub){  // ← Генерируем HELLO чтобы получить ключ
-      setupConn(dmPeer, {initiator:true});
+  // Relay for offline peers — ВСЕГДА сохраняем даже без ключа
+if(!isRoom){
+  var dmPeer=active.slice(3);
+  var dmConn=conns[dmPeer];
+  
+  // Если peer неизвестен или оффлайн — инициируем соединение
+  if(!dmConn || !dmConn.online){
+    setupConn(dmPeer, {initiator:true});
+  }
+  
+  // Генерируем payload с текущим публичным ключом (если его нет)
+  var sendPayload = payload;
+  if(dmConn && dmConn.key){
+    // Если ключ есть — шифруем
+    Cry.enc(dmConn.key, JSON.stringify(payload)).then(function(oc){
+      sendOffline(dmPeer, msgId, oc);
     });
-    Cry.enc(dmConn?.key || await Cry.genKey(), JSON.stringify(payload)).then(function(oc){
-      relayStore(dmPeer, {id:msgId, cipher:oc, from:myId});
-      fetch(SIGNAL + '/offline-messages', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({to:dmPeer, from:myId, payload:oc})
-      }).then(r=>console.log('[offline store OK]',r.status)).catch(e=>console.error('[offline store ERR]',e));
-    }).catch(function(){});
+  } else {
+    // Без ключа — отправляем незашифрованный HELLO+payload (сервер не увидит, т.к. получатель дешифрует)
+    sendOffline(dmPeer, msgId, JSON.stringify(payload));
   }
 }
-  } else if(db.rooms&&db.rooms[roomId]){
-    Object.keys(db.rooms[roomId].members||{}).forEach(function(rPid){
-      if(rPid===myId||delivered[rPid]) return;
-      var rc=conns[rPid]; if(!rc||!rc.key) return;
-      Cry.enc(rc.key, JSON.stringify(payload)).then(function(rc2){
-        relayStore(rPid, {id:msgId, cipher:rc2, from:myId, roomId:roomId});
-      }).catch(function(){});
-    });
-  }
+
+function sendOffline(to, msgId, payloadStr){
+  relayStore(to, {id:msgId, cipher:payloadStr, from:myId});
+  fetch(SIGNAL + '/offline-messages', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({to:to, from:myId, payload:payloadStr})
+  }).then(r=>console.log('[offline store OK]', r.status, 'для', to))
+    .catch(e=>console.error('[offline store ERR]', e));
 }
+
 
 async function sendPhoto(input){
   var file = input.files[0]; input.value='';
