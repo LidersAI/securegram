@@ -1446,25 +1446,21 @@ async function sendMsg(){
       delivered[pid] = true;
     }catch(e){ console.error('[send]', e); }
   }
-  // Relay for offline peers — ВСЕГДА сохраняем даже без ключа
+ // Relay for offline peers — ВСЕГДА сохраняем
 if(!isRoom){
-  var dmPeer=active.slice(3);
-  var dmConn=conns[dmPeer];
+  var dmPeer = active.slice(3);
   
-  // Если peer неизвестен или оффлайн — инициируем соединение
-  if(!dmConn || !dmConn.online){
+  // Инициируем соединение если нужно
+  if(!conns[dmPeer] || !conns[dmPeer].online){
     setupConn(dmPeer, {initiator:true});
   }
   
-  // Генерируем payload с текущим публичным ключом (если его нет)
-  var sendPayload = payload;
-  if(dmConn && dmConn.key){
-    // Если ключ есть — шифруем
-    Cry.enc(dmConn.key, JSON.stringify(payload)).then(function(oc){
+  // Шифруем если ключ есть, иначе отправляем как есть
+  if(conns[dmPeer] && conns[dmPeer].key){
+    Cry.enc(conns[dmPeer].key, JSON.stringify(payload)).then(function(oc){
       sendOffline(dmPeer, msgId, oc);
-    });
+    }).catch(console.error);
   } else {
-    // Без ключа — отправляем незашифрованный HELLO+payload (сервер не увидит, т.к. получатель дешифрует)
     sendOffline(dmPeer, msgId, JSON.stringify(payload));
   }
 }
@@ -1475,10 +1471,9 @@ function sendOffline(to, msgId, payloadStr){
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body:JSON.stringify({to:to, from:myId, payload:payloadStr})
-  }).then(r=>console.log('[offline store OK]', r.status, 'для', to))
-    .catch(e=>console.error('[offline store ERR]', e));
+  }).then(r=>console.log('[offline store OK]',r.status))
+    .catch(e=>console.warn('[offline store ERR]',e));
 }
-
 
 async function sendPhoto(input){
   var file = input.files[0]; input.value='';
