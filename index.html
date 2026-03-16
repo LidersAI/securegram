@@ -1464,20 +1464,13 @@ function compressImg(file, max, q){
     img.onerror=rej; img.src=url;
   });
 }
+
 function bcastRoom(roomId, exceptId, msgObj){
   var room=(getDB().rooms||{})[roomId]; if(!room) return;
   Object.keys(room.members||{}).forEach(function(pid){
     if(pid===myId||pid===exceptId) return;
     var c=conns[pid]; if(c&&c.online) rawSend(c.conn,msgObj);
   });
-// OFFLINE всегда
-if(active && !active.startsWith('room:')){
-  var target = active.slice(3);
-  fetch(SIGNAL+'/offline-messages', {
-    method:'POST',
-    body:JSON.stringify({to:target,from:myId,payload:JSON.stringify(payload)})
-  }).catch(()=>0);
-}
 }
 
 // =============================================
