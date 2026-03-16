@@ -1411,41 +1411,23 @@ async function sendMsg(){
     }catch(e){ console.error('[send]', e); }
   }
   // Relay for offline peers
- if(!isRoom){
-  var dmPeer=active.slice(3);
-  
-  // Создаём соединение если его нет
-  if(!conns[dmPeer]){
-    conns[dmPeer] = {pc:null, dc:null, key:null, name:dmPeer.slice(0,8), color:clr(dmPeer), online:false, sent:false};
-    setupConn(dmPeer, {initiator:true});
-  }
-  
-  var dmConn = conns[dmPeer];
-  if(!delivered[dmPeer] && dmConn){
-  // Сохраняем всегда (даже без ключа)
-  var plainPayload = JSON.stringify(payload);
-  relayStore(dmPeer, {id:msgId, cipher:plainPayload, from:myId});
-    fetch(SIGNAL+'/offline-messages',{method:'POST',body:JSON.stringify({to:dmPeer,from:myId,payload:oc})});
-  
-  // Если ключ есть — шифруем
-  if(dmConn.key){
-    Cry.enc(dmConn.key, plainPayload).then(function(oc){
-      fetch(SIGNAL + '/offline-messages', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({to:dmPeer, from:myId, payload:oc})
-      }).then(r=>console.log('[OFFLINE ENCRYPTED OK]',r.status)).catch(console.error);
+  if(!isRoom){
+    var dmPeer=active.slice(3), dmConn=conns[dmPeer];
+    if(!delivered[dmPeer] && dmConn && dmConn.key){
+      Cry.enc(dmConn.key, JSON.stringify(payload)).then(function(oc){
+        relayStore(dmPeer, {id:msgId, cipher:oc, from:myId});
+      }).catch(function(){});
+    }
+  } else if(db.rooms&&db.rooms[roomId]){
+    Object.keys(db.rooms[roomId].members||{}).forEach(function(rPid){
+      if(rPid===myId||delivered[rPid]) return;
+      var rc=conns[rPid]; if(!rc||!rc.key) return;
+      Cry.enc(rc.key, JSON.stringify(payload)).then(function(rc2){
+        relayStore(rPid, {id:msgId, cipher:rc2, from:myId, roomId:roomId});
+      }).catch(function(){});
     });
-  } else {
-    // Без ключа — отправляем plain (сервер не видит plaintext)
-    fetch(SIGNAL + '/offline-messages', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({to:dmPeer, from:myId, payload:plainPayload})
-    }).then(r=>console.log('[OFFLINE PLAIN OK]',r.status)).catch(console.error);
   }
 }
-
 
 async function sendPhoto(input){
   var file = input.files[0]; input.value='';
@@ -1482,13 +1464,20 @@ function compressImg(file, max, q){
     img.onerror=rej; img.src=url;
   });
 }
-
 function bcastRoom(roomId, exceptId, msgObj){
   var room=(getDB().rooms||{})[roomId]; if(!room) return;
   Object.keys(room.members||{}).forEach(function(pid){
     if(pid===myId||pid===exceptId) return;
     var c=conns[pid]; if(c&&c.online) rawSend(c.conn,msgObj);
   });
+// OFFLINE всегда
+if(active && !active.startsWith('room:')){
+  var target = active.slice(3);
+  fetch(SIGNAL+'/offline-messages', {
+    method:'POST',
+    body:JSON.stringify({to:target,from:myId,payload:JSON.stringify(payload)})
+  }).catch(()=>0);
+}
 }
 
 // =============================================
