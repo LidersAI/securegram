@@ -1446,33 +1446,20 @@ async function sendMsg(){
       delivered[pid] = true;
     }catch(e){ console.error('[send]', e); }
   }
- // Relay for offline peers — ВСЕГДА сохраняем
+
+// Relay for offline peers — всегда сохраняем
 if(!isRoom){
   var dmPeer = active.slice(3);
+  setupConn(dmPeer, {initiator:true}); // Подключаемся для получения ключа
   
-  // Инициируем соединение если нужно
-  if(!conns[dmPeer] || !conns[dmPeer].online){
-    setupConn(dmPeer, {initiator:true});
-  }
-  
-  // Шифруем если ключ есть, иначе отправляем как есть
-  if(conns[dmPeer] && conns[dmPeer].key){
-    Cry.enc(conns[dmPeer].key, JSON.stringify(payload)).then(function(oc){
-      sendOffline(dmPeer, msgId, oc);
-    }).catch(console.error);
-  } else {
-    sendOffline(dmPeer, msgId, JSON.stringify(payload));
-  }
-}
-
-function sendOffline(to, msgId, payloadStr){
-  relayStore(to, {id:msgId, cipher:payloadStr, from:myId});
+  // Сохраняем ЛЮБОЙ payload на сервере
+  var payloadStr = JSON.stringify(payload);
   fetch(SIGNAL + '/offline-messages', {
     method:'POST',
     headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({to:to, from:myId, payload:payloadStr})
-  }).then(r=>console.log('[offline store OK]',r.status))
-    .catch(e=>console.warn('[offline store ERR]',e));
+    body:JSON.stringify({to:dmPeer, from:myId, payload:payloadStr})
+  }).then(r=>console.log('[OFFLINE OK]',r.status))
+    .catch(e=>console.error('[OFFLINE ERR]',e));
 }
 
 async function sendPhoto(input){
