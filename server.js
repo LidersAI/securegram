@@ -3,6 +3,7 @@ import https from 'https';
 import http from 'http';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
 const PORT = process.env.PORT || 9000;
 const USE_SSL = process.env.USE_SSL === 'true';
@@ -13,8 +14,57 @@ const SECRET = process.env.PEER_SECRET || 'peerjs';
 // ── Offline Message Queue ──────────────────────────────────────────
 // Map<recipientPeerId, Array<{from, payload, ts}>>
 const offlineQueue = new Map();
+const onlinePeers = new Set();
 const MAX_QUEUE_PER_PEER = 500;  // макс сообщений на одного получателя
 const MSG_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 дней — после этого удаляем
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const OFFLINE_QUEUE_PATH = process.env.OFFLINE_QUEUE_PATH || path.join(__dirname, 'offline-queue.json');
+
+function pruneMessages(messages, now = Date.now()) {
+  return messages.filter(m => now - m.ts < MSG_TTL_MS);
+}
+
+function saveQueueToDisk() {
+  try {
+    const now = Date.now();
+    const serializable = {};
+
+    for (const [recipientId, messages] of offlineQueue.entries()) {
+      const fresh = pruneMessages(messages, now);
+      if (fresh.length > 0) {
+        serializable[recipientId] = fresh;
+      }
+    }
+
+    fs.writeFileSync(OFFLINE_QUEUE_PATH, JSON.stringify(serializable), 'utf8');
+  } catch (err) {
+    console.error('[Queue] Не удалось сохранить очередь на диск:', err.message);
+  }
+}
+
+function loadQueueFromDisk() {
+  try {
+    if (!fs.existsSync(OFFLINE_QUEUE_PATH)) return;
+    const raw = fs.readFileSync(OFFLINE_QUEUE_PATH, 'utf8');
+    if (!raw) return;
+
+    const parsed = JSON.parse(raw);
+    const now = Date.now();
+
+    for (const [recipientId, messages] of Object.entries(parsed)) {
+      if (!Array.isArray(messages)) continue;
+      const fresh = pruneMessages(messages, now).slice(-MAX_QUEUE_PER_PEER);
+      if (fresh.length > 0) {
+        offlineQueue.set(recipientId, fresh);
+      }
+    }
+
+    console.log(`[Queue] Восстановлено сообщений из файла: ${[...offlineQueue.values()].reduce((acc, q) => acc + q.length, 0)}`);
+  } catch (err) {
+    console.error('[Queue] Не удалось загрузить очередь с диска:', err.message);
+  }
+}
 
 function queueMessage(recipientId, from, payload) {
   if (!offlineQueue.has(recipientId)) {
@@ -28,14 +78,18 @@ function queueMessage(recipientId, from, payload) {
   if (fresh.length >= MAX_QUEUE_PER_PEER) fresh.shift();
   fresh.push({ from, payload, ts: now });
   offlineQueue.set(recipientId, fresh);
+  saveQueueToDisk();
   console.log(`[Queue] Сохранено для ${recipientId}: ${fresh.length} сообщений`);
 }
 
 function flushQueue(recipientId) {
   const msgs = offlineQueue.get(recipientId) || [];
   offlineQueue.delete(recipientId);
+  saveQueueToDisk();
   return msgs;
 }
+
+loadQueueFromDisk();
 
 // ── HTTP / HTTPS сервер ────────────────────────────────────────────
 let server;
@@ -66,6 +120,7 @@ const peerServer = PeerServer({
 // ── Логи + доставка офлайн-сообщений при подключении ──────────────
 peerServer.on('connection', (client) => {
   const id = client.getId();
+  onlinePeers.add(id);
   console.log(`[+] подключён: ${id} | всего: ${getCount()}`);
 
   // Если есть очередь — сигналим клиенту через специальный HTTP endpoint,
@@ -77,7 +132,9 @@ peerServer.on('connection', (client) => {
 });
 
 peerServer.on('disconnect', (client) => {
-  console.log(`[-] отключён:  ${client.getId()} | всего: ${getCount()}`);
+  const id = client.getId();
+  onlinePeers.delete(id);
+  console.log(`[-] отключён:  ${id} | всего: ${getCount()}`);
 });
 
 peerServer.on('error', (err) => {
@@ -100,6 +157,15 @@ server.on('request', (req, res) => {
   if (url.pathname === '/health') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify({ ok: true, peers: getCount(), ts: Date.now() }));
+  }
+
+
+  // GET /presence/:peerId — простой индикатор онлайн-статуса
+  const presenceMatch = url.pathname.match(/^\/presence\/([^/]+)$/);
+  if (presenceMatch && req.method === 'GET') {
+    const peerId = decodeURIComponent(presenceMatch[1]);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ ok: true, peerId, online: onlinePeers.has(peerId) }));
   }
 
   // POST /offline-messages — клиент-отправитель сохраняет сообщение если получатель офлайн
@@ -133,6 +199,9 @@ server.on('request', (req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify({ ok: true, messages: msgs }));
   }
+
+  res.writeHead(404, { 'Content-Type': 'application/json' });
+  return res.end(JSON.stringify({ ok: false, error: 'Not found' }));
 });
 
 // ── Старт ─────────────────────────────────────────────────────────
