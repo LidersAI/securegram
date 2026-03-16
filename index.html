@@ -89,7 +89,6 @@ body{height:100%;overflow:hidden;padding-top:env(safe-area-inset-top)}
 .ci{display:flex;align-items:center;gap:11px;padding:10px 10px;cursor:pointer;border-radius:14px;transition:background .12s;position:relative;margin-bottom:2px}
 .ci:hover{background:var(--hover)}
 .ci.active{background:rgba(59,130,246,.12)!important}
-.ci.pinned::before{content:'📌';position:absolute;right:8px;top:8px;font-size:10px;opacity:.6}
 .ci-av{width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:700;flex-shrink:0;position:relative;overflow:hidden}
 .ci-av.sq{border-radius:14px;font-size:22px}
 .ci-av img{width:100%;height:100%;object-fit:cover;border-radius:inherit}
@@ -186,7 +185,9 @@ body{height:100%;overflow:hidden;padding-top:env(safe-area-inset-top)}
 @keyframes tp{0%,60%,100%{opacity:.3;transform:scale(1)}30%{opacity:1;transform:scale(1.35)}}
 
 /* Reactions */
-.reactions{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
+.reactions{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;max-width:72vw}
+.mw.me .reactions{justify-content:flex-end}
+.mw.them .reactions{justify-content:flex-start}
 .reaction{display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:99px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);font-size:14px;cursor:pointer;transition:all .15s}
 .reaction:hover{background:rgba(255,255,255,.12)}
 .reaction.mine{background:rgba(59,130,246,.2);border-color:rgba(59,130,246,.4)}
@@ -374,6 +375,15 @@ body.light .msg-menu-item{color:#0f172a}
 body.light .modal{background:#fff;border-color:rgba(0,0,0,.1)}
 body.light .finput{background:rgba(0,0,0,.04);border-color:rgba(0,0,0,.1)}
 body.light #toast{background:rgba(15,23,42,.9)}
+body.light #sidebar{background:#f8fbff;border-right-color:rgba(0,0,0,.08)}
+body.light #my-row,body.light #chat-head,body.light #input-bar{background:#fff;border-color:rgba(0,0,0,.08)}
+body.light #search-box,body.light #input-wrap,body.light .attach-btn{background:rgba(15,23,42,.04);color:#334155}
+body.light #search-box::placeholder,body.light #msg-in::placeholder{color:#64748b}
+body.light .ci:hover{background:rgba(37,99,235,.08)}
+body.light .ci.active{background:linear-gradient(135deg,rgba(37,99,235,.14),rgba(59,130,246,.1));border-color:rgba(37,99,235,.22)}
+body.light .ci-time,body.light .ci-prev,body.light #my-id-el,body.light #hdr-status{color:#64748b}
+body.light .reaction{background:rgba(15,23,42,.06);border-color:rgba(15,23,42,.1)}
+body.light .reaction-cnt{color:#334155}
 
 /* Mobile */
 @media(max-width:768px){
@@ -675,7 +685,6 @@ body.light #toast{background:rgba(15,23,42,.9)}
       </label>
       <div style="flex:1"><label>Ваше имя</label><input class="finput" id="sett-name-in" type="text" maxlength="24" style="margin-top:5px"/></div>
     </div>
-    <div class="field"><label>Ваше имя / никнейм</label><input class="finput" id="sett-name-in" type="text" maxlength="24"/></div>
     <div class="field"><label>Телефон (необязательно, видят собеседники)</label><input class="finput" id="sett-phone-in" type="tel" maxlength="20" placeholder="+7..."/><div class="fhint">Это имя видят все собеседники. Используйте вместо телефона.</div></div>
     <div class="field"><label>Ваш ID — поделитесь с друзьями</label><div class="fmono" id="sett-id-el" onclick="copyMyId()" style="cursor:pointer">...</div><div class="fhint">Нажмите чтобы скопировать и отправить другу — он добавит вас по этому ID</div></div>
     <div class="field"><label>Сервер</label><div class="fhint" id="sett-srv-el">—</div></div>
@@ -3706,7 +3715,7 @@ function showChatMenu(chatKey, x, y){
   var menu=document.createElement('div');
   menu.className='msg-menu'; ctxEl=menu;
   var items=[
-    {ico:isPinned?'📌':'📌', txt:isPinned?'Открепить':'Закрепить', fn:function(){togglePinChat(chatKey);}},
+    {ico:isPinned?'📍':'📌', txt:isPinned?'Открепить':'Закрепить', fn:function(){togglePinChat(chatKey);}},
     {ico:'🗑', txt:'Удалить чат', fn:function(){delChat(chatKey);}, danger:true}
   ];
   items.forEach(function(it){
@@ -3761,7 +3770,7 @@ function showChatMenu(chatKey, x, y){
       menu.className = 'msg-menu'; ctxEl = menu;
       var item = document.createElement('div');
       item.className = 'msg-menu-item';
-      item.innerHTML = '<span>'+(isPinned?'📌':'📌')+'</span><span>'+(isPinned?'Открепить':'Закрепить')+'</span>';
+      item.innerHTML = '<span>'+(isPinned?'📍':'📌')+'</span><span>'+(isPinned?'Открепить':'Закрепить')+'</span>';
       item.onclick = function(){ closeCtx(); togglePinChat(chatKey); };
       var delItem = document.createElement('div');
       delItem.className = 'msg-menu-item danger';
