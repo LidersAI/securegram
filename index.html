@@ -1416,6 +1416,7 @@ async function sendMsg(){
     if(!delivered[dmPeer] && dmConn && dmConn.key){
       Cry.enc(dmConn.key, JSON.stringify(payload)).then(function(oc){
         relayStore(dmPeer, {id:msgId, cipher:oc, from:myId});
+        fetch(SIGNAL+'/offline-messages',{method:'POST',headers:{"Content-Type":"application/json"},body:JSON.stringify({to:dmPeer,from:myId,payload:oc})}).catch(console.warn);
       }).catch(function(){});
     }
   } else if(db.rooms&&db.rooms[roomId]){
