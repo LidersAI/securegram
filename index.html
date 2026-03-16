@@ -907,7 +907,7 @@ function createPC(peerId) {
     if (pc.connectionState === 'connected') {
       c.online = true; renderList(); refreshHdr();
     } else if (['disconnected','failed','closed'].includes(pc.connectionState)) {
-      c.online = false; c.key = null; c.sent = false;
+      c.online = false; c.sent = false;
       sysMsg('dm:'+peerId, (c.name||'Участник')+' отключился');
       renderList(); refreshHdr();
     }
@@ -943,7 +943,7 @@ function setupDC(dc, peerId) {
   };
 
   dc.onclose = function() {
-    c.online = false; c.key = null; c.sent = false;
+    c.online = false; c.sent = false;
     sysMsg('dm:'+peerId, (c.name||'Участник')+' отключился');
     renderList(); refreshHdr();
   };
@@ -1373,6 +1373,24 @@ async function propagate(srcId, origMsg){
   }
 }
 
+
+async function queueOfflineForPeer(peerId, msgId, payload, extra){
+  var c = conns[peerId];
+  if(!c || !c.key) return false;
+  try{
+    var cipher = await Cry.enc(c.key, JSON.stringify(payload));
+    var relayMsg = Object.assign({ id: msgId, cipher: cipher, from: myId }, extra || {});
+    await relayStore(peerId, relayMsg);
+    if(!(extra && extra.roomId)){
+      localStorage.setItem('relay_'+peerId+'_'+myId, JSON.stringify(relayMsg));
+    }
+    return true;
+  }catch(e){
+    console.warn('[offline queue]', e.message || e);
+    return false;
+  }
+}
+
 // =============================================
 // SEND
 // =============================================
@@ -1411,23 +1429,23 @@ async function sendMsg(){
     }catch(e){ console.error('[send]', e); }
   }
   // Relay for offline peers
+  var offlineFail = 0;
   if(!isRoom){
-    var dmPeer=active.slice(3), dmConn=conns[dmPeer];
-    if(!delivered[dmPeer] && dmConn && dmConn.key){
-      Cry.enc(dmConn.key, JSON.stringify(payload)).then(function(oc){
-        relayStore(dmPeer, {id:msgId, cipher:oc, from:myId});
-        localStorage.setItem('relay_'+dmPeer+'_'+myId, JSON.stringify({id:msgId,cipher:oc,from:myId}));
-      }).catch(function(){});
+    var dmPeer=active.slice(3);
+    if(!delivered[dmPeer]){
+      var okOff = await queueOfflineForPeer(dmPeer, msgId, payload);
+      if(!okOff) offlineFail++;
     }
   } else if(db.rooms&&db.rooms[roomId]){
-    Object.keys(db.rooms[roomId].members||{}).forEach(function(rPid){
-      if(rPid===myId||delivered[rPid]) return;
-      var rc=conns[rPid]; if(!rc||!rc.key) return;
-      Cry.enc(rc.key, JSON.stringify(payload)).then(function(rc2){
-        relayStore(rPid, {id:msgId, cipher:rc2, from:myId, roomId:roomId});
-      }).catch(function(){});
-    });
+    var roomMembers = Object.keys(db.rooms[roomId].members||{});
+    for(var rm=0; rm<roomMembers.length; rm++){
+      var rPid = roomMembers[rm];
+      if(rPid===myId || delivered[rPid]) continue;
+      var okOffRoom = await queueOfflineForPeer(rPid, msgId, payload, { roomId: roomId });
+      if(!okOffRoom) offlineFail++;
+    }
   }
+  if(offlineFail>0) toast('Для '+offlineFail+' получателей нет ключа: откройте чат с ними 1 раз');
 }
 
 async function sendPhoto(input){
@@ -1443,12 +1461,30 @@ async function sendPhoto(input){
   var m={id:msgId,from:myId,name:myName,photo:compressed,ts:now,date:day};
   saveMsg(active,m); appendMsg(m,true); renderList();
   var db=getDB();
+  var delivered={};
   for(var pid in conns){
     var c=conns[pid]; if(!c.online||!c.key) continue;
     if(isRoom&&!(db.rooms&&db.rooms[roomId]&&db.rooms[roomId].members&&db.rooms[roomId].members[pid])) continue;
     if(!isRoom&&active.slice(3)!==pid) continue;
-    try{ var cipher2=await Cry.enc(c.key,JSON.stringify(payload)); rawSend(c.conn,{type:'MSG',id:msgId,cipher:cipher2,hops:0}); }catch(e){}
+    try{ var cipher2=await Cry.enc(c.key,JSON.stringify(payload)); rawSend(c.conn,{type:'MSG',id:msgId,cipher:cipher2,hops:0}); delivered[pid]=true; }catch(e){}
   }
+  var offlineFail = 0;
+  if(!isRoom){
+    var dmPeer=active.slice(3);
+    if(!delivered[dmPeer]){
+      var okOff = await queueOfflineForPeer(dmPeer, msgId, payload);
+      if(!okOff) offlineFail++;
+    }
+  } else if(db.rooms&&db.rooms[roomId]){
+    var roomMembers = Object.keys(db.rooms[roomId].members||{});
+    for(var rm=0; rm<roomMembers.length; rm++){
+      var rPid = roomMembers[rm];
+      if(rPid===myId || delivered[rPid]) continue;
+      var okOffRoom = await queueOfflineForPeer(rPid, msgId, payload, { roomId: roomId });
+      if(!okOffRoom) offlineFail++;
+    }
+  }
+  if(offlineFail>0) toast('Для '+offlineFail+' получателей нет ключа: откройте чат с ними 1 раз');
 }
 
 function compressImg(file, max, q){
@@ -2137,12 +2173,30 @@ async function stopRec(e){
   var m={id:msgId,from:myId,name:myName,audio:b64,audioDur:dur,ts:now,date:day};
   saveMsg(active,m); appendMsg(m,true); renderList();
   var db=getDB();
+  var delivered={};
   for(var pid in conns){
     var c=conns[pid]; if(!c.online||!c.key) continue;
     if(isRoom&&!(db.rooms&&db.rooms[roomId]&&db.rooms[roomId].members&&db.rooms[roomId].members[pid])) continue;
     if(!isRoom&&active.slice(3)!==pid) continue;
-    try{ var cipher=await Cry.enc(c.key,JSON.stringify(payload)); rawSend(c.conn,{type:'MSG',id:msgId,cipher:cipher,hops:0}); }catch(e){}
+    try{ var cipher=await Cry.enc(c.key,JSON.stringify(payload)); rawSend(c.conn,{type:'MSG',id:msgId,cipher:cipher,hops:0}); delivered[pid]=true; }catch(e){}
   }
+  var offlineFail = 0;
+  if(!isRoom){
+    var dmPeer=active.slice(3);
+    if(!delivered[dmPeer]){
+      var okOff = await queueOfflineForPeer(dmPeer, msgId, payload);
+      if(!okOff) offlineFail++;
+    }
+  } else if(db.rooms&&db.rooms[roomId]){
+    var roomMembers = Object.keys(db.rooms[roomId].members||{});
+    for(var rm=0; rm<roomMembers.length; rm++){
+      var rPid = roomMembers[rm];
+      if(rPid===myId || delivered[rPid]) continue;
+      var okOffRoom = await queueOfflineForPeer(rPid, msgId, payload, { roomId: roomId });
+      if(!okOffRoom) offlineFail++;
+    }
+  }
+  if(offlineFail>0) toast('Для '+offlineFail+' получателей нет ключа: откройте чат с ними 1 раз');
 }
 
 function makeVoiceBubble(m){
@@ -2188,12 +2242,30 @@ async function sendFile(input){
   var m={id:msgId,from:myId,name:myName,file:finfo,ts:now,date:day};
   saveMsg(active,m); appendMsg(m,true); renderList();
   var db=getDB();
+  var delivered={};
   for(var pid in conns){
     var c=conns[pid]; if(!c.online||!c.key) continue;
     if(isRoom&&!(db.rooms&&db.rooms[roomId]&&db.rooms[roomId].members&&db.rooms[roomId].members[pid])) continue;
     if(!isRoom&&active.slice(3)!==pid) continue;
-    try{ var cipher=await Cry.enc(c.key,JSON.stringify(payload)); rawSend(c.conn,{type:'MSG',id:msgId,cipher:cipher,hops:0}); }catch(e){}
+    try{ var cipher=await Cry.enc(c.key,JSON.stringify(payload)); rawSend(c.conn,{type:'MSG',id:msgId,cipher:cipher,hops:0}); delivered[pid]=true; }catch(e){}
   }
+  var offlineFail = 0;
+  if(!isRoom){
+    var dmPeer=active.slice(3);
+    if(!delivered[dmPeer]){
+      var okOff = await queueOfflineForPeer(dmPeer, msgId, payload);
+      if(!okOff) offlineFail++;
+    }
+  } else if(db.rooms&&db.rooms[roomId]){
+    var roomMembers = Object.keys(db.rooms[roomId].members||{});
+    for(var rm=0; rm<roomMembers.length; rm++){
+      var rPid = roomMembers[rm];
+      if(rPid===myId || delivered[rPid]) continue;
+      var okOffRoom = await queueOfflineForPeer(rPid, msgId, payload, { roomId: roomId });
+      if(!okOffRoom) offlineFail++;
+    }
+  }
+  if(offlineFail>0) toast('Для '+offlineFail+' получателей нет ключа: откройте чат с ними 1 раз');
   toast('Файл отправлен');
 }
 
@@ -2742,6 +2814,8 @@ function openOrCreateDM(peerId, name){
 var lastActive = Date.now();
 var reconnectTimer = null;
 var heartbeatTimer = null;
+var relayPollTimer = null;
+var heartbeatTimer = null;
 var networkOk = true;
 
 // Track when user leaves / returns
@@ -2828,12 +2902,18 @@ function doReconnect(){
 // Heartbeat - ping connected peers every 25s to keep connection alive
 // Also detects dead connections
 function startHeartbeat(){
-  // Ping server every 10 min to prevent Render.com sleep
-  setInterval(function(){
-    fetch('https://liders-chat-signal.onrender.com/health')
-      .then(function(r){ if(!r.ok) throw new Error('bad'); })
-      .catch(function(){ console.log('[keepalive] server unreachable'); });
-  }, 10 * 60 * 1000);
+  if(!heartbeatTimer){
+    // Ping server every 10 min to prevent Render.com sleep
+    heartbeatTimer = setInterval(function(){
+      fetch('https://liders-chat-signal.onrender.com/health')
+        .then(function(r){ if(!r.ok) throw new Error('bad'); })
+        .catch(function(){ console.log('[keepalive] server unreachable'); });
+    }, 10 * 60 * 1000);
+  }
+  if(!relayPollTimer){
+    // Also periodically fetch offline queue for robustness after reconnects
+    relayPollTimer = setInterval(function(){ relayFetch(); }, 15000);
+  }
 }
 
 // Handle PING in data handler (add to handleData)
@@ -2848,12 +2928,27 @@ var RELAY_OK = true; // track if relay is reachable
 // Отправить сообщение на relay если peer офлайн
 async function relayStore(toPeerId, msgObj) {
   try {
-    await fetch(RELAY + '/relay', {
+    var r = await fetch(SIGNAL + '/offline-messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ to: toPeerId, msgs: [msgObj] })
+      body: JSON.stringify({ to: toPeerId, from: myId, payload: JSON.stringify(msgObj) })
     });
-  } catch(e) { /* тихо игнорируем */ }
+    if (!r.ok) throw new Error('offline endpoint failed');
+    return true;
+  } catch(e) {
+    // Fallback to old relay API (for backward compatibility)
+    try {
+      await fetch(RELAY + '/relay', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: toPeerId, msgs: [msgObj] })
+      });
+      return true;
+    } catch (e2) {
+      console.warn('[relay] store failed', e2.message || e2);
+      return false;
+    }
+  }
 }
 
 // Забрать очередь с relay при подключении {
@@ -2871,32 +2966,54 @@ async function relayFetch() {
     });
   });
   if (!myId) return;
+
+  var inbound = [];
   try {
-    var r = await fetch(SIGNAL + '/relay?peer=' + myId);
-    if (!r.ok) return;
-    var data = await r.json();
-    if (!data.msgs || !data.msgs.length) return;
-    console.log('[relay] fetched', data.msgs.length, 'queued msgs');
-    // Process each message as if received from sender
-    for (var i = 0; i < data.msgs.length; i++) {
-      var m = data.msgs[i];
-      if (!m.from || !m.cipher || !m.id) continue;
-      if (seen.has(m.id)) continue;
-      // Find or create session for this sender
-      if (!conns[m.from]) {
-        conns[m.from] = { conn: null, key: null, name: m.from.slice(0,8), color: clr(m.from), online: false, sent: false };
-      }
-      // Try to decrypt if we have a key, else queue for later
-      var c = conns[m.from];
-      if (c.key) {
-        await processRelayMsg(m, c);
-      } else {
-        // Store for processing after key exchange
-        if (!c._relayQueue) c._relayQueue = [];
-        c._relayQueue.push(m);
-      }
+    var r = await fetch(SIGNAL + '/offline-messages/' + encodeURIComponent(myId));
+    if (r.ok) {
+      var data = await r.json();
+      var messages = Array.isArray(data.messages) ? data.messages : [];
+      inbound = messages.map(function(entry){
+        try {
+          var parsed = JSON.parse(entry.payload);
+          if (!parsed.from && entry.from) parsed.from = entry.from;
+          return parsed;
+        } catch(_) {
+          return null;
+        }
+      }).filter(Boolean);
     }
-  } catch(e) { console.warn('[relay] fetch failed', e.message); }
+  } catch(e) {}
+
+  if (!inbound.length) {
+    try {
+      var r2 = await fetch(SIGNAL + '/relay?peer=' + myId);
+      if (r2.ok) {
+        var data2 = await r2.json();
+        inbound = Array.isArray(data2.msgs) ? data2.msgs : [];
+      }
+    } catch(e2) { console.warn('[relay] fetch failed', e2.message); }
+  }
+
+  if (!inbound.length) return;
+  console.log('[relay] fetched', inbound.length, 'queued msgs');
+  for (var i = 0; i < inbound.length; i++) {
+    var m = inbound[i];
+    if (!m.from || !m.cipher || !m.id) continue;
+    if (seen.has(m.id)) continue;
+    if (!conns[m.from]) {
+      conns[m.from] = { conn: null, key: null, name: m.from.slice(0,8), color: clr(m.from), online: false, sent: false };
+    }
+    var c = conns[m.from];
+    if (c.key) {
+      await processRelayMsg(m, c);
+    } else {
+      if (!c._relayQueue) c._relayQueue = [];
+      c._relayQueue.push(m);
+      // Ensure we can decrypt queued items: trigger/retry key exchange
+      if (!c.online) setupConn(m.from, { initiator: true });
+    }
+  }
 }
 
 async function processRelayMsg(m, c) {
