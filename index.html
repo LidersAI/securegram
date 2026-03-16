@@ -806,6 +806,7 @@ async function connectSignal(savedId) {
 
     setTimeout(relayFetch, 1000);
     startHeartbeat();
+    setTimeout(fetchOfflineMessages, 1500); 
     checkInvite();
     renderList();
     setTimeout(reconnectDroppedSessions, 2000);
