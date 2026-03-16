@@ -1006,7 +1006,42 @@ function reconnectDroppedSessions() {
   });
 }
 
-// ── doReconnect (called on visibility change) ─
+  // =============================================
+// OFFLINE MESSAGE DELIVERY
+// =============================================
+async function fetchOfflineMessages() {
+  try {
+    var res = await fetch(SIGNAL + '/offline-messages/' + myId);
+    if (!res.ok) return;
+    var data = await res.json();
+    if (!data.messages || !data.messages.length) return;
+    console.log('[Offline] Получено', data.messages.length, 'офлайн-сообщений');
+    for (var i = 0; i < data.messages.length; i++) {
+      var m = data.messages[i];
+      if (!m.from || !m.payload) continue;
+      if (!conns[m.from]) {
+        conns[m.from] = { pc:null, dc:null, key:null, name:m.from.slice(0,8), color:clr(m.from), online:false, sent:false };
+      }
+      var c = conns[m.from];
+      var msgId = 'off-' + m.ts + '-' + m.from.slice(0,4);
+      if (c.key) {
+        try {
+          var plain = await Cry.dec(c.key, m.payload);
+          var msgData = JSON.parse(plain);
+          var chatKey = msgData.roomId ? 'room:' + msgData.roomId : 'dm:' + m.from;
+          var msgObj = {id:msgId, from:m.from, name:msgData.name, text:msgData.text, photo:msgData.photo, ts:msgData.ts, date:msgData.date};
+          if (!seen.has(msgId)) { seen.add(msgId); saveMsg(chatKey, msgObj); if(active===chatKey) appendMsg(msgObj,true); else { unread[chatKey]=(unread[chatKey]||0)+1; playBeep(); } renderList(); }
+        } catch(e) { console.warn('[Offline decrypt]', e); }
+      } else {
+        if (!c._relayQueue) c._relayQueue = [];
+        c._relayQueue.push({ id:msgId, cipher:m.payload, from:m.from });
+        setupConn(m.from, { initiator:true });
+      }
+    }
+    if (data.messages.length > 0) toast('📬 Получено ' + data.messages.length + ' новых сообщений');
+  } catch(e) { console.warn('[fetchOfflineMessages]', e); }
+}
+
 function doReconnect() {
   reconnectDroppedSessions();
 }
@@ -1414,10 +1449,16 @@ async function sendMsg(){
   if(!isRoom){
     var dmPeer=active.slice(3), dmConn=conns[dmPeer];
     if(!delivered[dmPeer] && dmConn && dmConn.key){
-      Cry.enc(dmConn.key, JSON.stringify(payload)).then(function(oc){
-        relayStore(dmPeer, {id:msgId, cipher:oc, from:myId});
-      }).catch(function(){});
-    }
+  Cry.enc(dmConn.key, JSON.stringify(payload)).then(function(oc){
+    relayStore(dmPeer, {id:msgId, cipher:oc, from:myId});
+    // Сохраняем на сервере для офлайн-доставки
+    fetch(SIGNAL + '/offline-messages', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({to:dmPeer, from:myId, payload:oc})
+    }).catch(function(e){ console.warn('[offline store]', e); });
+  }).catch(function(){});
+}
   } else if(db.rooms&&db.rooms[roomId]){
     Object.keys(db.rooms[roomId].members||{}).forEach(function(rPid){
       if(rPid===myId||delivered[rPid]) return;
@@ -2816,6 +2857,7 @@ function doReconnect(){
       // Reconnect known peers
       reconnectDroppedSessions();
       startHeartbeat();
+      setTimeout(fetchOfflineMessages, 1500);
     }).catch(function(){
       tryServer();
     });
