@@ -2856,7 +2856,7 @@ async function relayStore(toPeerId, msgObj) {
   } catch(e) { /* тихо игнорируем */ }
 }
 
-// Забрать очередь с relay при подключении
+// Забрать очередь с relay при подключении {
 async function relayFetch() 
 Object.keys(conns||{}).forEach(peerId => {
   ['relay_'+peerId+'_'+myId, 'relay_'+myId+'_'+peerId].forEach(key => {
