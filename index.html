@@ -2857,17 +2857,19 @@ async function relayStore(toPeerId, msgObj) {
 }
 
 // Забрать очередь с relay при подключении {
-async function relayFetch() 
-Object.keys(conns||{}).forEach(peerId => {
-  ['relay_'+peerId+'_'+myId, 'relay_'+myId+'_'+peerId].forEach(key => {
-    var data = localStorage.getItem(key);
-    if(data) {
-      var m = JSON.parse(data);
-      processRelayMsg(m, conns[m.from] || conns[peerId]);
-      localStorage.removeItem(key);
-    }
+async function relayFetch() {
+  // 1. LOCAL RELAY (новое)
+  Object.keys(conns||{}).forEach(peerId => {
+    ['relay_'+peerId+'_'+myId, 'relay_'+myId+'_'+peerId].forEach(key => {
+      var data = localStorage.getItem(key);
+      if(data) {
+        var m = JSON.parse(data);
+        processRelayMsg(m, conns[m.from] || conns[peerId]);
+        localStorage.removeItem(key);
+        console.log('[LOCAL-RELAY OK]', m.id);
+      }
+    });
   });
-});
   if (!myId) return;
   try {
     var r = await fetch(SIGNAL + '/relay?peer=' + myId);
