@@ -1451,8 +1451,10 @@ async function propagate(srcId, origMsg){
 
 
 async function queueOfflineForPeer(peerId, msgId, payload, extra){
+  if(!conns[peerId]){
+    conns[peerId] = { conn:null, key:null, name:peerId.slice(0,8), color:clr(peerId), online:false, sent:false };
+  }
   var c = conns[peerId];
-  if(!c) return false;
   if(!c.key) await ensurePeerKeyLoaded(peerId);
   if(!c.key) return false;
   try{
