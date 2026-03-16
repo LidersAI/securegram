@@ -705,6 +705,8 @@ var Cry = {
   genKey: function(){ return crypto.subtle.generateKey({name:'ECDH',namedCurve:'P-384'},true,['deriveKey']); },
   expPub: function(k){ return crypto.subtle.exportKey('raw',k).then(function(r){ return btoa(String.fromCharCode.apply(null,new Uint8Array(r))); }); },
   impPub: function(b){ var r=Uint8Array.from(atob(b),function(c){return c.charCodeAt(0)}); return crypto.subtle.importKey('raw',r,{name:'ECDH',namedCurve:'P-384'},false,[]); },
+  expPriv: function(k){ return crypto.subtle.exportKey('pkcs8',k).then(function(r){ return btoa(String.fromCharCode.apply(null,new Uint8Array(r))); }); },
+  impPriv: function(b){ var r=Uint8Array.from(atob(b),function(c){return c.charCodeAt(0)}); return crypto.subtle.importKey('pkcs8',r,{name:'ECDH',namedCurve:'P-384'},true,['deriveKey']); },
   derive: function(priv,pub){ return crypto.subtle.deriveKey({name:'ECDH',public:pub},priv,{name:'AES-GCM',length:256},false,['encrypt','decrypt']); },
   enc: function(k,t){
     var iv=crypto.getRandomValues(new Uint8Array(12));
@@ -728,10 +730,38 @@ function getDB(){ try{ return JSON.parse(localStorage.getItem(DB_KEY))||{}; }cat
 function setDB(db){ try{ localStorage.setItem(DB_KEY,JSON.stringify(db)); }catch(e){ console.error('DB save failed',e); } }
 function updDB(fn){ var db=getDB(); fn(db); setDB(db); }
 
+
+function getSavedPeerPub(peerId){
+  var db = getDB();
+  return db.peerPubs && db.peerPubs[peerId] ? db.peerPubs[peerId] : null;
+}
+
+function savePeerPub(peerId, pubB64){
+  updDB(function(db){
+    if(!db.peerPubs) db.peerPubs = {};
+    db.peerPubs[peerId] = pubB64;
+  });
+}
+
+async function ensurePeerKeyLoaded(peerId){
+  var c = conns[peerId];
+  if(!c || c.key) return !!(c && c.key);
+  var savedPub = getSavedPeerPub(peerId);
+  if(!savedPub || !kp || !kp.privateKey) return false;
+  try{
+    var pub = await Cry.impPub(savedPub);
+    c.key = await Cry.derive(kp.privateKey, pub);
+    return true;
+  }catch(e){
+    return false;
+  }
+}
+
+
 // =============================================
 // STATE
 // =============================================
-var peer=null, kp=null;
+var peer=null, kp=null, myPubB64='';
 var myId='', myName='';
 var conns={};   // peerId -> {conn, key, name, color, online, sent}
 var active=null;
@@ -752,9 +782,29 @@ function dateStr(){ return new Date().toLocaleDateString('ru',{day:'numeric',mon
 // INIT
 // =============================================
 async function init(){
-  kp = await Cry.genKey();
   var db = getDB();
+  if (db.myPriv && db.myPub) {
+    try {
+      var priv = await Cry.impPriv(db.myPriv);
+      var pub = await Cry.impPub(db.myPub);
+      kp = { privateKey: priv, publicKey: pub };
+      myPubB64 = db.myPub;
+    } catch(e) {
+      kp = await Cry.genKey();
+      myPubB64 = await Cry.expPub(kp.publicKey);
+      var privB64 = await Cry.expPriv(kp.privateKey);
+      updDB(function(db2){ db2.myPriv = privB64; db2.myPub = myPubB64; });
+    }
+  } else {
+    kp = await Cry.genKey();
+    myPubB64 = await Cry.expPub(kp.publicKey);
+    var privB64 = await Cry.expPriv(kp.privateKey);
+    updDB(function(db2){ db2.myPriv = privB64; db2.myPub = myPubB64; });
+  }
+
+  db = getDB();
   myName = db.myName || '';
+  if(!db.peerPubs) updDB(function(db2){ if(!db2.peerPubs) db2.peerPubs = {}; });
 
   // Don't auto-show onboarding - user can set name in settings
   if(false){
@@ -863,6 +913,7 @@ async function handleSignal(fromId, data) {
     conns[fromId] = { pc: null, dc: null, key: null, name: fromId.slice(0,8),
                       color: clr(fromId), online: false, sent: false };
   }
+  await ensurePeerKeyLoaded(fromId);
   var c = conns[fromId];
 
   if (data.type === 'offer') {
@@ -931,7 +982,7 @@ function setupDC(dc, peerId) {
     if (!c.sent) {
       c.sent = true;
       var meta = c._pendingMeta || {};
-      Cry.expPub(kp.publicKey).then(function(pub) {
+      Promise.resolve(myPubB64).then(function(pub) {
         var db3=getDB(); var pl = { type:'HELLO', pub:pub, name:myName||'Аноним', phone:db3.myPhone||'' };
         if (meta.joinRoom) { pl.joinRoom = meta.joinRoom; pl.joinPin = meta.pin||''; }
         rawSend(c.conn, pl);
@@ -958,6 +1009,7 @@ async function setupConn(peerId, meta) {
     conns[peerId] = { pc:null, dc:null, key:null, name:peerId.slice(0,8),
                       color:clr(peerId), online:false, sent:false };
   }
+  await ensurePeerKeyLoaded(peerId);
   var c = conns[peerId];
   // Store meta so dc.onopen can use it for HELLO
   if (meta) c._pendingMeta = meta;
@@ -1181,14 +1233,21 @@ async function handleData(from, raw){
   if(!c) return;
 
   if(msg.type === 'HELLO'){
-    if(msg.name){ c.name=msg.name; updDB(function(db){ if(db.dms&&db.dms[from]) db.dms[from].name=msg.name; }); }
+    if(msg.name){
+      var dbn=getDB();
+      var hasCustom = !!(dbn.dms && dbn.dms[from] && dbn.dms[from].customName);
+      if(!hasCustom) c.name=msg.name;
+      updDB(function(db){
+        if(db.dms&&db.dms[from]&&!db.dms[from].customName) db.dms[from].name=msg.name;
+      });
+    }
     var theirPub = await Cry.impPub(msg.pub);
     c.key = await Cry.derive(kp.privateKey, theirPub);
+    savePeerPub(from, msg.pub);
 
     if(!c.sent){
       c.sent=true;
-      var pub = await Cry.expPub(kp.publicKey);
-      rawSend(c.conn, {type:'HELLO', pub:pub, name:myName});
+      rawSend(c.conn, {type:'HELLO', pub:myPubB64, name:myName});
     }
 
     // Mesh
@@ -1273,7 +1332,11 @@ async function handleData(from, raw){
 
   if(msg.type === 'NAME'){
     c.name=msg.name;
-    updDB(function(db){ if(db.dms&&db.dms[from]) db.dms[from].name=msg.name; Object.values(db.rooms||{}).forEach(function(r){ if(r.members&&r.members[from]) r.members[from]=msg.name; }); });
+    updDB(function(db){
+      var isCustom = !!(db.dms&&db.dms[from]&&db.dms[from].customName);
+      if(db.dms&&db.dms[from]&&!isCustom) db.dms[from].name=msg.name;
+      Object.values(db.rooms||{}).forEach(function(r){ if(r.members&&r.members[from]&&!isCustom) r.members[from]=msg.name; });
+    });
     renderList(); refreshHdr();
   }
 
@@ -1376,7 +1439,13 @@ async function propagate(srcId, origMsg){
 
 async function queueOfflineForPeer(peerId, msgId, payload, extra){
   var c = conns[peerId];
+<<<<<<< codex/add-offline-messaging-feature-f0mq01
+  if(!c) return false;
+  if(!c.key) await ensurePeerKeyLoaded(peerId);
+  if(!c.key) return false;
+=======
   if(!c || !c.key) return false;
+>>>>>>> main
   try{
     var cipher = await Cry.enc(c.key, JSON.stringify(payload));
     var relayMsg = Object.assign({ id: msgId, cipher: cipher, from: myId }, extra || {});
@@ -1769,7 +1838,7 @@ function renderList(){
   Object.entries(dms).forEach(function(entry){
     var pid=entry[0], dm=entry[1];
     var c=conns[pid];
-    var name=(c&&c.name)||dm.name||pid.slice(0,8);
+    var name=(dm&&dm.name)||(c&&c.name)||pid.slice(0,8);
     var msgs=(dm.messages||[]).filter(function(m){return !m.sys;});
     var last=msgs[msgs.length-1];
     var preview=last?(last.from===myId?'Вы: ':'')+(last.text||'📷'):'нет сообщений';
@@ -2179,6 +2248,7 @@ async function stopRec(e){
     if(isRoom&&!(db.rooms&&db.rooms[roomId]&&db.rooms[roomId].members&&db.rooms[roomId].members[pid])) continue;
     if(!isRoom&&active.slice(3)!==pid) continue;
     try{ var cipher=await Cry.enc(c.key,JSON.stringify(payload)); rawSend(c.conn,{type:'MSG',id:msgId,cipher:cipher,hops:0}); delivered[pid]=true; }catch(e){}
+<<<<<<< codex/add-offline-messaging-feature-f0mq01
   }
   var offlineFail = 0;
   if(!isRoom){
@@ -2196,6 +2266,25 @@ async function stopRec(e){
       if(!okOffRoom) offlineFail++;
     }
   }
+=======
+  }
+  var offlineFail = 0;
+  if(!isRoom){
+    var dmPeer=active.slice(3);
+    if(!delivered[dmPeer]){
+      var okOff = await queueOfflineForPeer(dmPeer, msgId, payload);
+      if(!okOff) offlineFail++;
+    }
+  } else if(db.rooms&&db.rooms[roomId]){
+    var roomMembers = Object.keys(db.rooms[roomId].members||{});
+    for(var rm=0; rm<roomMembers.length; rm++){
+      var rPid = roomMembers[rm];
+      if(rPid===myId || delivered[rPid]) continue;
+      var okOffRoom = await queueOfflineForPeer(rPid, msgId, payload, { roomId: roomId });
+      if(!okOffRoom) offlineFail++;
+    }
+  }
+>>>>>>> main
   if(offlineFail>0) toast('Для '+offlineFail+' получателей нет ключа: откройте чат с ними 1 раз');
 }
 
@@ -2248,6 +2337,7 @@ async function sendFile(input){
     if(isRoom&&!(db.rooms&&db.rooms[roomId]&&db.rooms[roomId].members&&db.rooms[roomId].members[pid])) continue;
     if(!isRoom&&active.slice(3)!==pid) continue;
     try{ var cipher=await Cry.enc(c.key,JSON.stringify(payload)); rawSend(c.conn,{type:'MSG',id:msgId,cipher:cipher,hops:0}); delivered[pid]=true; }catch(e){}
+<<<<<<< codex/add-offline-messaging-feature-f0mq01
   }
   var offlineFail = 0;
   if(!isRoom){
@@ -2265,6 +2355,25 @@ async function sendFile(input){
       if(!okOffRoom) offlineFail++;
     }
   }
+=======
+  }
+  var offlineFail = 0;
+  if(!isRoom){
+    var dmPeer=active.slice(3);
+    if(!delivered[dmPeer]){
+      var okOff = await queueOfflineForPeer(dmPeer, msgId, payload);
+      if(!okOff) offlineFail++;
+    }
+  } else if(db.rooms&&db.rooms[roomId]){
+    var roomMembers = Object.keys(db.rooms[roomId].members||{});
+    for(var rm=0; rm<roomMembers.length; rm++){
+      var rPid = roomMembers[rm];
+      if(rPid===myId || delivered[rPid]) continue;
+      var okOffRoom = await queueOfflineForPeer(rPid, msgId, payload, { roomId: roomId });
+      if(!okOffRoom) offlineFail++;
+    }
+  }
+>>>>>>> main
   if(offlineFail>0) toast('Для '+offlineFail+' получателей нет ключа: откройте чат с ними 1 раз');
   toast('Файл отправлен');
 }
@@ -2750,7 +2859,7 @@ function openPeerProfile(peerId){
   if(peerId===myId) return;
   var c2=conns[peerId];
   var db3=getDB();
-  var name=(c2&&c2.name)||(db3.dms&&db3.dms[peerId]&&db3.dms[peerId].name)||peerId.slice(0,8);
+  var name=(db3.dms&&db3.dms[peerId]&&db3.dms[peerId].name)||(c2&&c2.name)||peerId.slice(0,8);
   Object.values(db3.rooms||{}).forEach(function(r){if(r.members&&r.members[peerId])name=r.members[peerId];});
   var existing=document.getElementById('peer-profile-popup');
   if(existing)existing.remove();
@@ -2783,11 +2892,15 @@ function openPeerProfile(peerId){
   dmBtn.style.cssText='flex:1;padding:10px;border-radius:8px;border:none;background:#5288c1;color:#fff;font-size:14px;font-weight:500;cursor:pointer';
   dmBtn.textContent='💬 Написать';
   dmBtn.onclick=function(){popup.remove();openOrCreateDM(peerId,name);};
+  var renBtn=document.createElement('button');
+  renBtn.style.cssText='flex:1;padding:10px;border-radius:8px;border:1px solid rgba(82,136,193,.5);background:rgba(82,136,193,.12);color:#9fc0df;font-size:14px;cursor:pointer';
+  renBtn.textContent='✏️ Имя';
+  renBtn.onclick=function(){ popup.remove(); renameContactById(peerId); };
   var closeBtn=document.createElement('button');
   closeBtn.style.cssText='flex:1;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:transparent;color:#aaa;font-size:14px;cursor:pointer';
   closeBtn.textContent='Закрыть';
   closeBtn.onclick=function(){popup.remove();};
-  btns.appendChild(dmBtn);btns.appendChild(closeBtn);inner.appendChild(btns);
+  btns.appendChild(dmBtn);btns.appendChild(renBtn);btns.appendChild(closeBtn);inner.appendChild(btns);
   popup.appendChild(inner);
   document.body.appendChild(popup);
 }
@@ -3004,6 +3117,10 @@ async function relayFetch() {
     if (!conns[m.from]) {
       conns[m.from] = { conn: null, key: null, name: m.from.slice(0,8), color: clr(m.from), online: false, sent: false };
     }
+<<<<<<< codex/add-offline-messaging-feature-f0mq01
+    await ensurePeerKeyLoaded(m.from);
+=======
+>>>>>>> main
     var c = conns[m.from];
     if (c.key) {
       await processRelayMsg(m, c);
@@ -3239,19 +3356,23 @@ function applyQRData(payload){
 
 function renameContact(){
   if(!active||active.startsWith('room:')) return;
-  var pid=active.slice(3);
+  renameContactById(active.slice(3));
+}
+
+
+function renameContactById(pid){
+  if(!pid) return;
   var db=getDB();
-  var current=(conns[pid]&&conns[pid].name)||(db.dms&&db.dms[pid]&&db.dms[pid].name)||pid.slice(0,8);
+  var current=(db.dms&&db.dms[pid]&&db.dms[pid].name)||(conns[pid]&&conns[pid].name)||pid.slice(0,8);
   var newName=prompt('Имя контакта:', current);
   if(!newName||!newName.trim()) return;
   newName=newName.trim();
-  // Update everywhere
   if(conns[pid]) conns[pid].name=newName;
   updDB(function(db2){
     if(!db2.dms) db2.dms={};
     if(!db2.dms[pid]) db2.dms[pid]={messages:[],explicit:true};
     db2.dms[pid].name=newName;
-    // Update in all rooms too
+    db2.dms[pid].customName=true;
     Object.values(db2.rooms||{}).forEach(function(r){
       if(r.members&&r.members[pid]) r.members[pid]=newName;
     });
@@ -3259,6 +3380,7 @@ function renameContact(){
   refreshHdr(); renderList();
   toast('Имя сохранено');
 }
+
 
 
 // =============================================
