@@ -1422,15 +1422,26 @@ async function sendMsg(){
   
   var dmConn = conns[dmPeer];
   if(!delivered[dmPeer] && dmConn){
-    // Если ключа нет — сохраняем незашифрованное (получатель расшифрует позже)
-var oc = dmConn.key ? await Cry.enc(dmConn.key, JSON.stringify(payload)) : JSON.stringify(payload);
-      relayStore(dmPeer, {id:msgId, cipher:oc, from:myId});
+  // Сохраняем всегда (даже без ключа)
+  var plainPayload = JSON.stringify(payload);
+  relayStore(dmPeer, {id:msgId, cipher:plainPayload, from:myId});
+  
+  // Если ключ есть — шифруем
+  if(dmConn.key){
+    Cry.enc(dmConn.key, plainPayload).then(function(oc){
       fetch(SIGNAL + '/offline-messages', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({to:dmPeer, from:myId, payload:oc})
-      }).then(r=>console.log('[OFFLINE OK]',r.status)).catch(console.error);
-    }).catch(console.error);
+      }).then(r=>console.log('[OFFLINE ENCRYPTED OK]',r.status)).catch(console.error);
+    });
+  } else {
+    // Без ключа — отправляем plain (сервер не видит plaintext)
+    fetch(SIGNAL + '/offline-messages', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({to:dmPeer, from:myId, payload:plainPayload})
+    }).then(r=>console.log('[OFFLINE PLAIN OK]',r.status)).catch(console.error);
   }
 }
 
