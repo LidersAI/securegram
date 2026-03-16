@@ -1451,10 +1451,8 @@ async function propagate(srcId, origMsg){
 
 
 async function queueOfflineForPeer(peerId, msgId, payload, extra){
-  if(!conns[peerId]){
-    conns[peerId] = { conn:null, key:null, name:peerId.slice(0,8), color:clr(peerId), online:false, sent:false };
-  }
   var c = conns[peerId];
+  if(!c) return false;
   if(!c.key) await ensurePeerKeyLoaded(peerId);
   if(!c.key) return false;
   try{
@@ -1525,7 +1523,7 @@ async function sendMsg(){
       if(!okOffRoom) offlineFail++;
     }
   }
-  if(offlineFail>0) if(!isRoom) toast('Нет ключа для оффлайн-отправки. Откройте личный чат и дождитесь подключения.');
+  if(offlineFail>0) toast('Для '+offlineFail+' получателей нет ключа: откройте чат с ними 1 раз');
 }
 
 async function sendPhoto(input){
@@ -1564,7 +1562,7 @@ async function sendPhoto(input){
       if(!okOffRoom) offlineFail++;
     }
   }
-  if(offlineFail>0) if(!isRoom) toast('Нет ключа для оффлайн-отправки. Откройте личный чат и дождитесь подключения.');
+  if(offlineFail>0) toast('Для '+offlineFail+' получателей нет ключа: откройте чат с ними 1 раз');
 }
 
 function compressImg(file, max, q){
@@ -2293,7 +2291,7 @@ async function stopRec(e){
       if(!okOffRoom) offlineFail++;
     }
   }
-  if(offlineFail>0) if(!isRoom) toast('Нет ключа для оффлайн-отправки. Откройте личный чат и дождитесь подключения.');
+  if(offlineFail>0) toast('Для '+offlineFail+' получателей нет ключа: откройте чат с ними 1 раз');
 }
 
 function makeVoiceBubble(m){
@@ -2362,7 +2360,7 @@ async function sendFile(input){
       if(!okOffRoom) offlineFail++;
     }
   }
-  if(offlineFail>0) if(!isRoom) toast('Нет ключа для оффлайн-отправки. Откройте личный чат и дождитесь подключения.');
+  if(offlineFail>0) toast('Для '+offlineFail+' получателей нет ключа: откройте чат с ними 1 раз');
   toast('Файл отправлен');
 }
 
