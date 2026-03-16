@@ -1058,11 +1058,6 @@ function reconnectDroppedSessions() {
   });
 }
 
-// ── doReconnect (called on visibility change) ─
-function doReconnect() {
-  reconnectDroppedSessions();
-}
-
 
 async function processQueuedMsg(m){
   if(!m.from||!m.cipher||!m.id) return;
@@ -1439,11 +1434,6 @@ async function propagate(srcId, origMsg){
 
 async function queueOfflineForPeer(peerId, msgId, payload, extra){
   var c = conns[peerId];
-<<<<<<< codex/add-offline-messaging-feature-f0mq01
-  if(!c) return false;
-  if(!c.key) await ensurePeerKeyLoaded(peerId);
-  if(!c.key) return false;
-=======
   if(!c || !c.key) return false;
 >>>>>>> main
   try{
@@ -2248,7 +2238,6 @@ async function stopRec(e){
     if(isRoom&&!(db.rooms&&db.rooms[roomId]&&db.rooms[roomId].members&&db.rooms[roomId].members[pid])) continue;
     if(!isRoom&&active.slice(3)!==pid) continue;
     try{ var cipher=await Cry.enc(c.key,JSON.stringify(payload)); rawSend(c.conn,{type:'MSG',id:msgId,cipher:cipher,hops:0}); delivered[pid]=true; }catch(e){}
-<<<<<<< codex/add-offline-messaging-feature-f0mq01
   }
   var offlineFail = 0;
   if(!isRoom){
@@ -2266,7 +2255,6 @@ async function stopRec(e){
       if(!okOffRoom) offlineFail++;
     }
   }
-=======
   }
   var offlineFail = 0;
   if(!isRoom){
@@ -2337,7 +2325,6 @@ async function sendFile(input){
     if(isRoom&&!(db.rooms&&db.rooms[roomId]&&db.rooms[roomId].members&&db.rooms[roomId].members[pid])) continue;
     if(!isRoom&&active.slice(3)!==pid) continue;
     try{ var cipher=await Cry.enc(c.key,JSON.stringify(payload)); rawSend(c.conn,{type:'MSG',id:msgId,cipher:cipher,hops:0}); delivered[pid]=true; }catch(e){}
-<<<<<<< codex/add-offline-messaging-feature-f0mq01
   }
   var offlineFail = 0;
   if(!isRoom){
@@ -2355,7 +2342,6 @@ async function sendFile(input){
       if(!okOffRoom) offlineFail++;
     }
   }
-=======
   }
   var offlineFail = 0;
   if(!isRoom){
@@ -3117,10 +3103,6 @@ async function relayFetch() {
     if (!conns[m.from]) {
       conns[m.from] = { conn: null, key: null, name: m.from.slice(0,8), color: clr(m.from), online: false, sent: false };
     }
-<<<<<<< codex/add-offline-messaging-feature-f0mq01
-    await ensurePeerKeyLoaded(m.from);
-=======
->>>>>>> main
     var c = conns[m.from];
     if (c.key) {
       await processRelayMsg(m, c);
@@ -3130,6 +3112,7 @@ async function relayFetch() {
       // Ensure we can decrypt queued items: trigger/retry key exchange
       if (!c.online) setupConn(m.from, { initiator: true });
     }
+>>>>>>> main
   }
 }
 
@@ -3582,7 +3565,9 @@ function onHdrNameClick(){
     openInvite();
   } else {
     var pid=active.slice(3);
-    openPeerProfile(pid);
+    var act = prompt('1 — Профиль контакта\n2 — Переименовать контакт', '1');
+    if(act==='2') renameContactById(pid);
+    else openPeerProfile(pid);
   }
 }
 
