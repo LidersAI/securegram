@@ -1439,9 +1439,13 @@ async function propagate(srcId, origMsg){
 
 async function queueOfflineForPeer(peerId, msgId, payload, extra){
   var c = conns[peerId];
+<<<<<<< codex/add-offline-messaging-feature-f0mq01
   if(!c) return false;
   if(!c.key) await ensurePeerKeyLoaded(peerId);
   if(!c.key) return false;
+=======
+  if(!c || !c.key) return false;
+>>>>>>> main
   try{
     var cipher = await Cry.enc(c.key, JSON.stringify(payload));
     var relayMsg = Object.assign({ id: msgId, cipher: cipher, from: myId }, extra || {});
@@ -2244,6 +2248,7 @@ async function stopRec(e){
     if(isRoom&&!(db.rooms&&db.rooms[roomId]&&db.rooms[roomId].members&&db.rooms[roomId].members[pid])) continue;
     if(!isRoom&&active.slice(3)!==pid) continue;
     try{ var cipher=await Cry.enc(c.key,JSON.stringify(payload)); rawSend(c.conn,{type:'MSG',id:msgId,cipher:cipher,hops:0}); delivered[pid]=true; }catch(e){}
+<<<<<<< codex/add-offline-messaging-feature-f0mq01
   }
   var offlineFail = 0;
   if(!isRoom){
@@ -2261,6 +2266,25 @@ async function stopRec(e){
       if(!okOffRoom) offlineFail++;
     }
   }
+=======
+  }
+  var offlineFail = 0;
+  if(!isRoom){
+    var dmPeer=active.slice(3);
+    if(!delivered[dmPeer]){
+      var okOff = await queueOfflineForPeer(dmPeer, msgId, payload);
+      if(!okOff) offlineFail++;
+    }
+  } else if(db.rooms&&db.rooms[roomId]){
+    var roomMembers = Object.keys(db.rooms[roomId].members||{});
+    for(var rm=0; rm<roomMembers.length; rm++){
+      var rPid = roomMembers[rm];
+      if(rPid===myId || delivered[rPid]) continue;
+      var okOffRoom = await queueOfflineForPeer(rPid, msgId, payload, { roomId: roomId });
+      if(!okOffRoom) offlineFail++;
+    }
+  }
+>>>>>>> main
   if(offlineFail>0) toast('Для '+offlineFail+' получателей нет ключа: откройте чат с ними 1 раз');
 }
 
@@ -2313,6 +2337,7 @@ async function sendFile(input){
     if(isRoom&&!(db.rooms&&db.rooms[roomId]&&db.rooms[roomId].members&&db.rooms[roomId].members[pid])) continue;
     if(!isRoom&&active.slice(3)!==pid) continue;
     try{ var cipher=await Cry.enc(c.key,JSON.stringify(payload)); rawSend(c.conn,{type:'MSG',id:msgId,cipher:cipher,hops:0}); delivered[pid]=true; }catch(e){}
+<<<<<<< codex/add-offline-messaging-feature-f0mq01
   }
   var offlineFail = 0;
   if(!isRoom){
@@ -2330,6 +2355,25 @@ async function sendFile(input){
       if(!okOffRoom) offlineFail++;
     }
   }
+=======
+  }
+  var offlineFail = 0;
+  if(!isRoom){
+    var dmPeer=active.slice(3);
+    if(!delivered[dmPeer]){
+      var okOff = await queueOfflineForPeer(dmPeer, msgId, payload);
+      if(!okOff) offlineFail++;
+    }
+  } else if(db.rooms&&db.rooms[roomId]){
+    var roomMembers = Object.keys(db.rooms[roomId].members||{});
+    for(var rm=0; rm<roomMembers.length; rm++){
+      var rPid = roomMembers[rm];
+      if(rPid===myId || delivered[rPid]) continue;
+      var okOffRoom = await queueOfflineForPeer(rPid, msgId, payload, { roomId: roomId });
+      if(!okOffRoom) offlineFail++;
+    }
+  }
+>>>>>>> main
   if(offlineFail>0) toast('Для '+offlineFail+' получателей нет ключа: откройте чат с ними 1 раз');
   toast('Файл отправлен');
 }
@@ -3073,7 +3117,10 @@ async function relayFetch() {
     if (!conns[m.from]) {
       conns[m.from] = { conn: null, key: null, name: m.from.slice(0,8), color: clr(m.from), online: false, sent: false };
     }
+<<<<<<< codex/add-offline-messaging-feature-f0mq01
     await ensurePeerKeyLoaded(m.from);
+=======
+>>>>>>> main
     var c = conns[m.from];
     if (c.key) {
       await processRelayMsg(m, c);
