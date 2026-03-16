@@ -1048,6 +1048,11 @@ async function setupConn(peerId, meta) {
 // ── Add peer by ID ────────────────────────────
 function addPeer() {
   var id = document.getElementById('add-in').value.trim();
+  if(!myId){
+    toast('Подключаемся к серверу, попробуйте через 2-3 сек');
+    try{ connectSignal(getDB().myId || null); }catch(e){}
+    return;
+  }
   if (!id || id === myId) { toast('Некорректный ID'); return; }
   document.getElementById('add-in').value = '';
   updDB(function(db) {
