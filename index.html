@@ -2859,7 +2859,7 @@ async function relayStore(toPeerId, msgObj) {
 async function relayFetch() {
   if (!myId) return;
   try {
-    var r = await fetch(RELAY + '/relay?peer=' + myId);
+    var r = await fetch(SIGNAL + '/relay?peer=' + myId);
     if (!r.ok) return;
     var data = await r.json();
     if (!data.msgs || !data.msgs.length) return;
