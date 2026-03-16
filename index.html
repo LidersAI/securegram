@@ -726,8 +726,21 @@ var Cry = {
 // =============================================
 // STORAGE
 // =============================================
-function getDB(){ try{ return JSON.parse(localStorage.getItem(DB_KEY))||{}; }catch(e){ return {}; } }
-function setDB(db){ try{ localStorage.setItem(DB_KEY,JSON.stringify(db)); }catch(e){ console.error('DB save failed',e); } }
+function normalizeDB(db){
+  if(!db || typeof db!=='object') db={};
+  if(!db.rooms || typeof db.rooms!=='object') db.rooms={};
+  if(!db.dms || typeof db.dms!=='object') db.dms={};
+  if(!db.pinned || typeof db.pinned!=='object') db.pinned={};
+  if(!db.peerPubs || typeof db.peerPubs!=='object') db.peerPubs={};
+  if(db.myPriv && typeof db.myPriv!=='string') delete db.myPriv;
+  if(db.myPub && typeof db.myPub!=='string') delete db.myPub;
+  return db;
+}
+function getDB(){
+  try{ return normalizeDB(JSON.parse(localStorage.getItem(DB_KEY))||{}); }
+  catch(e){ return normalizeDB({}); }
+}
+function setDB(db){ try{ localStorage.setItem(DB_KEY,JSON.stringify(normalizeDB(db))); }catch(e){ console.error('DB save failed',e); } }
 function updDB(fn){ var db=getDB(); fn(db); setDB(db); }
 
 
@@ -1434,8 +1447,9 @@ async function propagate(srcId, origMsg){
 
 async function queueOfflineForPeer(peerId, msgId, payload, extra){
   var c = conns[peerId];
-  if(!c || !c.key) return false;
-
+  if(!c) return false;
+  if(!c.key) await ensurePeerKeyLoaded(peerId);
+  if(!c.key) return false;
   try{
     var cipher = await Cry.enc(c.key, JSON.stringify(payload));
     var relayMsg = Object.assign({ id: msgId, cipher: cipher, from: myId }, extra || {});
@@ -2073,7 +2087,24 @@ function resetAll(){
 // UTILS
 // =============================================
 function showSidebar(){document.getElementById('sidebar').classList.remove('hidden');}
-function copyMyId(){navigator.clipboard.writeText(myId).then(function(){toast('ID скопирован ✓');}).catch(function(){toast('Скопируйте вручную');});}
+function copyMyId(){
+  var id=(myId&&myId.trim&&myId.trim())||'';
+  if(!id){
+    var db=getDB();
+    id=(db.myId&&String(db.myId))||'';
+    if(id){
+      myId=id;
+      var idEl=document.getElementById('my-id-el'); if(idEl){ idEl.textContent=id.slice(0,18)+'…'; idEl.title=id; }
+      var sett=document.getElementById('sett-id-el'); if(sett) sett.textContent=id;
+    }
+  }
+  if(!id){
+    toast('ID пока не получен. Проверяю подключение...');
+    try{ connectSignal(getDB().myId || null); }catch(e){}
+    return;
+  }
+  navigator.clipboard.writeText(id).then(function(){toast('ID скопирован ✓');}).catch(function(){toast('Скопируйте вручную');});
+}
 function openModal(id){document.getElementById(id).classList.add('on');}
 function closeModal(id){document.getElementById(id).classList.remove('on');}
 document.querySelectorAll('.ov').forEach(function(el){el.addEventListener('click',function(e){if(e.target===el)el.classList.remove('on');});});
@@ -2255,24 +2286,6 @@ async function stopRec(e){
       if(!okOffRoom) offlineFail++;
     }
   }
-  }
-  var offlineFail = 0;
-  if(!isRoom){
-    var dmPeer=active.slice(3);
-    if(!delivered[dmPeer]){
-      var okOff = await queueOfflineForPeer(dmPeer, msgId, payload);
-      if(!okOff) offlineFail++;
-    }
-  } else if(db.rooms&&db.rooms[roomId]){
-    var roomMembers = Object.keys(db.rooms[roomId].members||{});
-    for(var rm=0; rm<roomMembers.length; rm++){
-      var rPid = roomMembers[rm];
-      if(rPid===myId || delivered[rPid]) continue;
-      var okOffRoom = await queueOfflineForPeer(rPid, msgId, payload, { roomId: roomId });
-      if(!okOffRoom) offlineFail++;
-    }
-  }
-
   if(offlineFail>0) toast('Для '+offlineFail+' получателей нет ключа: откройте чат с ними 1 раз');
 }
 
@@ -2342,24 +2355,6 @@ async function sendFile(input){
       if(!okOffRoom) offlineFail++;
     }
   }
-  }
-  var offlineFail = 0;
-  if(!isRoom){
-    var dmPeer=active.slice(3);
-    if(!delivered[dmPeer]){
-      var okOff = await queueOfflineForPeer(dmPeer, msgId, payload);
-      if(!okOff) offlineFail++;
-    }
-  } else if(db.rooms&&db.rooms[roomId]){
-    var roomMembers = Object.keys(db.rooms[roomId].members||{});
-    for(var rm=0; rm<roomMembers.length; rm++){
-      var rPid = roomMembers[rm];
-      if(rPid===myId || delivered[rPid]) continue;
-      var okOffRoom = await queueOfflineForPeer(rPid, msgId, payload, { roomId: roomId });
-      if(!okOffRoom) offlineFail++;
-    }
-  }
-
   if(offlineFail>0) toast('Для '+offlineFail+' получателей нет ключа: откройте чат с ними 1 раз');
   toast('Файл отправлен');
 }
@@ -2845,8 +2840,11 @@ function openPeerProfile(peerId){
   if(peerId===myId) return;
   var c2=conns[peerId];
   var db3=getDB();
+  var hasCustomAlias = !!(db3.dms&&db3.dms[peerId]&&db3.dms[peerId].customName);
   var name=(db3.dms&&db3.dms[peerId]&&db3.dms[peerId].name)||(c2&&c2.name)||peerId.slice(0,8);
-  Object.values(db3.rooms||{}).forEach(function(r){if(r.members&&r.members[peerId])name=r.members[peerId];});
+  if(!hasCustomAlias){
+    Object.values(db3.rooms||{}).forEach(function(r){if(r.members&&r.members[peerId])name=r.members[peerId];});
+  }
   var existing=document.getElementById('peer-profile-popup');
   if(existing)existing.remove();
   var popup=document.createElement('div');
@@ -2914,7 +2912,6 @@ var lastActive = Date.now();
 var reconnectTimer = null;
 var heartbeatTimer = null;
 var relayPollTimer = null;
-var heartbeatTimer = null;
 var networkOk = true;
 
 // Track when user leaves / returns
@@ -3103,6 +3100,7 @@ async function relayFetch() {
     if (!conns[m.from]) {
       conns[m.from] = { conn: null, key: null, name: m.from.slice(0,8), color: clr(m.from), online: false, sent: false };
     }
+    await ensurePeerKeyLoaded(m.from);
     var c = conns[m.from];
     if (c.key) {
       await processRelayMsg(m, c);
@@ -3112,7 +3110,6 @@ async function relayFetch() {
       // Ensure we can decrypt queued items: trigger/retry key exchange
       if (!c.online) setupConn(m.from, { initiator: true });
     }
-
   }
 }
 
