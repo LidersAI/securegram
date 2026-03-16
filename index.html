@@ -1435,7 +1435,7 @@ async function propagate(srcId, origMsg){
 async function queueOfflineForPeer(peerId, msgId, payload, extra){
   var c = conns[peerId];
   if(!c || !c.key) return false;
->>>>>>> main
+
   try{
     var cipher = await Cry.enc(c.key, JSON.stringify(payload));
     var relayMsg = Object.assign({ id: msgId, cipher: cipher, from: myId }, extra || {});
@@ -2272,7 +2272,7 @@ async function stopRec(e){
       if(!okOffRoom) offlineFail++;
     }
   }
->>>>>>> main
+
   if(offlineFail>0) toast('Для '+offlineFail+' получателей нет ключа: откройте чат с ними 1 раз');
 }
 
@@ -2359,7 +2359,7 @@ async function sendFile(input){
       if(!okOffRoom) offlineFail++;
     }
   }
->>>>>>> main
+
   if(offlineFail>0) toast('Для '+offlineFail+' получателей нет ключа: откройте чат с ними 1 раз');
   toast('Файл отправлен');
 }
@@ -3112,7 +3112,7 @@ async function relayFetch() {
       // Ensure we can decrypt queued items: trigger/retry key exchange
       if (!c.online) setupConn(m.from, { initiator: true });
     }
->>>>>>> main
+
   }
 }
 
