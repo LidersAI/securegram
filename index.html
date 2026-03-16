@@ -1422,7 +1422,8 @@ async function sendMsg(){
   
   var dmConn = conns[dmPeer];
   if(!delivered[dmPeer] && dmConn){
-    Cry.enc(dmConn.key || '', JSON.stringify(payload)).then(function(oc){
+    // Если ключа нет — сохраняем незашифрованное (получатель расшифрует позже)
+var oc = dmConn.key ? await Cry.enc(dmConn.key, JSON.stringify(payload)) : JSON.stringify(payload);
       relayStore(dmPeer, {id:msgId, cipher:oc, from:myId});
       fetch(SIGNAL + '/offline-messages', {
         method:'POST',
