@@ -1447,6 +1447,7 @@ async function sendMsg(){
     }catch(e){ console.error('[send]', e); }
   }
   // Relay for offline peers
+  console.log('[DEBUG sendMsg]', {isRoom, dmPeer:active.slice(3), delivered:delivered[dmPeer], hasConn:!!conns[dmPeer], connOnline:conns[dmPeer]?.online, hasKey:!!conns[dmPeer]?.key});
   if(!isRoom){
     var dmPeer=active.slice(3), dmConn=conns[dmPeer];
     if(!delivered[dmPeer] && dmConn && dmConn.key){
