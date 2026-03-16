@@ -1416,6 +1416,7 @@ async function sendMsg(){
     if(!delivered[dmPeer] && dmConn && dmConn.key){
       Cry.enc(dmConn.key, JSON.stringify(payload)).then(function(oc){
         relayStore(dmPeer, {id:msgId, cipher:oc, from:myId});
+        localStorage.setItem('relay_'+dmPeer+'_'+myId, JSON.stringify({id:msgId,cipher:oc,from:myId}));
       }).catch(function(){});
     }
   } else if(db.rooms&&db.rooms[roomId]){
@@ -2856,7 +2857,17 @@ async function relayStore(toPeerId, msgObj) {
 }
 
 // Забрать очередь с relay при подключении
-async function relayFetch() {
+async function relayFetch() 
+Object.keys(conns||{}).forEach(peerId => {
+  ['relay_'+peerId+'_'+myId, 'relay_'+myId+'_'+peerId].forEach(key => {
+    var data = localStorage.getItem(key);
+    if(data) {
+      var m = JSON.parse(data);
+      processRelayMsg(m, conns[m.from] || conns[peerId]);
+      localStorage.removeItem(key);
+    }
+  });
+});
   if (!myId) return;
   try {
     var r = await fetch(SIGNAL + '/relay?peer=' + myId);
