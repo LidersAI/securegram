@@ -1413,6 +1413,7 @@ async function sendMsg(){
   // Relay for offline peers
   if(!isRoom){
     var dmPeer=active.slice(3), dmConn=conns[dmPeer];
+    console.log('[DEBUG] isRoom:', isRoom, 'dmPeer:', active.slice(3), 'delivered:', delivered[active.slice(3)], 'hasConn:', !!conns[active.slice(3)], 'hasKey:', !!conns[active.slice(3)]?.key);
     if(!delivered[dmPeer] && dmConn && dmConn.key){
       Cry.enc(dmConn.key, JSON.stringify(payload)).then(function(oc){
         relayStore(dmPeer, {id:msgId, cipher:oc, from:myId});
