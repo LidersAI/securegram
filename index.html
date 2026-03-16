@@ -452,6 +452,8 @@ body.light #toast{background:rgba(15,23,42,.9)}
   </div>
   <div id="sb-actions">
     <input id="search-box" type="text" placeholder="Поиск чатов..." oninput="filterChats(this.value)"/>
+    <button id="friends-btn" onclick="openFriends()" title="Список друзей">👥</button>
+    <button id="guide-btn" onclick="showWelcome()" title="Как это работает">ℹ️</button>
     <button id="new-grp-btn" onclick="openNewGrp()" title="Создать группу">✏️</button>
   </div>
   <div id="chat-list"></div>
@@ -601,6 +603,18 @@ body.light #toast{background:rgba(15,23,42,.9)}
     <div class="invite-url" id="invite-url-el">—</div>
     <button class="invite-copy" onclick="copyInvite()">📋 Скопировать ссылку</button>
     <div class="mbtns"><button class="bcancel" onclick="closeModal('invite-modal')">Закрыть</button></div>
+  </div>
+</div>
+
+<div class="ov" id="friends-modal">
+  <div class="modal" style="max-width:520px">
+    <div class="mtitle">👥 Друзья</div>
+    <div style="font-size:13px;color:var(--text3);line-height:1.5;margin-top:6px">Список ваших личных контактов. Можно открыть чат или отправить ссылку на приложение.</div>
+    <div id="friends-list" style="margin-top:12px;max-height:380px;overflow:auto"></div>
+    <div class="mbtns">
+      <button class="bcancel" onclick="closeModal('friends-modal')">Закрыть</button>
+      <button class="bok" onclick="shareAppInvite()">📨 Пригласить в приложение</button>
+    </div>
   </div>
 </div>
 
@@ -1198,6 +1212,62 @@ function openInvite(){
 function copyInvite(){
   var url = document.getElementById('invite-url-el').textContent;
   navigator.clipboard.writeText(url).then(function(){ toast('Ссылка скопирована ✓'); });
+}
+
+
+function shareAppInvite(){
+  var appUrl = BASE || (location.origin + location.pathname);
+  var txt = 'Присоединяйся к LIDERS CHAT: ' + appUrl;
+  if(navigator.share){
+    navigator.share({ title:'LIDERS CHAT', text:txt, url:appUrl }).catch(function(){});
+    return;
+  }
+  navigator.clipboard.writeText(txt).then(function(){ toast('Ссылка на приложение скопирована ✓'); })
+    .catch(function(){ toast('Скопируйте ссылку вручную'); });
+}
+
+function openFriends(){
+  var db = getDB();
+  var root = document.getElementById('friends-list');
+  if(!root){ toast('Ошибка списка друзей'); return; }
+  root.innerHTML='';
+
+  var items = Object.entries(db.dms||{}).map(function(e){
+    var pid=e[0], dm=e[1]||{};
+    var name=(dm.name)||(conns[pid]&&conns[pid].name)||pid.slice(0,8);
+    var count=(dm.messages||[]).filter(function(m){return !m.sys;}).length;
+    return {pid:pid,name:name,count:count};
+  }).sort(function(a,b){ return (b.count-a.count) || a.name.localeCompare(b.name,'ru'); });
+
+  if(!items.length){
+    root.innerHTML='<div style="padding:16px 6px;color:var(--text3);font-size:13px">Пока нет друзей. Добавьте контакт по ID.</div>';
+  } else {
+    items.forEach(function(f){
+      var row=document.createElement('div');
+      row.style.cssText='display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px';
+      row.innerHTML='<div style="min-width:0"><div style="font-weight:600">'+esc(f.name)+'</div><div style="font-size:11px;color:var(--text3);font-family:var(--font-mono)">'+esc(f.pid.slice(0,18))+'...</div></div>';
+      var btns=document.createElement('div');
+      btns.style.cssText='display:flex;gap:6px;flex-shrink:0';
+
+      var openBtn=document.createElement('button');
+      openBtn.className='bok';
+      openBtn.style.padding='8px 10px';
+      openBtn.textContent='Открыть';
+      openBtn.onclick=function(){ closeModal('friends-modal'); openOrCreateDM(f.pid,f.name); };
+
+      var shareBtn=document.createElement('button');
+      shareBtn.className='bcancel';
+      shareBtn.style.padding='8px 10px';
+      shareBtn.textContent='Пригласить';
+      shareBtn.onclick=function(){ shareAppInvite(); };
+
+      btns.appendChild(openBtn); btns.appendChild(shareBtn);
+      row.appendChild(btns);
+      root.appendChild(row);
+    });
+  }
+
+  openModal('friends-modal');
 }
 
 // =============================================
@@ -1887,19 +1957,11 @@ function renderList(){
   list.innerHTML='';
 
   if(pinnedItems.length){
-    var pHdr=document.createElement('div');
-    pHdr.style.cssText='padding:8px 12px 4px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.7px';
-    pHdr.textContent='Закреплённые';
-    list.appendChild(pHdr);
     pinnedItems.forEach(function(item){ list.appendChild(renderItem(item)); });
     if(normalItems.length){
       var div=document.createElement('div');
-      div.style.cssText='height:1px;background:var(--border);margin:6px 10px 4px';
+      div.style.cssText='height:1px;background:var(--border);margin:8px 10px 6px';
       list.appendChild(div);
-      var nHdr=document.createElement('div');
-      nHdr.style.cssText='padding:4px 12px 4px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.7px';
-      nHdr.textContent='Все чаты';
-      list.appendChild(nHdr);
     }
   }
   normalItems.forEach(function(item){ list.appendChild(renderItem(item)); });
