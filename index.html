@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>LIDERS CHAT</title>
+<title>ЛИДЕРС ЧАТ</title>
 <script>
 // Save invite params immediately before any redirect
 (function(){
@@ -38,7 +38,7 @@ if ('serviceWorker' in navigator) {
 <meta name="theme-color" content="#17212b">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="LIDERS CHAT">
+<meta name="apple-mobile-web-app-title" content="ЛИДЕРС ЧАТ">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="favicon.ico">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -80,6 +80,11 @@ body{height:100%;overflow:hidden;padding-top:env(safe-area-inset-top)}
 #search-box::placeholder{color:var(--text3)}
 #new-grp-btn{width:38px;height:38px;border:none;background:rgba(59,130,246,.12);color:var(--accent2);cursor:pointer;font-size:18px;border-radius:12px;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
 #new-grp-btn:hover{background:rgba(59,130,246,.22);transform:scale(1.05)}
+#tool-btns{display:flex;gap:8px}
+.tool-btn{width:38px;height:38px;border:none;background:rgba(255,255,255,.06);color:var(--text2);cursor:pointer;font-size:16px;border-radius:12px;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
+.tool-btn:hover{background:rgba(59,130,246,.16);color:var(--accent2);transform:translateY(-1px)}
+#panic-btn{background:rgba(239,68,68,.14);color:#fca5a5}
+#panic-btn:hover{background:rgba(239,68,68,.22);color:#ef4444}
 
 #chat-list{flex:1;overflow-y:auto;padding:6px 8px}
 #chat-list::-webkit-scrollbar{width:3px}
@@ -278,6 +283,12 @@ body{height:100%;overflow:hidden;padding-top:env(safe-area-inset-top)}
 #rec-hint{display:none;position:absolute;bottom:72px;left:50%;transform:translateX(-50%);background:rgba(239,68,68,.12);color:#f87171;padding:7px 16px;border-radius:99px;font-size:12px;white-space:nowrap;border:1px solid rgba(239,68,68,.2)}
 #rec-hint.on{display:block}
 
+/* Panic mode */
+#panic-screen{display:none;position:fixed;inset:0;background:#000;z-index:1000;align-items:center;justify-content:center;flex-direction:column;gap:14px}
+#panic-screen.on{display:flex}
+.panic-title{font-size:20px;font-weight:700;letter-spacing:-.3px;color:#fff}
+.panic-sub{font-size:13px;color:rgba(255,255,255,.6)}
+
 /* Toast */
 #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(70px);background:rgba(30,41,59,.95);color:#fff;padding:11px 22px;border-radius:14px;font-size:13px;font-weight:500;transition:transform .25s var(--ease);z-index:999;pointer-events:none;white-space:nowrap;box-shadow:0 8px 32px rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.08);backdrop-filter:blur(12px)}
 #toast.on{transform:translateX(-50%) translateY(0)}
@@ -406,17 +417,22 @@ body.light .reaction-cnt{color:#334155}
 <div id="welcome">
   <div class="wl">
     <div class="wl-logo">💬</div>
-    <div class="wl-title">LIDERS CHAT</div>
-    <div class="wl-sub">Защищённый мессенджер.<br>Ваши сообщения — только ваши.</div>
+    <div class="wl-title">ЛИДЕРС ЧАТ</div>
+    <div class="wl-sub">Приватный мессенджер нового поколения.<br>Быстро, безопасно и без лишнего.</div>
     <div class="wl-feats">
-      <div class="wl-feat"><div class="wl-feat-ico">🔒</div><div><div class="wl-feat-title">End-to-End шифрование</div><div class="wl-feat-desc">Шифруется в браузере. Никто не может прочитать.</div></div></div>
-      <div class="wl-feat"><div class="wl-feat-ico">🕸</div><div><div class="wl-feat-title">P2P — без серверов</div><div class="wl-feat-desc">Сообщения напрямую между устройствами.</div></div></div>
-      <div class="wl-feat"><div class="wl-feat-ico">👥</div><div><div class="wl-feat-title">Группы по ссылке</div><div class="wl-feat-desc">Пригласить по ссылке, без номера телефона.</div></div></div>
-      <div class="wl-feat"><div class="wl-feat-ico">📞</div><div><div class="wl-feat-title">Фото, файлы, звонки</div><div class="wl-feat-desc">Аудио и видеозвонки P2P, отправка файлов.</div></div></div>
+      <div class="wl-feat"><div class="wl-feat-ico">🛡️</div><div><div class="wl-feat-title">End-to-End шифрование</div><div class="wl-feat-desc">Ключи только у участников чата. Сервер не читает переписку.</div></div></div>
+      <div class="wl-feat"><div class="wl-feat-ico">⚡</div><div><div class="wl-feat-title">Мгновенно и без регистрации</div><div class="wl-feat-desc">Добавляйте по ID и ссылке-приглашению за пару секунд.</div></div></div>
+      <div class="wl-feat"><div class="wl-feat-ico">👥</div><div><div class="wl-feat-title">Личные и групповые чаты</div><div class="wl-feat-desc">Сообщения, файлы, голос, звонки и удобный список друзей.</div></div></div>
+      <div class="wl-feat"><div class="wl-feat-ico">🕶️</div><div><div class="wl-feat-title">Panic Mode</div><div class="wl-feat-desc">Одна кнопка — и весь экран мгновенно скрыт чёрным фоном.</div></div></div>
     </div>
     <button class="wl-btn" onclick="startFromWelcome()">Начать →</button>
     <div class="wl-note">Телефон и email не нужны.<br>Данные хранятся только на вашем устройстве.</div>
   </div>
+</div>
+
+<div id="panic-screen" onclick="togglePanicMode(false)">
+  <div class="panic-title">Panic Mode включён</div>
+  <div class="panic-sub">Нажмите в любое место, чтобы вернуться</div>
 </div>
 
 <!-- CALL SCREEN -->
@@ -487,7 +503,7 @@ body.light .reaction-cnt{color:#334155}
 
   <div id="empty">
     <div id="empty-ico">💬</div>
-    <h3>LIDERS CHAT</h3>
+    <h3>ЛИДЕРС ЧАТ</h3>
     <p>Создайте группу или добавьте участника по ID.<br>Все сообщения зашифрованы E2E.</p>
   </div>
 
@@ -555,7 +571,7 @@ body.light .reaction-cnt{color:#334155}
 <div class="ov" id="ob-modal">
   <div class="modal" style="text-align:center">
     <div style="font-size:48px;margin-bottom:10px">💬</div>
-    <div style="font-size:22px;font-weight:700;margin-bottom:6px">LIDERS CHAT</div>
+    <div style="font-size:22px;font-weight:700;margin-bottom:6px">ЛИДЕРС ЧАТ</div>
     <div style="font-size:14px;color:var(--text3);margin-bottom:20px;line-height:1.5">Защищённый P2P мессенджер.<br>Как вас зовут?</div>
     <input class="finput" id="ob-name" type="text" placeholder="Ваше имя..." maxlength="24" style="text-align:center;font-size:16px;margin-bottom:4px"/>
     <div class="mbtns" style="margin-top:12px">
@@ -2193,7 +2209,7 @@ function showBanner(t){
 }
 function hideBanner(){document.getElementById('banner').classList.remove('on');}
 function viewImg(src){var ov=document.createElement('div');ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:999;display:flex;align-items:center;justify-content:center;cursor:zoom-out';ov.onclick=function(){ov.remove();};var img=document.createElement('img');img.src=src;img.style.cssText='max-width:95vw;max-height:95vh;border-radius:8px;object-fit:contain';ov.appendChild(img);document.body.appendChild(ov);}
-function notif(name,text){if(Notification.permission==='granted')new Notification('LIDERS CHAT · '+name,{body:text,icon:'icon-192.png'});}
+function notif(name,text){if(Notification.permission==='granted')new Notification('ЛИДЕРС ЧАТ · '+name,{body:text,icon:'icon-192.png'});}
 var beepT=0;
 function playBeep(){var n=Date.now();if(n-beepT<2000)return;beepT=n;try{var ctx=new(window.AudioContext||window.webkitAudioContext)();var o=ctx.createOscillator();var g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.setValueAtTime(880,ctx.currentTime);o.frequency.setValueAtTime(1100,ctx.currentTime+0.08);g.gain.setValueAtTime(0.1,ctx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.25);o.start();o.stop(ctx.currentTime+0.25);}catch(e){}}
 var toastT;
@@ -2223,7 +2239,7 @@ document.getElementById('msg-in').addEventListener('input',function(){
 // Update title with unread
 setInterval(function(){
   var total=Object.values(unread).reduce(function(a,b){return a+b;},0);
-  document.title=total>0?'('+total+') LIDERS CHAT':'LIDERS CHAT';
+  document.title=total>0?'('+total+') ЛИДЕРС ЧАТ':'ЛИДЕРС ЧАТ';
 },3000);
 
 // =============================================
@@ -2631,6 +2647,13 @@ function setTheme(t){
 // =============================================
 function showWelcome(){
   document.getElementById('welcome').classList.add('on');
+}
+
+function togglePanicMode(on){
+  var el=document.getElementById('panic-screen');
+  if(!el) return;
+  if(on){ el.classList.add('on'); return; }
+  el.classList.remove('on');
 }
 function startFromWelcome(){
   document.getElementById('welcome').classList.remove('on');
