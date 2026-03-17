@@ -1,9 +1,10 @@
-// LIDERS CHAT Service Worker v3
-const CACHE = 'liders-v3';
+// LIDERS CHAT Service Worker v7
+const CACHE = 'liders-v7';
 const STATIC = [
-  '/securegram/icon-192.png',
-  '/securegram/icon-512.png',
-  '/securegram/manifest.json',
+  './icon-192.png',
+  './icon-512.png',
+  './manifest.json',
+  './favicon.ico'
 ];
 
 self.addEventListener('install', e => {
@@ -29,7 +30,7 @@ self.addEventListener('fetch', e => {
   if (e.request.headers.get('accept')?.includes('text/html')) {
     e.respondWith(
       fetch(e.request, { cache: 'no-store' })
-        .catch(() => caches.match('/securegram/index.html'))
+        .catch(() => caches.match('./index.html') || caches.match('/index.html'))
     );
     return;
   }
