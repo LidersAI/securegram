@@ -1,5 +1,5 @@
 // LIDERS CHAT Service Worker v4
-const CACHE = 'liders-v5';
+const CACHE = 'liders-v4';
 const STATIC = [
   '/securegram/icon-192.png',
   '/securegram/icon-512.png',
