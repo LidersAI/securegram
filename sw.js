@@ -1,5 +1,5 @@
-// LIDERS CHAT Service Worker v7
-const CACHE = 'liders-v7';
+// LIDERS CHAT Service Worker v4
+const CACHE = 'liders-v4';
 const STATIC = [
   './icon-192.png',
   './icon-512.png',
