@@ -81,13 +81,10 @@ body{height:100%;overflow:hidden;padding-top:env(safe-area-inset-top)}
 #new-grp-btn{width:38px;height:38px;border:none;background:rgba(59,130,246,.12);color:var(--accent2);cursor:pointer;font-size:18px;border-radius:12px;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
 #new-grp-btn:hover{background:rgba(59,130,246,.22);transform:scale(1.05)}
 #tool-btns{display:flex;gap:8px}
-.tool-btn{width:38px;height:38px;border:none;background:linear-gradient(135deg,rgba(59,130,246,.2),rgba(37,99,235,.1));color:#dbeafe;cursor:pointer;font-size:17px;border-radius:12px;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;box-shadow:0 6px 14px rgba(2,6,23,.25);font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',var(--font)}
-#panic-btn{width:62px;font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase}
-.tool-btn:hover{background:linear-gradient(135deg,rgba(59,130,246,.3),rgba(37,99,235,.18));color:#fff;transform:translateY(-1px) scale(1.03)}
-#friends-btn{background:linear-gradient(135deg,rgba(16,185,129,.22),rgba(14,116,144,.18));color:#ccfbf1}
-#guide-btn{background:linear-gradient(135deg,rgba(168,85,247,.24),rgba(59,130,246,.2));color:#ede9fe}
-#panic-btn{background:linear-gradient(135deg,#ef4444,#b91c1c);color:#fff;border:1px solid rgba(255,255,255,.18)}
-#panic-btn:hover{background:linear-gradient(135deg,#f87171,#dc2626);color:#fff}
+.tool-btn{width:38px;height:38px;border:none;background:rgba(255,255,255,.06);color:var(--text2);cursor:pointer;font-size:16px;border-radius:12px;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
+.tool-btn:hover{background:rgba(59,130,246,.16);color:var(--accent2);transform:translateY(-1px)}
+#panic-btn{background:rgba(239,68,68,.14);color:#fca5a5}
+#panic-btn:hover{background:rgba(239,68,68,.22);color:#ef4444}
 
 #chat-list{flex:1;overflow-y:auto;padding:6px 8px}
 #chat-list::-webkit-scrollbar{width:3px}
@@ -294,7 +291,7 @@ body{height:100%;overflow:hidden;padding-top:env(safe-area-inset-top)}
 #panic-screen{display:none;position:fixed;inset:0;background:#000;z-index:1000;align-items:center;justify-content:center;flex-direction:column;gap:14px}
 #panic-screen.on{display:flex}
 .panic-title{font-size:20px;font-weight:700;letter-spacing:-.3px;color:#fff}
-.panic-sub{font-size:13px;color:rgba(255,255,255,.72)}
+.panic-sub{font-size:13px;color:rgba(255,255,255,.6)}
 
 /* Toast */
 #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(70px);background:rgba(30,41,59,.95);color:#fff;padding:11px 22px;border-radius:14px;font-size:13px;font-weight:500;transition:transform .25s var(--ease);z-index:999;pointer-events:none;white-space:nowrap;box-shadow:0 8px 32px rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.08);backdrop-filter:blur(12px)}
@@ -402,19 +399,6 @@ body.light .ci.active{background:linear-gradient(135deg,rgba(37,99,235,.14),rgba
 body.light .ci-time,body.light .ci-prev,body.light #my-id-el,body.light #hdr-status{color:#64748b}
 body.light .reaction{background:rgba(15,23,42,.06);border-color:rgba(15,23,42,.1)}
 body.light .reaction-cnt{color:#334155}
-body.light .tool-btn{background:linear-gradient(135deg,rgba(37,99,235,.14),rgba(59,130,246,.1));color:#1e3a8a;box-shadow:none}
-body.light .tool-btn:hover{background:linear-gradient(135deg,rgba(37,99,235,.22),rgba(59,130,246,.16));color:#1d4ed8}
-body.light #friends-btn{background:linear-gradient(135deg,rgba(5,150,105,.16),rgba(6,182,212,.12));color:#0f766e}
-body.light #guide-btn{background:linear-gradient(135deg,rgba(147,51,234,.18),rgba(59,130,246,.12));color:#6d28d9}
-body.light #panic-btn{background:linear-gradient(135deg,rgba(239,68,68,.18),rgba(220,38,38,.12));color:#b91c1c}
-body.light #add-wrap{background:#f8fbff;border-color:rgba(37,99,235,.16)}
-body.light #add-lbl{color:#475569}
-body.light #add-in{background:#fff;border-color:rgba(0,0,0,.12);color:#0f172a}
-body.light #chat-list::-webkit-scrollbar-thumb{background:rgba(0,0,0,.18)}
-body.light .ep{background:rgba(15,23,42,.04);border-color:rgba(15,23,42,.1)}
-body.light .ep:hover,body.light .ep.sel{background:linear-gradient(135deg,rgba(37,99,235,.2),rgba(59,130,246,.15));border-color:rgba(37,99,235,.35)}
-body.light .empty-badge{background:rgba(245,158,11,.12);border-color:rgba(217,119,6,.3);color:#b45309}
-body.light .empty-site{color:#64748b}
 
 /* Mobile */
 @media(max-width:768px){
@@ -438,7 +422,7 @@ body.light .empty-site{color:#64748b}
   <div class="wl">
     <div class="wl-logo">💬</div>
     <div class="wl-title">ЛИДЕРС ЧАТ</div>
-    <div class="wl-sub">Приватный мессенджер нового поколения.<br>Быстро, безопасно и без лишнего. Сейчас — ранний доступ.</div>
+    <div class="wl-sub">Приватный мессенджер нового поколения.<br>Быстро, безопасно и без лишнего.</div>
     <div class="wl-feats">
       <div class="wl-feat"><div class="wl-feat-ico">🛡️</div><div><div class="wl-feat-title">End-to-End шифрование</div><div class="wl-feat-desc">Ключи только у участников чата. Сервер не читает переписку.</div></div></div>
       <div class="wl-feat"><div class="wl-feat-ico">⚡</div><div><div class="wl-feat-title">Мгновенно и без регистрации</div><div class="wl-feat-desc">Добавляйте по ID и ссылке-приглашению за пару секунд.</div></div></div>
@@ -498,12 +482,9 @@ body.light .empty-site{color:#64748b}
   </div>
   <div id="sb-actions">
     <input id="search-box" type="text" placeholder="Поиск чатов..." oninput="filterChats(this.value)"/>
-    <div id="tool-btns">
-      <button class="tool-btn" id="friends-btn" onclick="openFriends()" title="Список друзей">🤝</button>
-      <button class="tool-btn" id="guide-btn" onclick="showWelcome()" title="Как это работает">✨</button>
-      <button class="tool-btn" id="panic-btn" onclick="togglePanicMode(true)" title="Panic Mode">Panic</button>
-      <button id="new-grp-btn" onclick="openNewGrp()" title="Создать группу">✏️</button>
-    </div>
+    <button id="friends-btn" onclick="openFriends()" title="Список друзей">👥</button>
+    <button id="guide-btn" onclick="showWelcome()" title="Как это работает">ℹ️</button>
+    <button id="new-grp-btn" onclick="openNewGrp()" title="Создать группу">✏️</button>
   </div>
   <div id="chat-list"></div>
   <div id="sb-bottom">
@@ -526,11 +507,8 @@ body.light .empty-site{color:#64748b}
 
   <div id="empty">
     <div id="empty-ico">💬</div>
-    <div class="empty-badge">⭐ Эксклюзивный ранний доступ</div>
     <h3>ЛИДЕРС ЧАТ</h3>
-    <p>Сейчас вход по приглашениям: если вы здесь — вам уже повезло.
-    <br>Создайте группу или добавьте участника по ID. Все сообщения зашифрованы E2E.</p>
-    <div class="empty-site">Сайт проекта: <a href="https://liderschat.online/" target="_blank" rel="noopener">liderschat.online</a></div>
+    <p>Создайте группу или добавьте участника по ID.<br>Все сообщения зашифрованы E2E.</p>
   </div>
 
   <div id="chat-hdr">
@@ -727,7 +705,7 @@ body.light .empty-site{color:#64748b}
       </label>
       <div style="flex:1"><label>Ваше имя</label><input class="finput" id="sett-name-in" type="text" maxlength="24" style="margin-top:5px"/><div class="fhint">Это имя видят все собеседники. Используйте вместо телефона.</div></div>
     </div>
-    <div class="field"><label>Телефон (необязательно)</label><input class="finput" id="sett-phone-in" type="tel" maxlength="20" placeholder="+7..."/></div>
+    <div class="field"><label>Телефон (необязательно, видят собеседники)</label><input class="finput" id="sett-phone-in" type="tel" maxlength="20" placeholder="+7..."/><div class="fhint">Это имя видят все собеседники. Используйте вместо телефона.</div></div>
     <div class="field"><label>Ваш ID — поделитесь с друзьями</label><div class="fmono" id="sett-id-el" onclick="copyMyId()" style="cursor:pointer">...</div><div class="fhint">Нажмите чтобы скопировать и отправить другу — он добавит вас по этому ID</div></div>
     <div class="field"><label>Сервер</label><div class="fhint" id="sett-srv-el">—</div></div>
     <div class="field">
@@ -1268,9 +1246,9 @@ function copyInvite(){
 
 function shareAppInvite(){
   var appUrl = BASE || (location.origin + location.pathname);
-  var txt = 'Присоединяйся к ЛИДЕРС ЧАТ: ' + appUrl;
+  var txt = 'Присоединяйся к LIDERS CHAT: ' + appUrl;
   if(navigator.share){
-    navigator.share({ title:'ЛИДЕРС ЧАТ', text:txt, url:appUrl }).catch(function(){});
+    navigator.share({ title:'LIDERS CHAT', text:txt, url:appUrl }).catch(function(){});
     return;
   }
   navigator.clipboard.writeText(txt).then(function(){ toast('Ссылка на приложение скопирована ✓'); })
@@ -1572,10 +1550,8 @@ async function propagate(srcId, origMsg){
 
 
 async function queueOfflineForPeer(peerId, msgId, payload, extra){
-  if(!conns[peerId]){
-    conns[peerId] = { conn:null, key:null, name:peerId.slice(0,8), color:clr(peerId), online:false, sent:false };
-  }
   var c = conns[peerId];
+  if(!c) return false;
   if(!c.key) await ensurePeerKeyLoaded(peerId);
   if(!c.key) return false;
   try{
@@ -1646,7 +1622,7 @@ async function sendMsg(){
       if(!okOffRoom) offlineFail++;
     }
   }
-  if(offlineFail>0) if(!isRoom) toast('Нет ключа для оффлайн-отправки. Откройте личный чат и дождитесь подключения.');
+  if(offlineFail>0) toast('Для '+offlineFail+' получателей нет ключа: откройте чат с ними 1 раз');
 }
 
 async function sendPhoto(input){
@@ -1685,7 +1661,7 @@ async function sendPhoto(input){
       if(!okOffRoom) offlineFail++;
     }
   }
-  if(offlineFail>0) if(!isRoom) toast('Нет ключа для оффлайн-отправки. Откройте личный чат и дождитесь подключения.');
+  if(offlineFail>0) toast('Для '+offlineFail+' получателей нет ключа: откройте чат с ними 1 раз');
 }
 
 function compressImg(file, max, q){
@@ -2406,7 +2382,7 @@ async function stopRec(e){
       if(!okOffRoom) offlineFail++;
     }
   }
-  if(offlineFail>0) if(!isRoom) toast('Нет ключа для оффлайн-отправки. Откройте личный чат и дождитесь подключения.');
+  if(offlineFail>0) toast('Для '+offlineFail+' получателей нет ключа: откройте чат с ними 1 раз');
 }
 
 function makeVoiceBubble(m){
@@ -2475,7 +2451,7 @@ async function sendFile(input){
       if(!okOffRoom) offlineFail++;
     }
   }
-  if(offlineFail>0) if(!isRoom) toast('Нет ключа для оффлайн-отправки. Откройте личный чат и дождитесь подключения.');
+  if(offlineFail>0) toast('Для '+offlineFail+' получателей нет ключа: откройте чат с ними 1 раз');
   toast('Файл отправлен');
 }
 
