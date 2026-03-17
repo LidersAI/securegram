@@ -240,8 +240,8 @@ body{height:100%;overflow:hidden;padding-top:env(safe-area-inset-top)}
 .bdanger{width:100%;padding:10px;border-radius:10px;border:none;background:rgba(239,68,68,.1);color:#f87171;font-size:13px;cursor:pointer;text-align:left;padding-left:14px;margin-bottom:6px;transition:all .15s}
 .bdanger:hover{background:rgba(239,68,68,.18)}
 .ep-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
-.ep{font-size:26px;cursor:pointer;padding:6px;border-radius:10px;line-height:1;transition:all .15s}
-.ep:hover,.ep.sel{background:rgba(59,130,246,.2);transform:scale(1.1)}
+.ep{font-size:24px;cursor:pointer;padding:8px;border-radius:12px;line-height:1;transition:all .15s;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.ep:hover,.ep.sel{background:linear-gradient(135deg,rgba(59,130,246,.32),rgba(37,99,235,.22));border-color:rgba(96,165,250,.45);transform:translateY(-1px) scale(1.06)}
 .invite-url{font-family:var(--font-mono);font-size:11px;background:rgba(0,0,0,.3);border-radius:10px;padding:10px 12px;color:var(--accent2);word-break:break-all;line-height:1.5;margin-top:10px;border:1px solid var(--border)}
 .invite-copy{width:100%;margin-top:8px;padding:10px;border-radius:10px;border:none;background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:#fff;font-size:13px;cursor:pointer;font-weight:700;transition:all .15s}
 .invite-copy:hover{transform:scale(1.02)}
@@ -699,7 +699,7 @@ body.light .reaction-cnt{color:#334155}
         <div style="position:absolute;bottom:-2px;right:-2px;width:18px;height:18px;border-radius:50%;background:var(--accent);color:#fff;font-size:10px;display:flex;align-items:center;justify-content:center;border:2px solid var(--bg3)">📷</div>
         <input type="file" accept="image/*" style="display:none" onchange="uploadAv(this)"/>
       </label>
-      <div style="flex:1"><label>Ваше имя</label><input class="finput" id="sett-name-in" type="text" maxlength="24" style="margin-top:5px"/></div>
+      <div style="flex:1"><label>Ваше имя</label><input class="finput" id="sett-name-in" type="text" maxlength="24" style="margin-top:5px"/><div class="fhint">Это имя видят все собеседники. Используйте вместо телефона.</div></div>
     </div>
     <div class="field"><label>Телефон (необязательно, видят собеседники)</label><input class="finput" id="sett-phone-in" type="tel" maxlength="20" placeholder="+7..."/><div class="fhint">Это имя видят все собеседники. Используйте вместо телефона.</div></div>
     <div class="field"><label>Ваш ID — поделитесь с друзьями</label><div class="fmono" id="sett-id-el" onclick="copyMyId()" style="cursor:pointer">...</div><div class="fhint">Нажмите чтобы скопировать и отправить другу — он добавит вас по этому ID</div></div>
@@ -734,7 +734,7 @@ body.light .reaction-cnt{color:#334155}
 // =============================================
 var SIGNAL = 'https://liders-chat-signal.onrender.com';
 var RELAY  = 'https://liders-chat-signal.onrender.com';
-var BASE = 'https://lidersai.github.io/securegram/';
+var BASE = 'https://liderschat.ru/';
 var DB_KEY = 'sg_v1';
 
 // =============================================
