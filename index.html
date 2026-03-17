@@ -395,8 +395,6 @@ body.light .ci.active{background:linear-gradient(135deg,rgba(37,99,235,.14),rgba
 body.light .ci-time,body.light .ci-prev,body.light #my-id-el,body.light #hdr-status{color:#64748b}
 body.light .reaction{background:rgba(15,23,42,.06);border-color:rgba(15,23,42,.1)}
 body.light .reaction-cnt{color:#334155}
-body.light .tool-btn{background:rgba(15,23,42,.05);color:#475569}
-body.light .tool-btn:hover{background:rgba(37,99,235,.14);color:#2563eb}
 
 /* Mobile */
 @media(max-width:768px){
@@ -480,12 +478,9 @@ body.light .tool-btn:hover{background:rgba(37,99,235,.14);color:#2563eb}
   </div>
   <div id="sb-actions">
     <input id="search-box" type="text" placeholder="Поиск чатов..." oninput="filterChats(this.value)"/>
-    <div id="tool-btns">
-      <button class="tool-btn" id="friends-btn" onclick="openFriends()" title="Список друзей">🤝</button>
-      <button class="tool-btn" id="guide-btn" onclick="showWelcome()" title="Как это работает">✨</button>
-      <button class="tool-btn" id="panic-btn" onclick="togglePanicMode(true)" title="Panic Mode">🕶️</button>
-      <button id="new-grp-btn" onclick="openNewGrp()" title="Создать группу">✏️</button>
-    </div>
+    <button id="friends-btn" onclick="openFriends()" title="Список друзей">👥</button>
+    <button id="guide-btn" onclick="showWelcome()" title="Как это работает">ℹ️</button>
+    <button id="new-grp-btn" onclick="openNewGrp()" title="Создать группу">✏️</button>
   </div>
   <div id="chat-list"></div>
   <div id="sb-bottom">
@@ -1247,9 +1242,9 @@ function copyInvite(){
 
 function shareAppInvite(){
   var appUrl = BASE || (location.origin + location.pathname);
-  var txt = 'Присоединяйся к ЛИДЕРС ЧАТ: ' + appUrl;
+  var txt = 'Присоединяйся к LIDERS CHAT: ' + appUrl;
   if(navigator.share){
-    navigator.share({ title:'ЛИДЕРС ЧАТ', text:txt, url:appUrl }).catch(function(){});
+    navigator.share({ title:'LIDERS CHAT', text:txt, url:appUrl }).catch(function(){});
     return;
   }
   navigator.clipboard.writeText(txt).then(function(){ toast('Ссылка на приложение скопирована ✓'); })
@@ -1551,10 +1546,8 @@ async function propagate(srcId, origMsg){
 
 
 async function queueOfflineForPeer(peerId, msgId, payload, extra){
-  if(!conns[peerId]){
-    conns[peerId] = { conn:null, key:null, name:peerId.slice(0,8), color:clr(peerId), online:false, sent:false };
-  }
   var c = conns[peerId];
+  if(!c) return false;
   if(!c.key) await ensurePeerKeyLoaded(peerId);
   if(!c.key) return false;
   try{
@@ -1625,7 +1618,7 @@ async function sendMsg(){
       if(!okOffRoom) offlineFail++;
     }
   }
-  if(offlineFail>0) if(!isRoom) toast('Нет ключа для оффлайн-отправки. Откройте личный чат и дождитесь подключения.');
+  if(offlineFail>0) toast('Для '+offlineFail+' получателей нет ключа: откройте чат с ними 1 раз');
 }
 
 async function sendPhoto(input){
@@ -1664,7 +1657,7 @@ async function sendPhoto(input){
       if(!okOffRoom) offlineFail++;
     }
   }
-  if(offlineFail>0) if(!isRoom) toast('Нет ключа для оффлайн-отправки. Откройте личный чат и дождитесь подключения.');
+  if(offlineFail>0) toast('Для '+offlineFail+' получателей нет ключа: откройте чат с ними 1 раз');
 }
 
 function compressImg(file, max, q){
@@ -2385,7 +2378,7 @@ async function stopRec(e){
       if(!okOffRoom) offlineFail++;
     }
   }
-  if(offlineFail>0) if(!isRoom) toast('Нет ключа для оффлайн-отправки. Откройте личный чат и дождитесь подключения.');
+  if(offlineFail>0) toast('Для '+offlineFail+' получателей нет ключа: откройте чат с ними 1 раз');
 }
 
 function makeVoiceBubble(m){
@@ -2454,7 +2447,7 @@ async function sendFile(input){
       if(!okOffRoom) offlineFail++;
     }
   }
-  if(offlineFail>0) if(!isRoom) toast('Нет ключа для оффлайн-отправки. Откройте личный чат и дождитесь подключения.');
+  if(offlineFail>0) toast('Для '+offlineFail+' получателей нет ключа: откройте чат с ними 1 раз');
   toast('Файл отправлен');
 }
 
