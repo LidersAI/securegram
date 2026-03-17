@@ -128,7 +128,11 @@ body{height:100%;overflow:hidden;padding-top:env(safe-area-inset-top)}
 #empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--text3);text-align:center;padding:24px}
 #empty-ico{font-size:52px;margin-bottom:4px}
 #empty h3{font-size:20px;font-weight:700;color:var(--text2);letter-spacing:-.4px}
-#empty p{font-size:14px;max-width:240px;line-height:1.6;color:var(--text3)}
+#empty p{font-size:14px;max-width:320px;line-height:1.6;color:var(--text3)}
+.empty-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;background:rgba(245,158,11,.16);border:1px solid rgba(245,158,11,.32);color:#fbbf24;font-size:12px;font-weight:700;letter-spacing:.2px}
+.empty-site{font-size:12px;color:var(--text3);margin-top:6px}
+.empty-site a{color:var(--accent2);text-decoration:none}
+.empty-site a:hover{text-decoration:underline}
 
 /* Header */
 #chat-hdr{background:rgba(15,23,42,.9);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:0 14px;display:none;align-items:center;gap:10px;height:58px;flex-shrink:0}
@@ -426,7 +430,7 @@ body.light .reaction-cnt{color:#334155}
       <div class="wl-feat"><div class="wl-feat-ico">🕶️</div><div><div class="wl-feat-title">Panic Mode</div><div class="wl-feat-desc">Одна кнопка — и весь экран мгновенно скрыт чёрным фоном.</div></div></div>
     </div>
     <button class="wl-btn" onclick="startFromWelcome()">Начать →</button>
-    <div class="wl-note">Телефон и email не нужны.<br>Данные хранятся только на вашем устройстве.</div>
+    <div class="wl-note">Эксклюзивный ранний доступ: попасть в чат можно только по приглашению — вам повезло ✨<br>Телефон и email не нужны. Данные хранятся только на вашем устройстве.<br><a href="https://liderschat.online/" target="_blank" rel="noopener" style="color:#93c5fd;text-decoration:none">liderschat.online</a></div>
   </div>
 </div>
 
