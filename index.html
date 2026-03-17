@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>LIDERS CHAT</title>
+<title>ЛИДЕРС ЧАТ</title>
 <script>
 // Save invite params immediately before any redirect
 (function(){
@@ -38,7 +38,7 @@ if ('serviceWorker' in navigator) {
 <meta name="theme-color" content="#17212b">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="LIDERS CHAT">
+<meta name="apple-mobile-web-app-title" content="ЛИДЕРС ЧАТ">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="favicon.ico">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -80,6 +80,14 @@ body{height:100%;overflow:hidden;padding-top:env(safe-area-inset-top)}
 #search-box::placeholder{color:var(--text3)}
 #new-grp-btn{width:38px;height:38px;border:none;background:rgba(59,130,246,.12);color:var(--accent2);cursor:pointer;font-size:18px;border-radius:12px;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
 #new-grp-btn:hover{background:rgba(59,130,246,.22);transform:scale(1.05)}
+#tool-btns{display:flex;gap:8px}
+.tool-btn{width:38px;height:38px;border:none;background:linear-gradient(135deg,rgba(59,130,246,.2),rgba(37,99,235,.1));color:#dbeafe;cursor:pointer;font-size:17px;border-radius:12px;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;box-shadow:0 6px 14px rgba(2,6,23,.25);font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',var(--font)}
+#panic-btn{width:62px;font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase}
+.tool-btn:hover{background:linear-gradient(135deg,rgba(59,130,246,.3),rgba(37,99,235,.18));color:#fff;transform:translateY(-1px) scale(1.03)}
+#friends-btn{background:linear-gradient(135deg,rgba(16,185,129,.22),rgba(14,116,144,.18));color:#ccfbf1}
+#guide-btn{background:linear-gradient(135deg,rgba(168,85,247,.24),rgba(59,130,246,.2));color:#ede9fe}
+#panic-btn{background:linear-gradient(135deg,#ef4444,#b91c1c);color:#fff;border:1px solid rgba(255,255,255,.18)}
+#panic-btn:hover{background:linear-gradient(135deg,#f87171,#dc2626);color:#fff}
 
 #chat-list{flex:1;overflow-y:auto;padding:6px 8px}
 #chat-list::-webkit-scrollbar{width:3px}
@@ -89,7 +97,6 @@ body{height:100%;overflow:hidden;padding-top:env(safe-area-inset-top)}
 .ci{display:flex;align-items:center;gap:11px;padding:10px 10px;cursor:pointer;border-radius:14px;transition:background .12s;position:relative;margin-bottom:2px}
 .ci:hover{background:var(--hover)}
 .ci.active{background:rgba(59,130,246,.12)!important}
-.ci.pinned::before{content:'📌';position:absolute;right:8px;top:8px;font-size:10px;opacity:.6}
 .ci-av{width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:700;flex-shrink:0;position:relative;overflow:hidden}
 .ci-av.sq{border-radius:14px;font-size:22px}
 .ci-av img{width:100%;height:100%;object-fit:cover;border-radius:inherit}
@@ -186,7 +193,9 @@ body{height:100%;overflow:hidden;padding-top:env(safe-area-inset-top)}
 @keyframes tp{0%,60%,100%{opacity:.3;transform:scale(1)}30%{opacity:1;transform:scale(1.35)}}
 
 /* Reactions */
-.reactions{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
+.reactions{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;max-width:72vw}
+.mw.me .reactions{justify-content:flex-end}
+.mw.them .reactions{justify-content:flex-start}
 .reaction{display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:99px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);font-size:14px;cursor:pointer;transition:all .15s}
 .reaction:hover{background:rgba(255,255,255,.12)}
 .reaction.mine{background:rgba(59,130,246,.2);border-color:rgba(59,130,246,.4)}
@@ -234,8 +243,8 @@ body{height:100%;overflow:hidden;padding-top:env(safe-area-inset-top)}
 .bdanger{width:100%;padding:10px;border-radius:10px;border:none;background:rgba(239,68,68,.1);color:#f87171;font-size:13px;cursor:pointer;text-align:left;padding-left:14px;margin-bottom:6px;transition:all .15s}
 .bdanger:hover{background:rgba(239,68,68,.18)}
 .ep-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
-.ep{font-size:26px;cursor:pointer;padding:6px;border-radius:10px;line-height:1;transition:all .15s}
-.ep:hover,.ep.sel{background:rgba(59,130,246,.2);transform:scale(1.1)}
+.ep{font-size:24px;cursor:pointer;padding:8px;border-radius:12px;line-height:1;transition:all .15s;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.ep:hover,.ep.sel{background:linear-gradient(135deg,rgba(59,130,246,.32),rgba(37,99,235,.22));border-color:rgba(96,165,250,.45);transform:translateY(-1px) scale(1.06)}
 .invite-url{font-family:var(--font-mono);font-size:11px;background:rgba(0,0,0,.3);border-radius:10px;padding:10px 12px;color:var(--accent2);word-break:break-all;line-height:1.5;margin-top:10px;border:1px solid var(--border)}
 .invite-copy{width:100%;margin-top:8px;padding:10px;border-radius:10px;border:none;background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:#fff;font-size:13px;cursor:pointer;font-weight:700;transition:all .15s}
 .invite-copy:hover{transform:scale(1.02)}
@@ -276,6 +285,12 @@ body{height:100%;overflow:hidden;padding-top:env(safe-area-inset-top)}
 @keyframes recpulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.7;transform:scale(.95)}}
 #rec-hint{display:none;position:absolute;bottom:72px;left:50%;transform:translateX(-50%);background:rgba(239,68,68,.12);color:#f87171;padding:7px 16px;border-radius:99px;font-size:12px;white-space:nowrap;border:1px solid rgba(239,68,68,.2)}
 #rec-hint.on{display:block}
+
+/* Panic mode */
+#panic-screen{display:none;position:fixed;inset:0;background:#000;z-index:1000;align-items:center;justify-content:center;flex-direction:column;gap:14px}
+#panic-screen.on{display:flex}
+.panic-title{font-size:20px;font-weight:700;letter-spacing:-.3px;color:#fff}
+.panic-sub{font-size:13px;color:rgba(255,255,255,.72)}
 
 /* Toast */
 #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(70px);background:rgba(30,41,59,.95);color:#fff;padding:11px 22px;border-radius:14px;font-size:13px;font-weight:500;transition:transform .25s var(--ease);z-index:999;pointer-events:none;white-space:nowrap;box-shadow:0 8px 32px rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.08);backdrop-filter:blur(12px)}
@@ -374,6 +389,26 @@ body.light .msg-menu-item{color:#0f172a}
 body.light .modal{background:#fff;border-color:rgba(0,0,0,.1)}
 body.light .finput{background:rgba(0,0,0,.04);border-color:rgba(0,0,0,.1)}
 body.light #toast{background:rgba(15,23,42,.9)}
+body.light #sidebar{background:#f8fbff;border-right-color:rgba(0,0,0,.08)}
+body.light #my-row,body.light #chat-head,body.light #input-bar{background:#fff;border-color:rgba(0,0,0,.08)}
+body.light #search-box,body.light #input-wrap,body.light .attach-btn{background:rgba(15,23,42,.04);color:#334155}
+body.light #search-box::placeholder,body.light #msg-in::placeholder{color:#64748b}
+body.light .ci:hover{background:rgba(37,99,235,.08)}
+body.light .ci.active{background:linear-gradient(135deg,rgba(37,99,235,.14),rgba(59,130,246,.1));border-color:rgba(37,99,235,.22)}
+body.light .ci-time,body.light .ci-prev,body.light #my-id-el,body.light #hdr-status{color:#64748b}
+body.light .reaction{background:rgba(15,23,42,.06);border-color:rgba(15,23,42,.1)}
+body.light .reaction-cnt{color:#334155}
+body.light .tool-btn{background:linear-gradient(135deg,rgba(37,99,235,.14),rgba(59,130,246,.1));color:#1e3a8a;box-shadow:none}
+body.light .tool-btn:hover{background:linear-gradient(135deg,rgba(37,99,235,.22),rgba(59,130,246,.16));color:#1d4ed8}
+body.light #friends-btn{background:linear-gradient(135deg,rgba(5,150,105,.16),rgba(6,182,212,.12));color:#0f766e}
+body.light #guide-btn{background:linear-gradient(135deg,rgba(147,51,234,.18),rgba(59,130,246,.12));color:#6d28d9}
+body.light #panic-btn{background:linear-gradient(135deg,rgba(239,68,68,.18),rgba(220,38,38,.12));color:#b91c1c}
+body.light #add-wrap{background:#f8fbff;border-color:rgba(37,99,235,.16)}
+body.light #add-lbl{color:#475569}
+body.light #add-in{background:#fff;border-color:rgba(0,0,0,.12);color:#0f172a}
+body.light #chat-list::-webkit-scrollbar-thumb{background:rgba(0,0,0,.18)}
+body.light .ep{background:rgba(15,23,42,.04);border-color:rgba(15,23,42,.1)}
+body.light .ep:hover,body.light .ep.sel{background:linear-gradient(135deg,rgba(37,99,235,.2),rgba(59,130,246,.15));border-color:rgba(37,99,235,.35)}
 
 /* Mobile */
 @media(max-width:768px){
@@ -396,17 +431,22 @@ body.light #toast{background:rgba(15,23,42,.9)}
 <div id="welcome">
   <div class="wl">
     <div class="wl-logo">💬</div>
-    <div class="wl-title">LIDERS CHAT</div>
-    <div class="wl-sub">Защищённый мессенджер.<br>Ваши сообщения — только ваши.</div>
+    <div class="wl-title">ЛИДЕРС ЧАТ</div>
+    <div class="wl-sub">Приватный мессенджер нового поколения.<br>Быстро, безопасно и без лишнего.</div>
     <div class="wl-feats">
-      <div class="wl-feat"><div class="wl-feat-ico">🔒</div><div><div class="wl-feat-title">End-to-End шифрование</div><div class="wl-feat-desc">Шифруется в браузере. Никто не может прочитать.</div></div></div>
-      <div class="wl-feat"><div class="wl-feat-ico">🕸</div><div><div class="wl-feat-title">P2P — без серверов</div><div class="wl-feat-desc">Сообщения напрямую между устройствами.</div></div></div>
-      <div class="wl-feat"><div class="wl-feat-ico">👥</div><div><div class="wl-feat-title">Группы по ссылке</div><div class="wl-feat-desc">Пригласить по ссылке, без номера телефона.</div></div></div>
-      <div class="wl-feat"><div class="wl-feat-ico">📞</div><div><div class="wl-feat-title">Фото, файлы, звонки</div><div class="wl-feat-desc">Аудио и видеозвонки P2P, отправка файлов.</div></div></div>
+      <div class="wl-feat"><div class="wl-feat-ico">🛡️</div><div><div class="wl-feat-title">End-to-End шифрование</div><div class="wl-feat-desc">Ключи только у участников чата. Сервер не читает переписку.</div></div></div>
+      <div class="wl-feat"><div class="wl-feat-ico">⚡</div><div><div class="wl-feat-title">Мгновенно и без регистрации</div><div class="wl-feat-desc">Добавляйте по ID и ссылке-приглашению за пару секунд.</div></div></div>
+      <div class="wl-feat"><div class="wl-feat-ico">👥</div><div><div class="wl-feat-title">Личные и групповые чаты</div><div class="wl-feat-desc">Сообщения, файлы, голос, звонки и удобный список друзей.</div></div></div>
+      <div class="wl-feat"><div class="wl-feat-ico">🕶️</div><div><div class="wl-feat-title">Panic Mode</div><div class="wl-feat-desc">Одна кнопка — и весь экран мгновенно скрыт чёрным фоном.</div></div></div>
     </div>
     <button class="wl-btn" onclick="startFromWelcome()">Начать →</button>
     <div class="wl-note">Телефон и email не нужны.<br>Данные хранятся только на вашем устройстве.</div>
   </div>
+</div>
+
+<div id="panic-screen" onclick="togglePanicMode(false)">
+  <div class="panic-title">Panic Mode включён</div>
+  <div class="panic-sub">Нажмите в любое место, чтобы вернуться</div>
 </div>
 
 <!-- CALL SCREEN -->
@@ -452,7 +492,12 @@ body.light #toast{background:rgba(15,23,42,.9)}
   </div>
   <div id="sb-actions">
     <input id="search-box" type="text" placeholder="Поиск чатов..." oninput="filterChats(this.value)"/>
-    <button id="new-grp-btn" onclick="openNewGrp()" title="Создать группу">✏️</button>
+    <div id="tool-btns">
+      <button class="tool-btn" id="friends-btn" onclick="openFriends()" title="Список друзей">🤝</button>
+      <button class="tool-btn" id="guide-btn" onclick="showWelcome()" title="Как это работает">✨</button>
+      <button class="tool-btn" id="panic-btn" onclick="togglePanicMode(true)" title="Panic Mode">Panic</button>
+      <button id="new-grp-btn" onclick="openNewGrp()" title="Создать группу">✏️</button>
+    </div>
   </div>
   <div id="chat-list"></div>
   <div id="sb-bottom">
@@ -475,7 +520,7 @@ body.light #toast{background:rgba(15,23,42,.9)}
 
   <div id="empty">
     <div id="empty-ico">💬</div>
-    <h3>LIDERS CHAT</h3>
+    <h3>ЛИДЕРС ЧАТ</h3>
     <p>Создайте группу или добавьте участника по ID.<br>Все сообщения зашифрованы E2E.</p>
   </div>
 
@@ -543,7 +588,7 @@ body.light #toast{background:rgba(15,23,42,.9)}
 <div class="ov" id="ob-modal">
   <div class="modal" style="text-align:center">
     <div style="font-size:48px;margin-bottom:10px">💬</div>
-    <div style="font-size:22px;font-weight:700;margin-bottom:6px">LIDERS CHAT</div>
+    <div style="font-size:22px;font-weight:700;margin-bottom:6px">ЛИДЕРС ЧАТ</div>
     <div style="font-size:14px;color:var(--text3);margin-bottom:20px;line-height:1.5">Защищённый P2P мессенджер.<br>Как вас зовут?</div>
     <input class="finput" id="ob-name" type="text" placeholder="Ваше имя..." maxlength="24" style="text-align:center;font-size:16px;margin-bottom:4px"/>
     <div class="mbtns" style="margin-top:12px">
@@ -604,6 +649,18 @@ body.light #toast{background:rgba(15,23,42,.9)}
   </div>
 </div>
 
+<div class="ov" id="friends-modal">
+  <div class="modal" style="max-width:520px">
+    <div class="mtitle">👥 Друзья</div>
+    <div style="font-size:13px;color:var(--text3);line-height:1.5;margin-top:6px">Список ваших личных контактов. Можно открыть чат или отправить ссылку на приложение.</div>
+    <div id="friends-list" style="margin-top:12px;max-height:380px;overflow:auto"></div>
+    <div class="mbtns">
+      <button class="bcancel" onclick="closeModal('friends-modal')">Закрыть</button>
+      <button class="bok" onclick="shareAppInvite()">📨 Пригласить в приложение</button>
+    </div>
+  </div>
+</div>
+
 <!-- SYNC MODAL -->
 <div class="ov" id="qr-modal">
   <div class="modal">
@@ -659,10 +716,9 @@ body.light #toast{background:rgba(15,23,42,.9)}
         <div style="position:absolute;bottom:-2px;right:-2px;width:18px;height:18px;border-radius:50%;background:var(--accent);color:#fff;font-size:10px;display:flex;align-items:center;justify-content:center;border:2px solid var(--bg3)">📷</div>
         <input type="file" accept="image/*" style="display:none" onchange="uploadAv(this)"/>
       </label>
-      <div style="flex:1"><label>Ваше имя</label><input class="finput" id="sett-name-in" type="text" maxlength="24" style="margin-top:5px"/></div>
+      <div style="flex:1"><label>Ваше имя</label><input class="finput" id="sett-name-in" type="text" maxlength="24" style="margin-top:5px"/><div class="fhint">Это имя видят все собеседники. Используйте вместо телефона.</div></div>
     </div>
-    <div class="field"><label>Ваше имя / никнейм</label><input class="finput" id="sett-name-in" type="text" maxlength="24"/></div>
-    <div class="field"><label>Телефон (необязательно, видят собеседники)</label><input class="finput" id="sett-phone-in" type="tel" maxlength="20" placeholder="+7..."/><div class="fhint">Это имя видят все собеседники. Используйте вместо телефона.</div></div>
+    <div class="field"><label>Телефон (необязательно)</label><input class="finput" id="sett-phone-in" type="tel" maxlength="20" placeholder="+7..."/></div>
     <div class="field"><label>Ваш ID — поделитесь с друзьями</label><div class="fmono" id="sett-id-el" onclick="copyMyId()" style="cursor:pointer">...</div><div class="fhint">Нажмите чтобы скопировать и отправить другу — он добавит вас по этому ID</div></div>
     <div class="field"><label>Сервер</label><div class="fhint" id="sett-srv-el">—</div></div>
     <div class="field">
@@ -695,7 +751,7 @@ body.light #toast{background:rgba(15,23,42,.9)}
 // =============================================
 var SIGNAL = 'https://liders-chat-signal.onrender.com';
 var RELAY  = 'https://liders-chat-signal.onrender.com';
-var BASE = 'https://lidersai.github.io/securegram/';
+var BASE = 'https://liderschat.ru/';
 var DB_KEY = 'sg_v1';
 
 // =============================================
@@ -705,6 +761,8 @@ var Cry = {
   genKey: function(){ return crypto.subtle.generateKey({name:'ECDH',namedCurve:'P-384'},true,['deriveKey']); },
   expPub: function(k){ return crypto.subtle.exportKey('raw',k).then(function(r){ return btoa(String.fromCharCode.apply(null,new Uint8Array(r))); }); },
   impPub: function(b){ var r=Uint8Array.from(atob(b),function(c){return c.charCodeAt(0)}); return crypto.subtle.importKey('raw',r,{name:'ECDH',namedCurve:'P-384'},false,[]); },
+  expPriv: function(k){ return crypto.subtle.exportKey('pkcs8',k).then(function(r){ return btoa(String.fromCharCode.apply(null,new Uint8Array(r))); }); },
+  impPriv: function(b){ var r=Uint8Array.from(atob(b),function(c){return c.charCodeAt(0)}); return crypto.subtle.importKey('pkcs8',r,{name:'ECDH',namedCurve:'P-384'},true,['deriveKey']); },
   derive: function(priv,pub){ return crypto.subtle.deriveKey({name:'ECDH',public:pub},priv,{name:'AES-GCM',length:256},false,['encrypt','decrypt']); },
   enc: function(k,t){
     var iv=crypto.getRandomValues(new Uint8Array(12));
@@ -724,14 +782,55 @@ var Cry = {
 // =============================================
 // STORAGE
 // =============================================
-function getDB(){ try{ return JSON.parse(localStorage.getItem(DB_KEY))||{}; }catch(e){ return {}; } }
-function setDB(db){ try{ localStorage.setItem(DB_KEY,JSON.stringify(db)); }catch(e){ console.error('DB save failed',e); } }
+function normalizeDB(db){
+  if(!db || typeof db!=='object') db={};
+  if(!db.rooms || typeof db.rooms!=='object') db.rooms={};
+  if(!db.dms || typeof db.dms!=='object') db.dms={};
+  if(!db.pinned || typeof db.pinned!=='object') db.pinned={};
+  if(!db.peerPubs || typeof db.peerPubs!=='object') db.peerPubs={};
+  if(db.myPriv && typeof db.myPriv!=='string') delete db.myPriv;
+  if(db.myPub && typeof db.myPub!=='string') delete db.myPub;
+  return db;
+}
+function getDB(){
+  try{ return normalizeDB(JSON.parse(localStorage.getItem(DB_KEY))||{}); }
+  catch(e){ return normalizeDB({}); }
+}
+function setDB(db){ try{ localStorage.setItem(DB_KEY,JSON.stringify(normalizeDB(db))); }catch(e){ console.error('DB save failed',e); } }
 function updDB(fn){ var db=getDB(); fn(db); setDB(db); }
+
+
+function getSavedPeerPub(peerId){
+  var db = getDB();
+  return db.peerPubs && db.peerPubs[peerId] ? db.peerPubs[peerId] : null;
+}
+
+function savePeerPub(peerId, pubB64){
+  updDB(function(db){
+    if(!db.peerPubs) db.peerPubs = {};
+    db.peerPubs[peerId] = pubB64;
+  });
+}
+
+async function ensurePeerKeyLoaded(peerId){
+  var c = conns[peerId];
+  if(!c || c.key) return !!(c && c.key);
+  var savedPub = getSavedPeerPub(peerId);
+  if(!savedPub || !kp || !kp.privateKey) return false;
+  try{
+    var pub = await Cry.impPub(savedPub);
+    c.key = await Cry.derive(kp.privateKey, pub);
+    return true;
+  }catch(e){
+    return false;
+  }
+}
+
 
 // =============================================
 // STATE
 // =============================================
-var peer=null, kp=null;
+var peer=null, kp=null, myPubB64='';
 var myId='', myName='';
 var conns={};   // peerId -> {conn, key, name, color, online, sent}
 var active=null;
@@ -752,9 +851,29 @@ function dateStr(){ return new Date().toLocaleDateString('ru',{day:'numeric',mon
 // INIT
 // =============================================
 async function init(){
-  kp = await Cry.genKey();
   var db = getDB();
+  if (db.myPriv && db.myPub) {
+    try {
+      var priv = await Cry.impPriv(db.myPriv);
+      var pub = await Cry.impPub(db.myPub);
+      kp = { privateKey: priv, publicKey: pub };
+      myPubB64 = db.myPub;
+    } catch(e) {
+      kp = await Cry.genKey();
+      myPubB64 = await Cry.expPub(kp.publicKey);
+      var privB64 = await Cry.expPriv(kp.privateKey);
+      updDB(function(db2){ db2.myPriv = privB64; db2.myPub = myPubB64; });
+    }
+  } else {
+    kp = await Cry.genKey();
+    myPubB64 = await Cry.expPub(kp.publicKey);
+    var privB64 = await Cry.expPriv(kp.privateKey);
+    updDB(function(db2){ db2.myPriv = privB64; db2.myPub = myPubB64; });
+  }
+
+  db = getDB();
   myName = db.myName || '';
+  if(!db.peerPubs) updDB(function(db2){ if(!db2.peerPubs) db2.peerPubs = {}; });
 
   // Don't auto-show onboarding - user can set name in settings
   if(false){
@@ -863,6 +982,7 @@ async function handleSignal(fromId, data) {
     conns[fromId] = { pc: null, dc: null, key: null, name: fromId.slice(0,8),
                       color: clr(fromId), online: false, sent: false };
   }
+  await ensurePeerKeyLoaded(fromId);
   var c = conns[fromId];
 
   if (data.type === 'offer') {
@@ -907,7 +1027,7 @@ function createPC(peerId) {
     if (pc.connectionState === 'connected') {
       c.online = true; renderList(); refreshHdr();
     } else if (['disconnected','failed','closed'].includes(pc.connectionState)) {
-      c.online = false; c.key = null; c.sent = false;
+      c.online = false; c.sent = false;
       sysMsg('dm:'+peerId, (c.name||'Участник')+' отключился');
       renderList(); refreshHdr();
     }
@@ -931,7 +1051,7 @@ function setupDC(dc, peerId) {
     if (!c.sent) {
       c.sent = true;
       var meta = c._pendingMeta || {};
-      Cry.expPub(kp.publicKey).then(function(pub) {
+      Promise.resolve(myPubB64).then(function(pub) {
         var db3=getDB(); var pl = { type:'HELLO', pub:pub, name:myName||'Аноним', phone:db3.myPhone||'' };
         if (meta.joinRoom) { pl.joinRoom = meta.joinRoom; pl.joinPin = meta.pin||''; }
         rawSend(c.conn, pl);
@@ -943,7 +1063,7 @@ function setupDC(dc, peerId) {
   };
 
   dc.onclose = function() {
-    c.online = false; c.key = null; c.sent = false;
+    c.online = false; c.sent = false;
     sysMsg('dm:'+peerId, (c.name||'Участник')+' отключился');
     renderList(); refreshHdr();
   };
@@ -958,6 +1078,7 @@ async function setupConn(peerId, meta) {
     conns[peerId] = { pc:null, dc:null, key:null, name:peerId.slice(0,8),
                       color:clr(peerId), online:false, sent:false };
   }
+  await ensurePeerKeyLoaded(peerId);
   var c = conns[peerId];
   // Store meta so dc.onopen can use it for HELLO
   if (meta) c._pendingMeta = meta;
@@ -983,6 +1104,11 @@ async function setupConn(peerId, meta) {
 // ── Add peer by ID ────────────────────────────
 function addPeer() {
   var id = document.getElementById('add-in').value.trim();
+  if(!myId){
+    toast('Подключаемся к серверу, попробуйте через 2-3 сек');
+    try{ connectSignal(getDB().myId || null); }catch(e){}
+    return;
+  }
   if (!id || id === myId) { toast('Некорректный ID'); return; }
   document.getElementById('add-in').value = '';
   updDB(function(db) {
@@ -1004,11 +1130,6 @@ function reconnectDroppedSessions() {
       setupConn(pid, { initiator:true });
     }
   });
-}
-
-// ── doReconnect (called on visibility change) ─
-function doReconnect() {
-  reconnectDroppedSessions();
 }
 
 
@@ -1135,6 +1256,62 @@ function copyInvite(){
   navigator.clipboard.writeText(url).then(function(){ toast('Ссылка скопирована ✓'); });
 }
 
+
+function shareAppInvite(){
+  var appUrl = BASE || (location.origin + location.pathname);
+  var txt = 'Присоединяйся к ЛИДЕРС ЧАТ: ' + appUrl;
+  if(navigator.share){
+    navigator.share({ title:'ЛИДЕРС ЧАТ', text:txt, url:appUrl }).catch(function(){});
+    return;
+  }
+  navigator.clipboard.writeText(txt).then(function(){ toast('Ссылка на приложение скопирована ✓'); })
+    .catch(function(){ toast('Скопируйте ссылку вручную'); });
+}
+
+function openFriends(){
+  var db = getDB();
+  var root = document.getElementById('friends-list');
+  if(!root){ toast('Ошибка списка друзей'); return; }
+  root.innerHTML='';
+
+  var items = Object.entries(db.dms||{}).map(function(e){
+    var pid=e[0], dm=e[1]||{};
+    var name=(dm.name)||(conns[pid]&&conns[pid].name)||pid.slice(0,8);
+    var count=(dm.messages||[]).filter(function(m){return !m.sys;}).length;
+    return {pid:pid,name:name,count:count};
+  }).sort(function(a,b){ return (b.count-a.count) || a.name.localeCompare(b.name,'ru'); });
+
+  if(!items.length){
+    root.innerHTML='<div style="padding:16px 6px;color:var(--text3);font-size:13px">Пока нет друзей. Добавьте контакт по ID.</div>';
+  } else {
+    items.forEach(function(f){
+      var row=document.createElement('div');
+      row.style.cssText='display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px';
+      row.innerHTML='<div style="min-width:0"><div style="font-weight:600">'+esc(f.name)+'</div><div style="font-size:11px;color:var(--text3);font-family:var(--font-mono)">'+esc(f.pid.slice(0,18))+'...</div></div>';
+      var btns=document.createElement('div');
+      btns.style.cssText='display:flex;gap:6px;flex-shrink:0';
+
+      var openBtn=document.createElement('button');
+      openBtn.className='bok';
+      openBtn.style.padding='8px 10px';
+      openBtn.textContent='Открыть';
+      openBtn.onclick=function(){ closeModal('friends-modal'); openOrCreateDM(f.pid,f.name); };
+
+      var shareBtn=document.createElement('button');
+      shareBtn.className='bcancel';
+      shareBtn.style.padding='8px 10px';
+      shareBtn.textContent='Пригласить';
+      shareBtn.onclick=function(){ shareAppInvite(); };
+
+      btns.appendChild(openBtn); btns.appendChild(shareBtn);
+      row.appendChild(btns);
+      root.appendChild(row);
+    });
+  }
+
+  openModal('friends-modal');
+}
+
 // =============================================
 // GROUPS
 // =============================================
@@ -1181,14 +1358,21 @@ async function handleData(from, raw){
   if(!c) return;
 
   if(msg.type === 'HELLO'){
-    if(msg.name){ c.name=msg.name; updDB(function(db){ if(db.dms&&db.dms[from]) db.dms[from].name=msg.name; }); }
+    if(msg.name){
+      var dbn=getDB();
+      var hasCustom = !!(dbn.dms && dbn.dms[from] && dbn.dms[from].customName);
+      if(!hasCustom) c.name=msg.name;
+      updDB(function(db){
+        if(db.dms&&db.dms[from]&&!db.dms[from].customName) db.dms[from].name=msg.name;
+      });
+    }
     var theirPub = await Cry.impPub(msg.pub);
     c.key = await Cry.derive(kp.privateKey, theirPub);
+    savePeerPub(from, msg.pub);
 
     if(!c.sent){
       c.sent=true;
-      var pub = await Cry.expPub(kp.publicKey);
-      rawSend(c.conn, {type:'HELLO', pub:pub, name:myName});
+      rawSend(c.conn, {type:'HELLO', pub:myPubB64, name:myName});
     }
 
     // Mesh
@@ -1273,7 +1457,11 @@ async function handleData(from, raw){
 
   if(msg.type === 'NAME'){
     c.name=msg.name;
-    updDB(function(db){ if(db.dms&&db.dms[from]) db.dms[from].name=msg.name; Object.values(db.rooms||{}).forEach(function(r){ if(r.members&&r.members[from]) r.members[from]=msg.name; }); });
+    updDB(function(db){
+      var isCustom = !!(db.dms&&db.dms[from]&&db.dms[from].customName);
+      if(db.dms&&db.dms[from]&&!isCustom) db.dms[from].name=msg.name;
+      Object.values(db.rooms||{}).forEach(function(r){ if(r.members&&r.members[from]&&!isCustom) r.members[from]=msg.name; });
+    });
     renderList(); refreshHdr();
   }
 
@@ -1373,6 +1561,28 @@ async function propagate(srcId, origMsg){
   }
 }
 
+
+async function queueOfflineForPeer(peerId, msgId, payload, extra){
+  if(!conns[peerId]){
+    conns[peerId] = { conn:null, key:null, name:peerId.slice(0,8), color:clr(peerId), online:false, sent:false };
+  }
+  var c = conns[peerId];
+  if(!c.key) await ensurePeerKeyLoaded(peerId);
+  if(!c.key) return false;
+  try{
+    var cipher = await Cry.enc(c.key, JSON.stringify(payload));
+    var relayMsg = Object.assign({ id: msgId, cipher: cipher, from: myId }, extra || {});
+    await relayStore(peerId, relayMsg);
+    if(!(extra && extra.roomId)){
+      localStorage.setItem('relay_'+peerId+'_'+myId, JSON.stringify(relayMsg));
+    }
+    return true;
+  }catch(e){
+    console.warn('[offline queue]', e.message || e);
+    return false;
+  }
+}
+
 // =============================================
 // SEND
 // =============================================
@@ -1411,23 +1621,23 @@ async function sendMsg(){
     }catch(e){ console.error('[send]', e); }
   }
   // Relay for offline peers
+  var offlineFail = 0;
   if(!isRoom){
-    var dmPeer=active.slice(3), dmConn=conns[dmPeer];
-    if(!delivered[dmPeer] && dmConn && dmConn.key){
-      Cry.enc(dmConn.key, JSON.stringify(payload)).then(function(oc){
-        relayStore(dmPeer, {id:msgId, cipher:oc, from:myId});
-        localStorage.setItem('relay_'+dmPeer+'_'+myId, JSON.stringify({id:msgId,cipher:oc,from:myId}));
-      }).catch(function(){});
+    var dmPeer=active.slice(3);
+    if(!delivered[dmPeer]){
+      var okOff = await queueOfflineForPeer(dmPeer, msgId, payload);
+      if(!okOff) offlineFail++;
     }
   } else if(db.rooms&&db.rooms[roomId]){
-    Object.keys(db.rooms[roomId].members||{}).forEach(function(rPid){
-      if(rPid===myId||delivered[rPid]) return;
-      var rc=conns[rPid]; if(!rc||!rc.key) return;
-      Cry.enc(rc.key, JSON.stringify(payload)).then(function(rc2){
-        relayStore(rPid, {id:msgId, cipher:rc2, from:myId, roomId:roomId});
-      }).catch(function(){});
-    });
+    var roomMembers = Object.keys(db.rooms[roomId].members||{});
+    for(var rm=0; rm<roomMembers.length; rm++){
+      var rPid = roomMembers[rm];
+      if(rPid===myId || delivered[rPid]) continue;
+      var okOffRoom = await queueOfflineForPeer(rPid, msgId, payload, { roomId: roomId });
+      if(!okOffRoom) offlineFail++;
+    }
   }
+  if(offlineFail>0) if(!isRoom) toast('Нет ключа для оффлайн-отправки. Откройте личный чат и дождитесь подключения.');
 }
 
 async function sendPhoto(input){
@@ -1443,12 +1653,30 @@ async function sendPhoto(input){
   var m={id:msgId,from:myId,name:myName,photo:compressed,ts:now,date:day};
   saveMsg(active,m); appendMsg(m,true); renderList();
   var db=getDB();
+  var delivered={};
   for(var pid in conns){
     var c=conns[pid]; if(!c.online||!c.key) continue;
     if(isRoom&&!(db.rooms&&db.rooms[roomId]&&db.rooms[roomId].members&&db.rooms[roomId].members[pid])) continue;
     if(!isRoom&&active.slice(3)!==pid) continue;
-    try{ var cipher2=await Cry.enc(c.key,JSON.stringify(payload)); rawSend(c.conn,{type:'MSG',id:msgId,cipher:cipher2,hops:0}); }catch(e){}
+    try{ var cipher2=await Cry.enc(c.key,JSON.stringify(payload)); rawSend(c.conn,{type:'MSG',id:msgId,cipher:cipher2,hops:0}); delivered[pid]=true; }catch(e){}
   }
+  var offlineFail = 0;
+  if(!isRoom){
+    var dmPeer=active.slice(3);
+    if(!delivered[dmPeer]){
+      var okOff = await queueOfflineForPeer(dmPeer, msgId, payload);
+      if(!okOff) offlineFail++;
+    }
+  } else if(db.rooms&&db.rooms[roomId]){
+    var roomMembers = Object.keys(db.rooms[roomId].members||{});
+    for(var rm=0; rm<roomMembers.length; rm++){
+      var rPid = roomMembers[rm];
+      if(rPid===myId || delivered[rPid]) continue;
+      var okOffRoom = await queueOfflineForPeer(rPid, msgId, payload, { roomId: roomId });
+      if(!okOffRoom) offlineFail++;
+    }
+  }
+  if(offlineFail>0) if(!isRoom) toast('Нет ключа для оффлайн-отправки. Откройте личный чат и дождитесь подключения.');
 }
 
 function compressImg(file, max, q){
@@ -1733,7 +1961,7 @@ function renderList(){
   Object.entries(dms).forEach(function(entry){
     var pid=entry[0], dm=entry[1];
     var c=conns[pid];
-    var name=(c&&c.name)||dm.name||pid.slice(0,8);
+    var name=(dm&&dm.name)||(c&&c.name)||pid.slice(0,8);
     var msgs=(dm.messages||[]).filter(function(m){return !m.sys;});
     var last=msgs[msgs.length-1];
     var preview=last?(last.from===myId?'Вы: ':'')+(last.text||'📷'):'нет сообщений';
@@ -1773,19 +2001,11 @@ function renderList(){
   list.innerHTML='';
 
   if(pinnedItems.length){
-    var pHdr=document.createElement('div');
-    pHdr.style.cssText='padding:8px 12px 4px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.7px';
-    pHdr.textContent='Закреплённые';
-    list.appendChild(pHdr);
     pinnedItems.forEach(function(item){ list.appendChild(renderItem(item)); });
     if(normalItems.length){
       var div=document.createElement('div');
-      div.style.cssText='height:1px;background:var(--border);margin:6px 10px 4px';
+      div.style.cssText='height:1px;background:var(--border);margin:8px 10px 6px';
       list.appendChild(div);
-      var nHdr=document.createElement('div');
-      nHdr.style.cssText='padding:4px 12px 4px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.7px';
-      nHdr.textContent='Все чаты';
-      list.appendChild(nHdr);
     }
   }
   normalItems.forEach(function(item){ list.appendChild(renderItem(item)); });
@@ -1978,7 +2198,24 @@ function resetAll(){
 // UTILS
 // =============================================
 function showSidebar(){document.getElementById('sidebar').classList.remove('hidden');}
-function copyMyId(){navigator.clipboard.writeText(myId).then(function(){toast('ID скопирован ✓');}).catch(function(){toast('Скопируйте вручную');});}
+function copyMyId(){
+  var id=(myId&&myId.trim&&myId.trim())||'';
+  if(!id){
+    var db=getDB();
+    id=(db.myId&&String(db.myId))||'';
+    if(id){
+      myId=id;
+      var idEl=document.getElementById('my-id-el'); if(idEl){ idEl.textContent=id.slice(0,18)+'…'; idEl.title=id; }
+      var sett=document.getElementById('sett-id-el'); if(sett) sett.textContent=id;
+    }
+  }
+  if(!id){
+    toast('ID пока не получен. Проверяю подключение...');
+    try{ connectSignal(getDB().myId || null); }catch(e){}
+    return;
+  }
+  navigator.clipboard.writeText(id).then(function(){toast('ID скопирован ✓');}).catch(function(){toast('Скопируйте вручную');});
+}
 function openModal(id){document.getElementById(id).classList.add('on');}
 function closeModal(id){document.getElementById(id).classList.remove('on');}
 document.querySelectorAll('.ov').forEach(function(el){el.addEventListener('click',function(e){if(e.target===el)el.classList.remove('on');});});
@@ -1991,7 +2228,7 @@ function showBanner(t){
 }
 function hideBanner(){document.getElementById('banner').classList.remove('on');}
 function viewImg(src){var ov=document.createElement('div');ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:999;display:flex;align-items:center;justify-content:center;cursor:zoom-out';ov.onclick=function(){ov.remove();};var img=document.createElement('img');img.src=src;img.style.cssText='max-width:95vw;max-height:95vh;border-radius:8px;object-fit:contain';ov.appendChild(img);document.body.appendChild(ov);}
-function notif(name,text){if(Notification.permission==='granted')new Notification('LIDERS CHAT · '+name,{body:text,icon:'icon-192.png'});}
+function notif(name,text){if(Notification.permission==='granted')new Notification('ЛИДЕРС ЧАТ · '+name,{body:text,icon:'icon-192.png'});}
 var beepT=0;
 function playBeep(){var n=Date.now();if(n-beepT<2000)return;beepT=n;try{var ctx=new(window.AudioContext||window.webkitAudioContext)();var o=ctx.createOscillator();var g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.setValueAtTime(880,ctx.currentTime);o.frequency.setValueAtTime(1100,ctx.currentTime+0.08);g.gain.setValueAtTime(0.1,ctx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.25);o.start();o.stop(ctx.currentTime+0.25);}catch(e){}}
 var toastT;
@@ -2021,7 +2258,7 @@ document.getElementById('msg-in').addEventListener('input',function(){
 // Update title with unread
 setInterval(function(){
   var total=Object.values(unread).reduce(function(a,b){return a+b;},0);
-  document.title=total>0?'('+total+') LIDERS CHAT':'LIDERS CHAT';
+  document.title=total>0?'('+total+') ЛИДЕРС ЧАТ':'ЛИДЕРС ЧАТ';
 },3000);
 
 // =============================================
@@ -2137,12 +2374,30 @@ async function stopRec(e){
   var m={id:msgId,from:myId,name:myName,audio:b64,audioDur:dur,ts:now,date:day};
   saveMsg(active,m); appendMsg(m,true); renderList();
   var db=getDB();
+  var delivered={};
   for(var pid in conns){
     var c=conns[pid]; if(!c.online||!c.key) continue;
     if(isRoom&&!(db.rooms&&db.rooms[roomId]&&db.rooms[roomId].members&&db.rooms[roomId].members[pid])) continue;
     if(!isRoom&&active.slice(3)!==pid) continue;
-    try{ var cipher=await Cry.enc(c.key,JSON.stringify(payload)); rawSend(c.conn,{type:'MSG',id:msgId,cipher:cipher,hops:0}); }catch(e){}
+    try{ var cipher=await Cry.enc(c.key,JSON.stringify(payload)); rawSend(c.conn,{type:'MSG',id:msgId,cipher:cipher,hops:0}); delivered[pid]=true; }catch(e){}
   }
+  var offlineFail = 0;
+  if(!isRoom){
+    var dmPeer=active.slice(3);
+    if(!delivered[dmPeer]){
+      var okOff = await queueOfflineForPeer(dmPeer, msgId, payload);
+      if(!okOff) offlineFail++;
+    }
+  } else if(db.rooms&&db.rooms[roomId]){
+    var roomMembers = Object.keys(db.rooms[roomId].members||{});
+    for(var rm=0; rm<roomMembers.length; rm++){
+      var rPid = roomMembers[rm];
+      if(rPid===myId || delivered[rPid]) continue;
+      var okOffRoom = await queueOfflineForPeer(rPid, msgId, payload, { roomId: roomId });
+      if(!okOffRoom) offlineFail++;
+    }
+  }
+  if(offlineFail>0) if(!isRoom) toast('Нет ключа для оффлайн-отправки. Откройте личный чат и дождитесь подключения.');
 }
 
 function makeVoiceBubble(m){
@@ -2188,12 +2443,30 @@ async function sendFile(input){
   var m={id:msgId,from:myId,name:myName,file:finfo,ts:now,date:day};
   saveMsg(active,m); appendMsg(m,true); renderList();
   var db=getDB();
+  var delivered={};
   for(var pid in conns){
     var c=conns[pid]; if(!c.online||!c.key) continue;
     if(isRoom&&!(db.rooms&&db.rooms[roomId]&&db.rooms[roomId].members&&db.rooms[roomId].members[pid])) continue;
     if(!isRoom&&active.slice(3)!==pid) continue;
-    try{ var cipher=await Cry.enc(c.key,JSON.stringify(payload)); rawSend(c.conn,{type:'MSG',id:msgId,cipher:cipher,hops:0}); }catch(e){}
+    try{ var cipher=await Cry.enc(c.key,JSON.stringify(payload)); rawSend(c.conn,{type:'MSG',id:msgId,cipher:cipher,hops:0}); delivered[pid]=true; }catch(e){}
   }
+  var offlineFail = 0;
+  if(!isRoom){
+    var dmPeer=active.slice(3);
+    if(!delivered[dmPeer]){
+      var okOff = await queueOfflineForPeer(dmPeer, msgId, payload);
+      if(!okOff) offlineFail++;
+    }
+  } else if(db.rooms&&db.rooms[roomId]){
+    var roomMembers = Object.keys(db.rooms[roomId].members||{});
+    for(var rm=0; rm<roomMembers.length; rm++){
+      var rPid = roomMembers[rm];
+      if(rPid===myId || delivered[rPid]) continue;
+      var okOffRoom = await queueOfflineForPeer(rPid, msgId, payload, { roomId: roomId });
+      if(!okOffRoom) offlineFail++;
+    }
+  }
+  if(offlineFail>0) if(!isRoom) toast('Нет ключа для оффлайн-отправки. Откройте личный чат и дождитесь подключения.');
   toast('Файл отправлен');
 }
 
@@ -2393,6 +2666,13 @@ function setTheme(t){
 // =============================================
 function showWelcome(){
   document.getElementById('welcome').classList.add('on');
+}
+
+function togglePanicMode(on){
+  var el=document.getElementById('panic-screen');
+  if(!el) return;
+  if(on){ el.classList.add('on'); return; }
+  el.classList.remove('on');
 }
 function startFromWelcome(){
   document.getElementById('welcome').classList.remove('on');
@@ -2678,8 +2958,11 @@ function openPeerProfile(peerId){
   if(peerId===myId) return;
   var c2=conns[peerId];
   var db3=getDB();
-  var name=(c2&&c2.name)||(db3.dms&&db3.dms[peerId]&&db3.dms[peerId].name)||peerId.slice(0,8);
-  Object.values(db3.rooms||{}).forEach(function(r){if(r.members&&r.members[peerId])name=r.members[peerId];});
+  var hasCustomAlias = !!(db3.dms&&db3.dms[peerId]&&db3.dms[peerId].customName);
+  var name=(db3.dms&&db3.dms[peerId]&&db3.dms[peerId].name)||(c2&&c2.name)||peerId.slice(0,8);
+  if(!hasCustomAlias){
+    Object.values(db3.rooms||{}).forEach(function(r){if(r.members&&r.members[peerId])name=r.members[peerId];});
+  }
   var existing=document.getElementById('peer-profile-popup');
   if(existing)existing.remove();
   var popup=document.createElement('div');
@@ -2711,11 +2994,15 @@ function openPeerProfile(peerId){
   dmBtn.style.cssText='flex:1;padding:10px;border-radius:8px;border:none;background:#5288c1;color:#fff;font-size:14px;font-weight:500;cursor:pointer';
   dmBtn.textContent='💬 Написать';
   dmBtn.onclick=function(){popup.remove();openOrCreateDM(peerId,name);};
+  var renBtn=document.createElement('button');
+  renBtn.style.cssText='flex:1;padding:10px;border-radius:8px;border:1px solid rgba(82,136,193,.5);background:rgba(82,136,193,.12);color:#9fc0df;font-size:14px;cursor:pointer';
+  renBtn.textContent='✏️ Имя';
+  renBtn.onclick=function(){ popup.remove(); renameContactById(peerId); };
   var closeBtn=document.createElement('button');
   closeBtn.style.cssText='flex:1;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:transparent;color:#aaa;font-size:14px;cursor:pointer';
   closeBtn.textContent='Закрыть';
   closeBtn.onclick=function(){popup.remove();};
-  btns.appendChild(dmBtn);btns.appendChild(closeBtn);inner.appendChild(btns);
+  btns.appendChild(dmBtn);btns.appendChild(renBtn);btns.appendChild(closeBtn);inner.appendChild(btns);
   popup.appendChild(inner);
   document.body.appendChild(popup);
 }
@@ -2742,6 +3029,7 @@ function openOrCreateDM(peerId, name){
 var lastActive = Date.now();
 var reconnectTimer = null;
 var heartbeatTimer = null;
+var relayPollTimer = null;
 var networkOk = true;
 
 // Track when user leaves / returns
@@ -2828,12 +3116,18 @@ function doReconnect(){
 // Heartbeat - ping connected peers every 25s to keep connection alive
 // Also detects dead connections
 function startHeartbeat(){
-  // Ping server every 10 min to prevent Render.com sleep
-  setInterval(function(){
-    fetch('https://liders-chat-signal.onrender.com/health')
-      .then(function(r){ if(!r.ok) throw new Error('bad'); })
-      .catch(function(){ console.log('[keepalive] server unreachable'); });
-  }, 10 * 60 * 1000);
+  if(!heartbeatTimer){
+    // Ping server every 10 min to prevent Render.com sleep
+    heartbeatTimer = setInterval(function(){
+      fetch('https://liders-chat-signal.onrender.com/health')
+        .then(function(r){ if(!r.ok) throw new Error('bad'); })
+        .catch(function(){ console.log('[keepalive] server unreachable'); });
+    }, 10 * 60 * 1000);
+  }
+  if(!relayPollTimer){
+    // Also periodically fetch offline queue for robustness after reconnects
+    relayPollTimer = setInterval(function(){ relayFetch(); }, 15000);
+  }
 }
 
 // Handle PING in data handler (add to handleData)
@@ -2848,12 +3142,27 @@ var RELAY_OK = true; // track if relay is reachable
 // Отправить сообщение на relay если peer офлайн
 async function relayStore(toPeerId, msgObj) {
   try {
-    await fetch(RELAY + '/relay', {
+    var r = await fetch(SIGNAL + '/offline-messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ to: toPeerId, msgs: [msgObj] })
+      body: JSON.stringify({ to: toPeerId, from: myId, payload: JSON.stringify(msgObj) })
     });
-  } catch(e) { /* тихо игнорируем */ }
+    if (!r.ok) throw new Error('offline endpoint failed');
+    return true;
+  } catch(e) {
+    // Fallback to old relay API (for backward compatibility)
+    try {
+      await fetch(RELAY + '/relay', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: toPeerId, msgs: [msgObj] })
+      });
+      return true;
+    } catch (e2) {
+      console.warn('[relay] store failed', e2.message || e2);
+      return false;
+    }
+  }
 }
 
 // Забрать очередь с relay при подключении {
@@ -2871,32 +3180,55 @@ async function relayFetch() {
     });
   });
   if (!myId) return;
+
+  var inbound = [];
   try {
-    var r = await fetch(SIGNAL + '/relay?peer=' + myId);
-    if (!r.ok) return;
-    var data = await r.json();
-    if (!data.msgs || !data.msgs.length) return;
-    console.log('[relay] fetched', data.msgs.length, 'queued msgs');
-    // Process each message as if received from sender
-    for (var i = 0; i < data.msgs.length; i++) {
-      var m = data.msgs[i];
-      if (!m.from || !m.cipher || !m.id) continue;
-      if (seen.has(m.id)) continue;
-      // Find or create session for this sender
-      if (!conns[m.from]) {
-        conns[m.from] = { conn: null, key: null, name: m.from.slice(0,8), color: clr(m.from), online: false, sent: false };
-      }
-      // Try to decrypt if we have a key, else queue for later
-      var c = conns[m.from];
-      if (c.key) {
-        await processRelayMsg(m, c);
-      } else {
-        // Store for processing after key exchange
-        if (!c._relayQueue) c._relayQueue = [];
-        c._relayQueue.push(m);
-      }
+    var r = await fetch(SIGNAL + '/offline-messages/' + encodeURIComponent(myId));
+    if (r.ok) {
+      var data = await r.json();
+      var messages = Array.isArray(data.messages) ? data.messages : [];
+      inbound = messages.map(function(entry){
+        try {
+          var parsed = JSON.parse(entry.payload);
+          if (!parsed.from && entry.from) parsed.from = entry.from;
+          return parsed;
+        } catch(_) {
+          return null;
+        }
+      }).filter(Boolean);
     }
-  } catch(e) { console.warn('[relay] fetch failed', e.message); }
+  } catch(e) {}
+
+  if (!inbound.length) {
+    try {
+      var r2 = await fetch(SIGNAL + '/relay?peer=' + myId);
+      if (r2.ok) {
+        var data2 = await r2.json();
+        inbound = Array.isArray(data2.msgs) ? data2.msgs : [];
+      }
+    } catch(e2) { console.warn('[relay] fetch failed', e2.message); }
+  }
+
+  if (!inbound.length) return;
+  console.log('[relay] fetched', inbound.length, 'queued msgs');
+  for (var i = 0; i < inbound.length; i++) {
+    var m = inbound[i];
+    if (!m.from || !m.cipher || !m.id) continue;
+    if (seen.has(m.id)) continue;
+    if (!conns[m.from]) {
+      conns[m.from] = { conn: null, key: null, name: m.from.slice(0,8), color: clr(m.from), online: false, sent: false };
+    }
+    await ensurePeerKeyLoaded(m.from);
+    var c = conns[m.from];
+    if (c.key) {
+      await processRelayMsg(m, c);
+    } else {
+      if (!c._relayQueue) c._relayQueue = [];
+      c._relayQueue.push(m);
+      // Ensure we can decrypt queued items: trigger/retry key exchange
+      if (!c.online) setupConn(m.from, { initiator: true });
+    }
+  }
 }
 
 async function processRelayMsg(m, c) {
@@ -3122,19 +3454,23 @@ function applyQRData(payload){
 
 function renameContact(){
   if(!active||active.startsWith('room:')) return;
-  var pid=active.slice(3);
+  renameContactById(active.slice(3));
+}
+
+
+function renameContactById(pid){
+  if(!pid) return;
   var db=getDB();
-  var current=(conns[pid]&&conns[pid].name)||(db.dms&&db.dms[pid]&&db.dms[pid].name)||pid.slice(0,8);
+  var current=(db.dms&&db.dms[pid]&&db.dms[pid].name)||(conns[pid]&&conns[pid].name)||pid.slice(0,8);
   var newName=prompt('Имя контакта:', current);
   if(!newName||!newName.trim()) return;
   newName=newName.trim();
-  // Update everywhere
   if(conns[pid]) conns[pid].name=newName;
   updDB(function(db2){
     if(!db2.dms) db2.dms={};
     if(!db2.dms[pid]) db2.dms[pid]={messages:[],explicit:true};
     db2.dms[pid].name=newName;
-    // Update in all rooms too
+    db2.dms[pid].customName=true;
     Object.values(db2.rooms||{}).forEach(function(r){
       if(r.members&&r.members[pid]) r.members[pid]=newName;
     });
@@ -3142,6 +3478,7 @@ function renameContact(){
   refreshHdr(); renderList();
   toast('Имя сохранено');
 }
+
 
 
 // =============================================
@@ -3343,7 +3680,9 @@ function onHdrNameClick(){
     openInvite();
   } else {
     var pid=active.slice(3);
-    openPeerProfile(pid);
+    var act = prompt('1 — Профиль контакта\n2 — Переименовать контакт', '1');
+    if(act==='2') renameContactById(pid);
+    else openPeerProfile(pid);
   }
 }
 
@@ -3418,7 +3757,7 @@ function showChatMenu(chatKey, x, y){
   var menu=document.createElement('div');
   menu.className='msg-menu'; ctxEl=menu;
   var items=[
-    {ico:isPinned?'📌':'📌', txt:isPinned?'Открепить':'Закрепить', fn:function(){togglePinChat(chatKey);}},
+    {ico:isPinned?'📍':'📌', txt:isPinned?'Открепить':'Закрепить', fn:function(){togglePinChat(chatKey);}},
     {ico:'🗑', txt:'Удалить чат', fn:function(){delChat(chatKey);}, danger:true}
   ];
   items.forEach(function(it){
@@ -3473,7 +3812,7 @@ function showChatMenu(chatKey, x, y){
       menu.className = 'msg-menu'; ctxEl = menu;
       var item = document.createElement('div');
       item.className = 'msg-menu-item';
-      item.innerHTML = '<span>'+(isPinned?'📌':'📌')+'</span><span>'+(isPinned?'Открепить':'Закрепить')+'</span>';
+      item.innerHTML = '<span>'+(isPinned?'📍':'📌')+'</span><span>'+(isPinned?'Открепить':'Закрепить')+'</span>';
       item.onclick = function(){ closeCtx(); togglePinChat(chatKey); };
       var delItem = document.createElement('div');
       delItem.className = 'msg-menu-item danger';
