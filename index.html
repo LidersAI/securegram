@@ -16,7 +16,7 @@
 // Register service worker for PWA
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function() {
-    navigator.serviceWorker.register('./sw.js')
+    navigator.serviceWorker.register('./sw.js?v=7')
       .then(function(reg) {
         console.log('[SW] registered:', reg.scope);
         // Check for updates
@@ -71,6 +71,7 @@ body{height:100%;overflow:hidden;padding-top:env(safe-area-inset-top)}
 #my-name-el{font-size:15px;font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.3px}
 #my-id-el{font-size:10px;color:var(--text3);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;font-family:var(--font-mono);letter-spacing:.3px}
 #my-id-el:hover{color:var(--accent2)}
+#app-ver{font-size:10px;color:var(--text3);opacity:.85;margin-top:2px}
 #sett-btn{width:34px;height:34px;border:none;background:transparent;color:var(--text3);cursor:pointer;font-size:18px;border-radius:10px;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
 #sett-btn:hover{background:rgba(59,130,246,.1);color:var(--accent2)}
 
@@ -476,7 +477,7 @@ body.light .reaction-cnt{color:#334155}
     <div id="my-av" onclick="openSett()">?</div>
     <div style="flex:1;min-width:0">
       <div id="my-name-el">...</div>
-      <div id="my-id-el" onclick="copyMyId()">подключение...</div>
+      <div id="my-id-el" onclick="copyMyId()">подключение...</div><div id="app-ver">build v7</div>
     </div>
     <button id="sett-btn" onclick="openSett()">⚙</button>
   </div>
@@ -740,6 +741,7 @@ var SIGNAL = 'https://liders-chat-signal.onrender.com';
 var RELAY  = 'https://liders-chat-signal.onrender.com';
 var BASE = 'https://liderschat.ru/';
 var DB_KEY = 'sg_v1';
+var APP_BUILD = 'v7';
 
 // =============================================
 // CRYPTO
@@ -2245,6 +2247,7 @@ setInterval(function(){
   var total=Object.values(unread).reduce(function(a,b){return a+b;},0);
   document.title=total>0?'('+total+') ЛИДЕРС ЧАТ':'ЛИДЕРС ЧАТ';
 },3000);
+(function(){ var v=document.getElementById('app-ver'); if(v) v.textContent='build '+APP_BUILD; })();
 
 // =============================================
 // SIDEBAR TOGGLE
