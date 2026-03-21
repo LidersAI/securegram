@@ -95,6 +95,7 @@ body{height:100%;overflow:hidden;padding-top:env(safe-area-inset-top)}
 .ci-av img{width:100%;height:100%;object-fit:cover;border-radius:inherit}
 .ci-dot{position:absolute;bottom:1px;right:1px;width:11px;height:11px;border-radius:50%;background:var(--green);border:2px solid var(--bg);display:none}
 .ci-dot.on{display:block}
+.ci-dot.busy{background:#ef4444!important}
 .ci-body{flex:1;min-width:0}
 .ci-top{display:flex;justify-content:space-between;gap:4px;align-items:baseline}
 .ci-name{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.2px}
@@ -353,6 +354,20 @@ mark.hit{background:rgba(59,130,246,.35);color:inherit;border-radius:3px}
 /* Onboarding */
 #ob-modal .modal{text-align:center}
 
+/* Channel comments */
+.comment-thread{margin-top:6px;padding:6px 8px;background:rgba(255,255,255,.04);border-radius:10px;border-left:2px solid rgba(59,130,246,.3)}
+.comment-item{display:flex;gap:7px;padding:4px 0;align-items:flex-start}
+.comment-av{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;flex-shrink:0;margin-top:1px}
+.comment-body{flex:1;min-width:0}
+.comment-name{font-size:11px;font-weight:600;color:var(--accent2)}
+.comment-text{font-size:13px;line-height:1.4;word-break:break-word}
+.comment-input{display:flex;gap:6px;margin-top:6px;align-items:center}
+.comment-input input{flex:1;background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:10px;padding:6px 10px;color:var(--text);font-size:12px;font-family:var(--font);outline:none}
+.comment-input input:focus{border-color:rgba(59,130,246,.4)}
+.comment-send{width:28px;height:28px;border-radius:50%;border:none;background:var(--accent);color:#fff;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.channel-post-footer{display:flex;align-items:center;gap:8px;margin-top:6px}
+.toggle-comments{font-size:11px;color:var(--accent2);cursor:pointer;background:none;border:none;padding:0;font-family:var(--font)}
+
 /* Light theme */
 body.light{
   --bg:#f0f6ff;--bg2:#e8f0fe;--bg3:#ffffff;--bg4:#dbeafe;
@@ -502,6 +517,7 @@ body.light #toast{background:rgba(15,23,42,.9)}
     <div style="flex:1;min-width:0">
       <div id="my-name-el">...</div>
       <div id="my-id-el" onclick="copyMyId()">подключение...</div>
+      <div id="my-status-el" style="font-size:10px;color:var(--text3);margin-top:1px"></div>
     </div>
     <button id="sett-btn" onclick="openSett()">⚙</button>
   </div>
@@ -795,6 +811,14 @@ body.light #toast{background:rgba(15,23,42,.9)}
       <div style="flex:1"><label>Отображаемое имя (можно изменить)</label><input class="finput" id="sett-name-in" type="text" maxlength="24" style="margin-top:5px"/></div>
     </div>
     <div class="field"><label>Телефон (необязательно, видят собеседники)</label><input class="finput" id="sett-phone-in" type="tel" maxlength="20" placeholder="+7..."/></div>
+    <div class="field">
+      <label>Статус</label>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px" id="status-picker">
+        <button onclick="setMyStatus('online')" data-s="online" style="padding:6px 12px;border-radius:99px;border:1.5px solid var(--green);background:rgba(34,197,94,.12);color:var(--green);font-size:12px;cursor:pointer;font-family:var(--font)">🟢 Онлайн</button>
+        <button onclick="setMyStatus('busy')" data-s="busy" style="padding:6px 12px;border-radius:99px;border:1.5px solid var(--border);background:transparent;color:var(--text3);font-size:12px;cursor:pointer;font-family:var(--font)">🔴 Не беспокоить</button>
+        <button onclick="setMyStatus('away')" data-s="away" style="padding:6px 12px;border-radius:99px;border:1.5px solid var(--border);background:transparent;color:var(--text3);font-size:12px;cursor:pointer;font-family:var(--font)">🟡 Нет на месте</button>
+      </div>
+    </div>
     <div class="field"><label>Ваш ID — поделитесь с друзьями</label><div class="fmono" id="sett-id-el" onclick="copyMyId()" style="cursor:pointer">...</div><div class="fhint">Нажмите чтобы скопировать и отправить другу — он добавит вас по этому ID</div></div>
     <div class="field"><label>Сервер</label><div class="fhint" id="sett-srv-el">—</div></div>
     <div class="field">
@@ -901,6 +925,7 @@ async function init(){
 
   // Auth flow
   showBanner('⏳ Подключение...');
+  updateStatusUI();
 
   // If have valid token - try to re-login silently
   var savedToken = localStorage.getItem('lc_token');
@@ -1354,6 +1379,7 @@ async function handleData(from, raw){
 
   if(msg.type === 'HELLO'){
     if(msg.name){ c.name=msg.name; updDB(function(db){ if(db.dms&&db.dms[from]) db.dms[from].name=msg.name; }); }
+    if(msg.status) c.status=msg.status;
     var theirPub = await Cry.impPub(msg.pub);
     c.key = await Cry.derive(kp.privateKey, theirPub);
 
@@ -1451,6 +1477,27 @@ async function handleData(from, raw){
 
   if(msg.type === 'PING'){
     return;
+  }
+
+  if(msg.type === 'STATUS'){
+    c.status = msg.status;
+    renderList(); refreshHdr();
+  }
+
+  if(msg.type === 'COMMENT'){
+    if(!c.key) return;
+    Cry.dec(c.key,msg.cipher).then(function(plain){
+      var data=JSON.parse(plain);
+      if(!data.msgId||!data.comment) return;
+      if(!channelComments[data.msgId]) channelComments[data.msgId]=[];
+      // Avoid duplicates
+      if(!channelComments[data.msgId].find(function(x){return x.id===data.comment.id;})){
+        channelComments[data.msgId].push(data.comment);
+        renderComments(data.msgId);
+        // Notification
+        if(document.hidden) notif(data.name, '💬 '+data.comment.text);
+      }
+    }).catch(function(){});
   }
 
   if(msg.type === 'RENAME_ROOM'){
@@ -1921,7 +1968,10 @@ function refreshHdr(){
     nm.textContent=c.name;
     if(!c.online){ st.textContent=formatLastSeen(c.lastSeen); st.className=''; }
     else if(!c.key){ st.textContent='обмен ключами…'; st.className=''; }
-    else{ st.textContent='🔒 зашифрован · E2E'; st.className='ok'; }
+    else{
+      var statusIcon = c.status==='busy'?'🔴 ':c.status==='away'?'🟡 ':'';
+      st.textContent=statusIcon+'🔒 зашифрован · E2E'; st.className='ok';
+    }
     mb.style.display='none';
   }
 }
@@ -4088,6 +4138,96 @@ function showInstallGuide(){
 
   popup.appendChild(box);
   document.body.appendChild(popup);
+}
+
+
+// ── User statuses ────────────────────────
+var myStatus = localStorage.getItem('lc_status') || 'online';
+var STATUS_LABELS = {online:'🟢 Онлайн', busy:'🔴 Не беспокоить', away:'🟡 Нет на месте'};
+
+function setMyStatus(s){
+  myStatus = s;
+  localStorage.setItem('lc_status', s);
+  updateStatusUI();
+  // Broadcast to all online peers
+  for(var pid in conns){
+    var c=conns[pid]; if(c.online&&c.key) rawSend(c.conn,{type:'STATUS',status:s,name:myName});
+  }
+  toast('Статус: '+STATUS_LABELS[s]);
+}
+
+function updateStatusUI(){
+  var el = document.getElementById('my-status-el');
+  if(el) el.textContent = STATUS_LABELS[myStatus]||'';
+  // Update buttons in settings
+  document.querySelectorAll('#status-picker button').forEach(function(btn){
+    var active = btn.getAttribute('data-s') === myStatus;
+    btn.style.opacity = active ? '1' : '0.5';
+    btn.style.fontWeight = active ? '700' : '400';
+  });
+}
+
+
+// ── Channel comments ─────────────────────
+var channelComments = {}; // msgId -> [{id,from,name,text,ts}]
+
+function addComment(msgId, text){
+  if(!text||!text.trim()||!active) return;
+  text = text.trim();
+  var roomId = active.startsWith('room:') ? active.slice(5) : null;
+  if(!roomId) return;
+
+  var comment = {id:gid()+'-c',from:myId,name:myName||'Аноним',text:text,ts:ts()};
+  if(!channelComments[msgId]) channelComments[msgId]=[];
+  channelComments[msgId].push(comment);
+
+  // Update UI
+  renderComments(msgId);
+
+  // Broadcast to room
+  var db=getDB(); var room=db.rooms&&db.rooms[roomId]; if(!room) return;
+  Object.keys(room.members||{}).forEach(function(pid){
+    if(pid===myId) return;
+    var c=conns[pid]; if(!c||!c.online||!c.key) return;
+    Cry.enc(c.key, JSON.stringify({type:'COMMENT',msgId:msgId,comment:comment,roomId:roomId,from:myId,name:myName,ts:ts(),date:dateStr()}))
+      .then(function(cipher){ rawSend(c.conn,{type:'COMMENT',cipher:cipher}); })
+      .catch(function(){});
+  });
+}
+
+function renderComments(msgId){
+  var threadEl = document.getElementById('comments-'+msgId);
+  if(!threadEl) return;
+  var comments = channelComments[msgId]||[];
+  var list = threadEl.querySelector('.comment-list');
+  if(!list) return;
+  list.innerHTML='';
+  comments.forEach(function(cm){
+    var color=clr(cm.from);
+    var item=document.createElement('div');
+    item.className='comment-item';
+    item.innerHTML='<div class="comment-av" style="background:'+color+'22;color:'+color+'">'+ini(cm.name)+'</div>'
+      +'<div class="comment-body"><span class="comment-name">'+esc(cm.name)+'</span> '
+      +'<span class="comment-text">'+esc(cm.text)+'</span>'
+      +' <span style="font-size:10px;color:var(--text3)">'+cm.ts+'</span></div>';
+    list.appendChild(item);
+  });
+  // Update toggle label
+  var toggle = document.getElementById('toggle-'+msgId);
+  if(toggle) toggle.textContent = comments.length ? '💬 '+comments.length+(comments.length===1?' комментарий':' комментариев') : '💬 Комментировать';
+}
+
+function toggleComments(msgId){
+  var thread = document.getElementById('comments-'+msgId);
+  if(!thread) return;
+  var visible = thread.style.display !== 'none';
+  thread.style.display = visible ? 'none' : 'block';
+  if(!visible) renderComments(msgId);
+}
+
+function submitComment(msgId, inputEl){
+  addComment(msgId, inputEl.value);
+  inputEl.value='';
 }
 
 
