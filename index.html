@@ -499,7 +499,7 @@ body.light #toast{background:rgba(15,23,42,.9)}
     <button id="back-btn" onclick="hideSidebar()">←</button>
     <div id="hdr-av"></div>
     <div style="flex:1;min-width:0">
-      <div id="hdr-name" style="cursor:pointer" onclick="onHdrNameClick()" title="Нажмите для профиля / переименования">—</div>
+      <div id="hdr-name" style="cursor:pointer" onclick="onHdrNameClick()" title="Нажмите для профиля">—</div>
       <div id="hdr-status">—</div>
     </div>
     <button class="hdr-btn" id="members-btn" onclick="toggleMembers()" style="display:none">👥</button>
@@ -581,8 +581,19 @@ body.light #toast{background:rgba(15,23,42,.9)}
         <input class="finput" id="auth-login-pass" type="password" placeholder="••••••••" autocomplete="current-password"/>
       </div>
       <div id="auth-login-err" style="display:none;color:#f87171;font-size:12px;margin-bottom:10px;padding:8px 12px;background:rgba(239,68,68,.1);border-radius:8px"></div>
-      <button onclick="doLogin()" style="width:100%;padding:12px;border-radius:12px;border:none;background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:12px">Войти →</button>
+      <button onclick="doLogin()" style="width:100%;padding:12px;border-radius:12px;border:none;background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:8px">Войти →</button>
+      <button onclick="showRecovery()" style="width:100%;padding:8px;border:none;background:transparent;color:var(--text3);font-size:12px;cursor:pointer;margin-bottom:8px">Забыли пароль? Восстановить по коду</button>
       <button onclick="doGuest()" style="width:100%;padding:10px;border-radius:12px;border:1px solid var(--border);background:transparent;color:var(--text3);font-size:13px;cursor:pointer">Войти анонимно (без аккаунта)</button>
+    </div>
+    <!-- Recovery panel -->
+    <div id="auth-recovery-panel" style="display:none;margin-top:12px">
+      <div style="font-size:13px;color:var(--text2);margin-bottom:10px">Введите ID и код восстановления</div>
+      <input class="finput" id="auth-rec-name" type="text" placeholder="Ваш ID (никнейм)" style="margin-bottom:8px" autocapitalize="none"/>
+      <input class="finput" id="auth-rec-code" type="text" placeholder="Код восстановления" style="margin-bottom:10px;font-family:monospace"/>
+      <input class="finput" id="auth-rec-pass" type="password" placeholder="Новый пароль" style="margin-bottom:8px"/>
+      <div id="auth-rec-err" style="display:none;color:#f87171;font-size:12px;margin-bottom:8px;padding:7px 12px;background:rgba(239,68,68,.1);border-radius:8px"></div>
+      <button onclick="doRecovery()" style="width:100%;padding:11px;border-radius:12px;border:none;background:var(--accent);color:#fff;font-size:14px;font-weight:600;cursor:pointer">Восстановить доступ</button>
+      <button onclick="hideRecovery()" style="width:100%;margin-top:6px;padding:8px;border:none;background:transparent;color:var(--text3);font-size:12px;cursor:pointer">← Назад</button>
     </div>
 
     <!-- Register panel -->
@@ -1365,8 +1376,13 @@ async function handleData(from, raw){
   }
 
   if(msg.type === 'PING'){
-    // Just receiving a ping keeps the connection alive - no response needed
     return;
+  }
+
+  if(msg.type === 'RENAME_ROOM'){
+    updDB(function(db){ if(db.rooms&&db.rooms[msg.roomId]) db.rooms[msg.roomId].name=msg.name; });
+    if(active==='room:'+msg.roomId) refreshHdr();
+    renderList();
   }
 
   if(msg.type === 'PINNED'){
@@ -3440,11 +3456,32 @@ function addContactToGroup(){
 function onHdrNameClick(){
   if(!active) return;
   if(active.startsWith('room:')){
-    openInvite();
+    // Show options: rename or invite
+    var room=(getDB().rooms||{})[active.slice(5)]; if(!room) return;
+    var choice=confirm('Группа: '+room.name+'\n\nОК = Переименовать\nОтмена = Пригласить по ссылке');
+    if(choice) renameGroup();
+    else openInvite();
   } else {
-    var pid=active.slice(3);
-    openPeerProfile(pid);
+    openPeerProfile(active.slice(3));
   }
+}
+
+function renameGroup(){
+  if(!active||!active.startsWith('room:')) return;
+  var roomId=active.slice(5);
+  var room=(getDB().rooms||{})[roomId]; if(!room) return;
+  var newName=prompt('Новое название группы:', room.name);
+  if(!newName||!newName.trim()) return;
+  newName=newName.trim();
+  updDB(function(db){ if(db.rooms&&db.rooms[roomId]) db.rooms[roomId].name=newName; });
+  refreshHdr(); renderList();
+  // Broadcast to members
+  var db=getDB();
+  Object.keys((db.rooms[roomId]&&db.rooms[roomId].members)||{}).forEach(function(pid){
+    if(pid===myId) return;
+    var c=conns[pid]; if(c&&c.online) rawSend(c.conn,{type:'RENAME_ROOM',roomId:roomId,name:newName});
+  });
+  toast('Группа переименована');
 }
 
 
@@ -3661,8 +3698,15 @@ async function doRegister(){
     var j = await r.json();
     if(!j.ok){ errEl.textContent=j.error||'Ошибка регистрации'; errEl.style.display='block'; return; }
     saveAuthSession(j);
+    // Show backup code
+    var backupCode = j.backupCode || null;
     closeModal('auth-modal');
     finishAuth(j.peerId, j.username);
+    if(backupCode){
+      setTimeout(function(){
+        alert('⚠️ Сохраните код восстановления:\n\n' + backupCode + '\n\nЕсли забудете пароль — введите этот код вместо него.\nЗапишите его!');
+      }, 500);
+    }
   }catch(e){ errEl.textContent='Нет связи с сервером'; errEl.style.display='block'; }
 }
 
@@ -3710,6 +3754,38 @@ function logoutAccount(){
   authToken = null; authUsername = null;
   toast('Вышли из аккаунта');
   setTimeout(function(){ location.reload(); }, 1000);
+}
+
+
+function showRecovery(){
+  document.getElementById('auth-recovery-panel').style.display='block';
+  document.querySelector('#auth-login-panel > button:first-of-type').style.display='none';
+  document.querySelector('#auth-login-panel .forgot-btn') && (document.querySelector('#auth-login-panel .forgot-btn').style.display='none');
+}
+function hideRecovery(){
+  document.getElementById('auth-recovery-panel').style.display='none';
+}
+
+async function doRecovery(){
+  var name=document.getElementById('auth-rec-name').value.trim();
+  var code=document.getElementById('auth-rec-code').value.trim();
+  var pass=document.getElementById('auth-rec-pass').value;
+  var errEl=document.getElementById('auth-rec-err');
+  errEl.style.display='none';
+  if(!name||!code||!pass){ errEl.textContent='Заполните все поля'; errEl.style.display='block'; return; }
+  if(pass.length<4){ errEl.textContent='Пароль минимум 4 символа'; errEl.style.display='block'; return; }
+  try{
+    var r=await fetch(SIGNAL+'/recover',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({username:name, backupCode:code, newPassword:pass})
+    });
+    var j=await r.json();
+    if(!j.ok){ errEl.textContent=j.error||'Неверный код'; errEl.style.display='block'; return; }
+    saveAuthSession(j);
+    closeModal('auth-modal');
+    finishAuth(j.peerId, j.username);
+    toast('Доступ восстановлен!');
+  }catch(e){ errEl.textContent='Нет связи с сервером'; errEl.style.display='block'; }
 }
 
 
