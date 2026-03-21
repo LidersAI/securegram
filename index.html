@@ -378,11 +378,35 @@ body.light #toast{background:rgba(15,23,42,.9)}
 /* Mobile */
 #sb-toggle{display:none!important}
 @media(max-width:768px){
-  #sidebar{position:fixed;left:0;top:0;bottom:0;z-index:50;width:85%;max-width:300px;box-shadow:8px 0 40px rgba(0,0,0,.7);padding-top:env(safe-area-inset-top)}
+  /* Safe areas for notch/home indicator */
+  body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+  #sidebar{position:fixed;left:0;top:0;bottom:0;z-index:50;width:88%;max-width:300px;
+    box-shadow:8px 0 40px rgba(0,0,0,.7);
+    padding-top:env(safe-area-inset-top);
+    transition:transform .3s cubic-bezier(.4,0,.2,1)}
   #sidebar.hidden{box-shadow:none}
-  /* Overlay behind sidebar */
-  #sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:49;backdrop-filter:blur(2px)}
+  #sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:49;backdrop-filter:blur(3px);transition:opacity .3s}
   #sidebar-overlay.on{display:block}
+  /* My row - compact on mobile */
+  #my-row{padding:10px 12px 8px}
+  #my-av{width:38px;height:38px;font-size:13px}
+  #my-name-el{font-size:14px}
+  #my-id-el{font-size:10px}
+  /* Search bar */
+  #sb-actions{padding:8px 10px 4px;gap:6px}
+  #search-box{padding:8px 12px;font-size:13px;border-radius:10px}
+  #new-grp-btn{width:34px;height:34px;font-size:16px;border-radius:10px}
+  /* Chat list items - bigger tap targets */
+  .ci{padding:10px 8px;border-radius:12px;margin-bottom:1px}
+  .ci-av{width:46px;height:46px;font-size:17px}
+  .ci-name{font-size:14px}
+  .ci-prev{font-size:12px}
+  /* Bottom add section */
+  #sb-bottom{padding:8px 10px}
+  #add-wrap{padding:8px 10px;border-radius:12px}
+  #add-lbl{font-size:10px}
+  #add-in{padding:7px 8px;font-size:11px}
+  #add-btn{padding:7px 12px;font-size:12px}
   #back-btn{display:flex!important;align-items:center;justify-content:center}
   #send-btn{width:42px;height:42px;flex-shrink:0}
   #mic-btn{width:36px;height:36px;font-size:18px}
@@ -393,12 +417,27 @@ body.light #toast{background:rgba(15,23,42,.9)}
   html{-webkit-text-size-adjust:100%}
   .bub{max-width:84vw}
   .attach-btn{width:34px;height:34px;font-size:16px}
-  /* On mobile show fewer header buttons */
-  #chat-hdr{padding:0 8px;gap:6px;height:50px}
-  .hdr-btn{width:30px;height:30px;font-size:15px}
-  #hdr-av{width:32px;height:32px}
-  #hdr-name{font-size:14px}
+  /* Header */
+  #chat-hdr{padding:0 6px;gap:5px;height:50px;padding-top:0}
+  #back-btn{width:34px;height:34px;font-size:20px;margin-right:0}
+  .hdr-btn{width:30px;height:30px;font-size:15px;border-radius:8px}
+  #hdr-av{width:32px;height:32px;font-size:11px}
+  #hdr-name{font-size:14px;letter-spacing:-.2px}
   #hdr-status{font-size:11px}
+  /* Messages */
+  .bub{max-width:85vw;font-size:15px;padding:7px 11px 5px}
+  .av-sm{width:24px;height:24px;font-size:9px}
+  /* Input bar */
+  #input-bar{padding:6px 6px;padding-bottom:max(8px,env(safe-area-inset-bottom));gap:4px}
+  #input-wrap{padding:7px 10px;border-radius:20px}
+  #msg-in{font-size:15px}
+  #send-btn{width:40px;height:40px;flex-shrink:0}
+  #mic-btn{width:34px;height:34px;font-size:17px}
+  .attach-btn{width:32px;height:32px;font-size:15px}
+  /* Toast at top on mobile (not blocked by keyboard) */
+  #toast{bottom:auto;top:calc(env(safe-area-inset-top) + 60px)}
+  /* Members panel full screen on mobile */
+  #members-panel-popup{width:100%!important;top:50px!important}
 }
 @media(min-width:769px) and (max-width:1024px){
   #sidebar{width:280px}
@@ -467,10 +506,16 @@ body.light #toast{background:rgba(15,23,42,.9)}
     <button id="sett-btn" onclick="openSett()">⚙</button>
   </div>
   <div id="sb-actions">
-    <input id="search-box" type="text" placeholder="Поиск чатов..." oninput="filterChats(this.value)"/>
-    <button id="new-grp-btn" onclick="openNewGrp()" title="Создать группу">✏️</button>
+    <input id="search-box" type="text" placeholder="Поиск..." oninput="filterChats(this.value)"/>
+    <button id="new-grp-btn" onclick="openNewGrp()" title="Создать группу/канал">✏️</button>
+  </div>
+  <!-- Tabs: Chats | Contacts -->
+  <div style="display:flex;gap:0;margin:0 8px 6px;border-radius:10px;overflow:hidden;background:rgba(255,255,255,.04);border:1px solid var(--border)">
+    <button id="tab-chats" onclick="switchSideTab('chats')" style="flex:1;padding:7px;border:none;background:var(--accent);color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font)">💬 Чаты</button>
+    <button id="tab-contacts" onclick="switchSideTab('contacts')" style="flex:1;padding:7px;border:none;background:transparent;color:var(--text3);font-size:12px;cursor:pointer;font-family:var(--font)">👤 Контакты</button>
   </div>
   <div id="chat-list"></div>
+  <div id="contacts-list" style="display:none;flex:1;overflow-y:auto;padding:6px 8px"></div>
   <div id="sb-bottom">
     <div id="add-wrap">
       <div id="add-lbl">Добавить по ID</div>
@@ -634,22 +679,30 @@ body.light #toast{background:rgba(15,23,42,.9)}
 <!-- NEW GROUP -->
 <div class="ov" id="new-grp-modal">
   <div class="modal">
-    <div class="mtitle">Создать группу</div>
-    <div class="field"><label>Название</label><input class="finput" id="grp-name-in" type="text" placeholder="Семья / Друзья..." maxlength="30"/></div>
+    <div class="mtitle">Создать группу или канал</div>
+    <!-- Type tabs -->
+    <div style="display:flex;gap:0;border-radius:10px;overflow:hidden;border:1px solid var(--border);margin-bottom:16px">
+      <button id="grp-type-group" onclick="setGrpType('group')" style="flex:1;padding:9px;border:none;background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font)">👥 Группа</button>
+      <button id="grp-type-channel" onclick="setGrpType('channel')" style="flex:1;padding:9px;border:none;background:transparent;color:var(--text3);font-size:13px;cursor:pointer;font-family:var(--font)">📢 Канал</button>
+    </div>
+    <div id="grp-type-hint" style="font-size:12px;color:var(--text3);margin-bottom:14px;line-height:1.5">Все участники могут писать</div>
+    <div class="field"><label>Название</label><input class="finput" id="grp-name-in" type="text" placeholder="Семья / LIDERS AI..." maxlength="30"/></div>
     <div class="field">
       <label>Иконка</label>
       <div class="ep-row" id="ep-row">
         <span class="ep sel" onclick="pickEp(this)">👨‍👩‍👧‍👦</span>
         <span class="ep" onclick="pickEp(this)">👥</span>
+        <span class="ep" onclick="pickEp(this)">📢</span>
         <span class="ep" onclick="pickEp(this)">🏠</span>
         <span class="ep" onclick="pickEp(this)">🎮</span>
         <span class="ep" onclick="pickEp(this)">💼</span>
         <span class="ep" onclick="pickEp(this)">🎵</span>
         <span class="ep" onclick="pickEp(this)">🚀</span>
         <span class="ep" onclick="pickEp(this)">❤️</span>
+        <span class="ep" onclick="pickEp(this)">🤖</span>
       </div>
     </div>
-    <div class="field"><label>Пин-код (необязательно)</label><input class="finput" id="grp-pin-in" type="text" placeholder="Без пароля — оставьте пустым" maxlength="20"/></div>
+    <div class="field" id="grp-pin-field"><label>Пин-код (необязательно)</label><input class="finput" id="grp-pin-in" type="text" placeholder="Без пароля — оставьте пустым" maxlength="20"/></div>
     <div class="mbtns">
       <button class="bcancel" onclick="closeModal('new-grp-modal')">Отмена</button>
       <button class="bok" onclick="createGrp()">Создать</button>
@@ -1236,10 +1289,28 @@ function copyInvite(){
 // =============================================
 // GROUPS
 // =============================================
+var selGrpType = 'group';
+
+function setGrpType(t){
+  selGrpType = t;
+  var gBtn=document.getElementById('grp-type-group'), cBtn=document.getElementById('grp-type-channel');
+  var hint=document.getElementById('grp-type-hint');
+  gBtn.style.background = t==='group'?'var(--accent)':'transparent';
+  gBtn.style.color = t==='group'?'#fff':'var(--text3)';
+  gBtn.style.fontWeight = t==='group'?'600':'400';
+  cBtn.style.background = t==='channel'?'var(--accent)':'transparent';
+  cBtn.style.color = t==='channel'?'#fff':'var(--text3)';
+  cBtn.style.fontWeight = t==='channel'?'600':'400';
+  hint.textContent = t==='channel'?'Только вы можете публиковать. Подписчики только читают.':'Все участники могут писать';
+  document.getElementById('grp-pin-field').style.display = t==='channel'?'none':'block';
+}
+
 function openNewGrp(){
   document.getElementById('grp-name-in').value = '';
   document.getElementById('grp-pin-in').value = '';
   selEp = '👨‍👩‍👧‍👦';
+  selGrpType = 'group';
+  setGrpType('group');
   document.querySelectorAll('.ep').forEach(function(e,i){ e.classList.toggle('sel',i===0); });
   openModal('new-grp-modal');
 }
@@ -1251,17 +1322,18 @@ function pickEp(el){
 function createGrp(){
   var name = document.getElementById('grp-name-in').value.trim();
   if(!name){ toast('Введите название'); return; }
-  var pin = document.getElementById('grp-pin-in').value.trim() || null;
+  var pin = (selGrpType==='group' && document.getElementById('grp-pin-in').value.trim()) || null;
+  var isChannel = selGrpType === 'channel';
   var id = gid();
   updDB(function(db){
     if(!db.rooms) db.rooms = {};
-    db.rooms[id] = {id:id, name:name, emoji:selEp, pin:pin, members:{}, messages:[], isHost:true};
+    db.rooms[id] = {id:id, name:name, emoji:selEp, pin:pin, members:{}, messages:[], isHost:true, isChannel:isChannel};
     db.rooms[id].members[myId] = myName;
   });
   closeModal('new-grp-modal');
   renderList();
   openChat('room:'+id);
-  toast('Группа создана! Нажмите 🔗 чтобы пригласить');
+  toast(isChannel ? 'Канал создан! Нажмите 🔗 чтобы поделиться' : 'Группа создана! Нажмите 🔗 чтобы пригласить');
 }
 
 // =============================================
@@ -1485,6 +1557,11 @@ async function sendMsg(){
   if(!text||!active) return;
   // Handle edit mode
   if(editId){ applyEdit(text); return; }
+  // Channel: only host can post
+  if(active.startsWith('room:')){
+    var room=(getDB().rooms||{})[active.slice(5)];
+    if(room&&room.isChannel&&!room.isHost){ toast('Только администратор канала может публиковать'); return; }
+  }
   input.value=''; input.style.height='auto';
   var replyRef = replyTo ? {id:replyTo.id, name:replyTo.name, text:(replyTo.text||'').slice(0,80)} : null;
   cancelReply();
@@ -1778,6 +1855,20 @@ function openChat(chatKey){
   document.getElementById('call-audio-btn').style.display=isDM?'flex':'none';
   document.getElementById('call-video-btn').style.display=isDM?'flex':'none';
   document.getElementById('add-member-btn').style.display=!isDM?'flex':'none';
+  // Disable input for channel subscribers
+  if(!isDM){
+    var room2=(getDB().rooms||{})[chatKey.slice(5)];
+    var canPost=!room2||!room2.isChannel||room2.isHost;
+    document.getElementById('input-bar').style.opacity=canPost?'1':'0.4';
+    document.getElementById('msg-in').placeholder=canPost?'Написать...':'Только администратор может писать';
+    document.getElementById('msg-in').disabled=!canPost;
+    document.getElementById('send-btn').disabled=!canPost;
+  } else {
+    document.getElementById('input-bar').style.opacity='1';
+    document.getElementById('msg-in').disabled=false;
+    document.getElementById('send-btn').disabled=false;
+    document.getElementById('msg-in').placeholder='Написать...';
+  }
   // Pinned bar for rooms
   loadPinnedBar();
   // Send read receipt for DMs
@@ -1798,7 +1889,12 @@ function refreshHdr(){
     nm.textContent=room.name;
     var members=Object.keys(room.members||{});
     var online=members.filter(function(id){return id===myId||(conns[id]&&conns[id].online);}).length;
-    st.textContent=online+' из '+members.length+' онлайн'; st.className='ok';
+    if(room.isChannel){
+      st.textContent=(room.isHost?'📢 Ваш канал':'📢 Канал')+' · '+members.length+' подписчиков';
+    } else {
+      st.textContent=online+' из '+members.length+' онлайн';
+    }
+    st.className='ok';
     mb.style.display='flex';
   } else {
     var pid=active.slice(3); var c=conns[pid]; if(!c) return;
@@ -1872,6 +1968,7 @@ function renderList(){
   }
 
   var list=document.getElementById('chat-list');
+  if(!list) return;
   list.innerHTML='';
 
   if(pinnedItems.length){
@@ -3784,8 +3881,93 @@ async function doRecovery(){
     saveAuthSession(j);
     closeModal('auth-modal');
     finishAuth(j.peerId, j.username);
+    if(j.newBackupCode){
+      setTimeout(function(){
+        alert('✓ Пароль изменён!\n\nНовый код восстановления:\n\n' + j.newBackupCode + '\n\nСохраните его!');
+      }, 500);
+    }
     toast('Доступ восстановлен!');
   }catch(e){ errEl.textContent='Нет связи с сервером'; errEl.style.display='block'; }
+}
+
+
+var sideTab = 'chats';
+
+function switchSideTab(tab){
+  sideTab = tab;
+  var tChats=document.getElementById('tab-chats'), tCont=document.getElementById('tab-contacts');
+  var lChats=document.getElementById('chat-list'), lCont=document.getElementById('contacts-list');
+  tChats.style.background = tab==='chats'?'var(--accent)':'transparent';
+  tChats.style.color = tab==='chats'?'#fff':'var(--text3)';
+  tChats.style.fontWeight = tab==='chats'?'600':'400';
+  tCont.style.background = tab==='contacts'?'var(--accent)':'transparent';
+  tCont.style.color = tab==='contacts'?'#fff':'var(--text3)';
+  tCont.style.fontWeight = tab==='contacts'?'600':'400';
+  lChats.style.display = tab==='chats'?'':'none';
+  lCont.style.display = tab==='contacts'?'':'none';
+  if(tab==='contacts') renderContacts();
+}
+
+function renderContacts(){
+  var list = document.getElementById('contacts-list');
+  if(!list) return;
+  var db = getDB();
+  var contacts = [];
+  Object.entries(db.dms||{}).forEach(function(e){
+    var pid=e[0], dm=e[1];
+    var c=conns[pid];
+    var name=(c&&c.name)||dm.name||pid.slice(0,8);
+    var online=c&&c.online&&c.key;
+    contacts.push({pid:pid, name:name, online:online});
+  });
+  // Sort: online first, then alphabetical
+  contacts.sort(function(a,b){
+    if(a.online&&!b.online) return -1;
+    if(!a.online&&b.online) return 1;
+    return a.name.localeCompare(b.name);
+  });
+
+  list.innerHTML='';
+
+  if(!contacts.length){
+    list.innerHTML='<div style="padding:24px 16px;color:var(--text3);font-size:13px;text-align:center;line-height:1.8">Нет контактов.<br>Добавьте кого-то по ID.</div>';
+    return;
+  }
+
+  contacts.forEach(function(ct){
+    var color=clr(ct.pid);
+    var row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:10px;padding:10px 8px;border-radius:12px;cursor:pointer;transition:background .1s';
+    row.onmouseenter=function(){row.style.background='var(--hover)';};
+    row.onmouseleave=function(){row.style.background='';};
+    row.onclick=function(){ switchSideTab('chats'); openOrCreateDM(ct.pid, ct.name); };
+
+    var av=document.createElement('div');
+    av.style.cssText='width:44px;height:44px;border-radius:50%;background:'+color+'22;color:'+color+';display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex-shrink:0;position:relative';
+    av.textContent=ini(ct.name);
+    var dot=document.createElement('div');
+    dot.style.cssText='position:absolute;bottom:1px;right:1px;width:10px;height:10px;border-radius:50%;background:'+(ct.online?'#22c55e':'#374151')+';border:2px solid var(--bg)';
+    av.appendChild(dot);
+
+    var info=document.createElement('div');
+    info.style.cssText='flex:1;min-width:0';
+    var nm=document.createElement('div');
+    nm.style.cssText='font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+    nm.textContent=ct.name;
+    var st=document.createElement('div');
+    st.style.cssText='font-size:11px;color:var(--text3);margin-top:2px';
+    st.textContent=ct.online?'в сети':'не в сети';
+    info.appendChild(nm); info.appendChild(st);
+
+    var msgBtn=document.createElement('button');
+    msgBtn.style.cssText='width:30px;height:30px;border-radius:50%;border:none;background:rgba(59,130,246,.1);color:var(--accent2);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0';
+    msgBtn.textContent='💬';
+    msgBtn.title='Написать';
+    msgBtn.onclick=function(e){e.stopPropagation();switchSideTab('chats');openOrCreateDM(ct.pid,ct.name);};
+
+    row.appendChild(av); row.appendChild(info); row.appendChild(msgBtn);
+    list.appendChild(row);
+  });
 }
 
 
