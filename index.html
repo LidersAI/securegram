@@ -1059,6 +1059,7 @@ function createPC(peerId) {
       c.online = true; renderList(); refreshHdr();
     } else if (['disconnected','failed','closed'].includes(pc.connectionState)) {
       c.online = false; c.key = null; c.sent = false;
+      c.lastSeen = Date.now();
       sysMsg('dm:'+peerId, (c.name||'Участник')+' отключился');
       renderList(); refreshHdr();
     }
@@ -1095,6 +1096,7 @@ function setupDC(dc, peerId) {
 
   dc.onclose = function() {
     c.online = false; c.key = null; c.sent = false;
+    c.lastSeen = Date.now();
     sysMsg('dm:'+peerId, (c.name||'Участник')+' отключился');
     renderList(); refreshHdr();
   };
@@ -1917,7 +1919,7 @@ function refreshHdr(){
     var pid=active.slice(3); var c=conns[pid]; if(!c) return;
     av.className=''; av.textContent=ini(c.name); av.style.background=c.color+'22'; av.style.color=c.color;
     nm.textContent=c.name;
-    if(!c.online){ st.textContent='не в сети'; st.className=''; }
+    if(!c.online){ st.textContent=formatLastSeen(c.lastSeen); st.className=''; }
     else if(!c.key){ st.textContent='обмен ключами…'; st.className=''; }
     else{ st.textContent='🔒 зашифрован · E2E'; st.className='ok'; }
     mb.style.display='none';
@@ -3108,6 +3110,18 @@ function startHeartbeat(){
       .then(function(r){ if(!r.ok) throw new Error('bad'); })
       .catch(function(){ console.log('[keepalive] server unreachable'); });
   }, 10 * 60 * 1000);
+
+  // Update "last seen" in header every 30 seconds
+  setInterval(function(){
+    if(active && !active.startsWith('room:')){
+      var pid=active.slice(3);
+      var c=conns[pid];
+      if(c && !c.online){
+        var st=document.getElementById('hdr-status');
+        if(st) st.textContent=formatLastSeen(c.lastSeen);
+      }
+    }
+  }, 30000);
 }
 
 // Handle PING in data handler (add to handleData)
@@ -4017,6 +4031,17 @@ function renderContacts(){
     row.appendChild(av); row.appendChild(info); row.appendChild(msgBtn);
     list.appendChild(row);
   });
+}
+
+
+function formatLastSeen(ts){
+  if(!ts) return 'не в сети';
+  var diff = Math.floor((Date.now()-ts)/1000);
+  if(diff < 60)  return 'был(а) только что';
+  if(diff < 3600) return 'был(а) '+Math.floor(diff/60)+' мин назад';
+  if(diff < 86400) return 'был(а) '+Math.floor(diff/3600)+' ч назад';
+  if(diff < 86400*7) return 'был(а) '+Math.floor(diff/86400)+' дн назад';
+  return 'не в сети давно';
 }
 
 
