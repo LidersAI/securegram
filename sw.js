@@ -1,10 +1,9 @@
 // LIDERS CHAT Service Worker v4
 const CACHE = 'liders-v4';
 const STATIC = [
-  './icon-192.png',
-  './icon-512.png',
-  './manifest.json',
-  './favicon.ico'
+  '/icon-192.png',
+  '/icon-512.png',
+  '/manifest.json',
 ];
 
 self.addEventListener('install', e => {
@@ -26,16 +25,16 @@ self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   if (url.origin !== location.origin) return;
 
-  // HTML always from network — NEVER cache, always preserve query params
+  // HTML always fresh — never cache
   if (e.request.headers.get('accept')?.includes('text/html')) {
     e.respondWith(
       fetch(e.request, { cache: 'no-store' })
-        .catch(() => caches.match('./index.html') || caches.match('/index.html'))
+        .catch(() => caches.match('/index.html'))
     );
     return;
   }
 
-  // Static assets — cache first
+  // Icons and manifest — cache first
   e.respondWith(
     caches.match(e.request).then(cached => {
       if (cached) return cached;

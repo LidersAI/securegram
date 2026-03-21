@@ -2,92 +2,27 @@
   "name": "LIDERS CHAT",
   "short_name": "LIDERS CHAT",
   "description": "Защищённый P2P мессенджер с E2E шифрованием",
-  "start_url": "/securegram/?source=pwa",
-  "scope": "/securegram/",
+  "start_url": "/?source=pwa",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#0e1621",
-  "theme_color": "#17212b",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
   "orientation": "portrait-primary",
   "lang": "ru",
-  "categories": [
-    "social",
-    "communication"
-  ],
+  "categories": ["social", "communication"],
   "icons": [
-    {
-      "src": "icon-72.png",
-      "sizes": "72x72",
-      "type": "image/png"
-    },
-    {
-      "src": "icon-96.png",
-      "sizes": "96x96",
-      "type": "image/png"
-    },
-    {
-      "src": "icon-128.png",
-      "sizes": "128x128",
-      "type": "image/png"
-    },
-    {
-      "src": "icon-144.png",
-      "sizes": "144x144",
-      "type": "image/png"
-    },
-    {
-      "src": "icon-152.png",
-      "sizes": "152x152",
-      "type": "image/png"
-    },
-    {
-      "src": "icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "icon-192-maskable.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "maskable"
-    },
-    {
-      "src": "icon-256.png",
-      "sizes": "256x256",
-      "type": "image/png"
-    },
-    {
-      "src": "icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "icon-512-maskable.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
-    }
+    {"src": "icon-72.png",  "sizes": "72x72",   "type": "image/png"},
+    {"src": "icon-96.png",  "sizes": "96x96",   "type": "image/png"},
+    {"src": "icon-128.png", "sizes": "128x128", "type": "image/png"},
+    {"src": "icon-144.png", "sizes": "144x144", "type": "image/png"},
+    {"src": "icon-152.png", "sizes": "152x152", "type": "image/png"},
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "icon-192-maskable.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable"},
+    {"src": "icon-256.png", "sizes": "256x256", "type": "image/png"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
   ],
   "screenshots": [
-    {
-      "src": "icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "LIDERS CHAT"
-    }
-  ],
-  "shortcuts": [
-    {
-      "name": "Открыть чаты",
-      "url": "/securegram/",
-      "icons": [
-        {
-          "src": "icon-96.png",
-          "sizes": "96x96"
-        }
-      ]
-    }
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "form_factor": "narrow", "label": "LIDERS CHAT"}
   ]
 }
