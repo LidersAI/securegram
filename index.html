@@ -63,7 +63,7 @@ body{height:100%;overflow:hidden;padding-top:env(safe-area-inset-top)}
 
 /* ═══ SIDEBAR ═══ */
 #sidebar{width:320px;flex-shrink:0;background:var(--bg);border-right:1px solid var(--border);display:flex;flex-direction:column;transition:transform .28s var(--ease)}
-#sidebar.hidden{transform:translateX(-110%)}
+#sidebar.hidden{transform:translateX(-110%);pointer-events:none}
 #my-row{padding:14px 16px 10px;display:flex;align-items:center;gap:11px;border-bottom:1px solid var(--border)}
 #my-av{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,rgba(59,130,246,.2),rgba(30,64,175,.2));color:var(--accent2);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;cursor:pointer;flex-shrink:0;border:1.5px solid rgba(59,130,246,.25);transition:transform .15s;overflow:hidden}
 #my-av:active{transform:scale(.95)}
@@ -376,8 +376,13 @@ body.light .finput{background:rgba(0,0,0,.04);border-color:rgba(0,0,0,.1)}
 body.light #toast{background:rgba(15,23,42,.9)}
 
 /* Mobile */
+#sb-toggle{display:none!important}
 @media(max-width:768px){
-  #sidebar{position:fixed;left:0;top:0;bottom:0;z-index:50;width:92%;max-width:320px;box-shadow:8px 0 32px rgba(0,0,0,.5)}
+  #sidebar{position:fixed;left:0;top:0;bottom:0;z-index:50;width:85%;max-width:300px;box-shadow:8px 0 40px rgba(0,0,0,.7);padding-top:env(safe-area-inset-top)}
+  #sidebar.hidden{box-shadow:none}
+  /* Overlay behind sidebar */
+  #sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:49;backdrop-filter:blur(2px)}
+  #sidebar-overlay.on{display:block}
   #back-btn{display:flex!important;align-items:center;justify-content:center}
   #send-btn{width:42px;height:42px;flex-shrink:0}
   #mic-btn{width:36px;height:36px;font-size:18px}
@@ -448,6 +453,7 @@ body.light #toast{background:rgba(15,23,42,.9)}
   </div>
 </div>
 
+<div id="sidebar-overlay" onclick="hideSidebar()"></div>
 <div id="app">
 
 <!-- SIDEBAR -->
@@ -490,7 +496,7 @@ body.light #toast{background:rgba(15,23,42,.9)}
   </div>
 
   <div id="chat-hdr">
-    <button id="back-btn" onclick="showSidebar()">←</button>
+    <button id="back-btn" onclick="hideSidebar()">←</button>
     <div id="hdr-av"></div>
     <div style="flex:1;min-width:0">
       <div id="hdr-name" style="cursor:pointer" onclick="onHdrNameClick()" title="Нажмите для профиля / переименования">—</div>
@@ -722,9 +728,8 @@ body.light #toast{background:rgba(15,23,42,.9)}
         <div style="position:absolute;bottom:-2px;right:-2px;width:18px;height:18px;border-radius:50%;background:var(--accent);color:#fff;font-size:10px;display:flex;align-items:center;justify-content:center;border:2px solid var(--bg3)">📷</div>
         <input type="file" accept="image/*" style="display:none" onchange="uploadAv(this)"/>
       </label>
-      <div style="flex:1"><label>Ваше имя</label><input class="finput" id="sett-name-in" type="text" maxlength="24" style="margin-top:5px"/></div>
+      <div style="flex:1"><label>Отображаемое имя (можно изменить)</label><input class="finput" id="sett-name-in" type="text" maxlength="24" style="margin-top:5px"/></div>
     </div>
-    <div class="field"><label>Ваше имя / никнейм</label><input class="finput" id="sett-name-in" type="text" maxlength="24"/></div>
     <div class="field"><label>Телефон (необязательно, видят собеседники)</label><input class="finput" id="sett-phone-in" type="tel" maxlength="20" placeholder="+7..."/><div class="fhint">Это имя видят все собеседники. Используйте вместо телефона.</div></div>
     <div class="field"><label>Ваш ID — поделитесь с друзьями</label><div class="fmono" id="sett-id-el" onclick="copyMyId()" style="cursor:pointer">...</div><div class="fhint">Нажмите чтобы скопировать и отправить другу — он добавит вас по этому ID</div></div>
     <div class="field"><label>Сервер</label><div class="fhint" id="sett-srv-el">—</div></div>
@@ -1747,7 +1752,7 @@ function openChat(chatKey){
   document.getElementById('chat-bg').style.display='block';
   document.getElementById('input-bar').classList.add('on');
   // Hide sidebar only on mobile
-  if(window.innerWidth <= 768) document.getElementById('sidebar').classList.add('hidden');
+  if(window.innerWidth <= 768) hideSidebar();
   document.getElementById('msg-in').disabled=false;
   renderMsgs(); refreshHdr(); renderList();
   document.getElementById('msg-in').focus();
@@ -2064,7 +2069,14 @@ function resetAll(){
 // =============================================
 // UTILS
 // =============================================
-function showSidebar(){document.getElementById('sidebar').classList.remove('hidden');}
+function showSidebar(){
+  document.getElementById('sidebar').classList.remove('hidden');
+  if(window.innerWidth<=768) document.getElementById('sidebar-overlay').classList.add('on');
+}
+function hideSidebar(){
+  document.getElementById('sidebar').classList.add('hidden');
+  document.getElementById('sidebar-overlay').classList.remove('on');
+}
 function copyMyId(){navigator.clipboard.writeText(myId).then(function(){toast('ID скопирован ✓');}).catch(function(){toast('Скопируйте вручную');});}
 function openModal(id){document.getElementById(id).classList.add('on');}
 function closeModal(id){document.getElementById(id).classList.remove('on');}
@@ -2098,11 +2110,24 @@ document.getElementById('msg-in').addEventListener('input',function(){
   onTyping();
 });
 
-// Swipe to go back
+// Swipe gestures
 (function(){
-  var sx=0,sy=0;
-  document.addEventListener('touchstart',function(e){sx=e.touches[0].clientX;sy=e.touches[0].clientY;},{passive:true});
-  document.addEventListener('touchend',function(e){var dx=e.changedTouches[0].clientX-sx,dy=Math.abs(e.changedTouches[0].clientY-sy);if(sx<30&&dx>60&&dy<80)showSidebar();},{passive:true});
+  var sx=0, sy=0, sidebarOpen=false;
+  document.addEventListener('touchstart',function(e){
+    sx=e.touches[0].clientX; sy=e.touches[0].clientY;
+  },{passive:true});
+  document.addEventListener('touchend',function(e){
+    var dx=e.changedTouches[0].clientX-sx;
+    var dy=Math.abs(e.changedTouches[0].clientY-sy);
+    if(dy>60) return; // vertical scroll - ignore
+    // Swipe right from left edge → show sidebar
+    if(sx<40 && dx>60) { showSidebar(); return; }
+    // Swipe left anywhere when sidebar open → hide sidebar
+    var sb=document.getElementById('sidebar');
+    if(!sb.classList.contains('hidden') && dx < -60 && window.innerWidth<=768){
+      hideSidebar();
+    }
+  },{passive:true});
 })();
 
 // Update title with unread
