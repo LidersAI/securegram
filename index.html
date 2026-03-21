@@ -549,6 +549,58 @@ body.light #toast{background:rgba(15,23,42,.9)}
 </div>
 </div>
 
+<!-- AUTH MODAL -->
+<div class="ov" id="auth-modal">
+  <div class="modal" style="max-width:340px">
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="font-size:40px;margin-bottom:8px">💬</div>
+      <div style="font-size:20px;font-weight:800;letter-spacing:-.4px">LIDERS CHAT</div>
+      <div style="font-size:13px;color:var(--text3);margin-top:4px">Защищённый P2P мессенджер</div>
+    </div>
+
+    <!-- Tabs -->
+    <div style="display:flex;gap:0;border-radius:12px;overflow:hidden;border:1px solid var(--border);background:rgba(0,0,0,.2);margin-bottom:18px">
+      <button id="auth-tab-login" onclick="switchAuthTab('login')" style="flex:1;padding:10px;border:none;background:var(--accent);color:#fff;font-size:13px;cursor:pointer;font-weight:700;font-family:var(--font)">Войти</button>
+      <button id="auth-tab-reg" onclick="switchAuthTab('reg')" style="flex:1;padding:10px;border:none;background:transparent;color:var(--text3);font-size:13px;cursor:pointer;font-family:var(--font)">Регистрация</button>
+    </div>
+
+    <!-- Login panel -->
+    <div id="auth-login-panel">
+      <div class="field">
+        <label>Имя пользователя</label>
+        <input class="finput" id="auth-login-name" type="text" placeholder="johnliders" autocomplete="username" autocapitalize="none"/>
+      </div>
+      <div class="field">
+        <label>Пароль</label>
+        <input class="finput" id="auth-login-pass" type="password" placeholder="••••••••" autocomplete="current-password"/>
+      </div>
+      <div id="auth-login-err" style="display:none;color:#f87171;font-size:12px;margin-bottom:10px;padding:8px 12px;background:rgba(239,68,68,.1);border-radius:8px"></div>
+      <button onclick="doLogin()" style="width:100%;padding:12px;border-radius:12px;border:none;background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:12px">Войти →</button>
+      <button onclick="doGuest()" style="width:100%;padding:10px;border-radius:12px;border:1px solid var(--border);background:transparent;color:var(--text3);font-size:13px;cursor:pointer">Войти анонимно (без аккаунта)</button>
+    </div>
+
+    <!-- Register panel -->
+    <div id="auth-reg-panel" style="display:none">
+      <div class="field">
+        <label>Придумайте имя (никнейм)</label>
+        <input class="finput" id="auth-reg-name" type="text" placeholder="johnliders" maxlength="32" autocapitalize="none" oninput="checkUsernameAvail(this.value)"/>
+        <div id="auth-reg-name-hint" class="fhint">Только буквы, цифры, _ · Именно это будут вводить чтобы найти вас</div>
+      </div>
+      <div class="field">
+        <label>Пароль</label>
+        <input class="finput" id="auth-reg-pass" type="password" placeholder="минимум 4 символа" autocomplete="new-password"/>
+      </div>
+      <div class="field">
+        <label>Повторите пароль</label>
+        <input class="finput" id="auth-reg-pass2" type="password" placeholder="••••••••" autocomplete="new-password"/>
+      </div>
+      <div id="auth-reg-err" style="display:none;color:#f87171;font-size:12px;margin-bottom:10px;padding:8px 12px;background:rgba(239,68,68,.1);border-radius:8px"></div>
+      <button onclick="doRegister()" style="width:100%;padding:12px;border-radius:12px;border:none;background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:12px">Создать аккаунт</button>
+      <button onclick="doGuest()" style="width:100%;padding:10px;border-radius:12px;border:1px solid var(--border);background:transparent;color:var(--text3);font-size:13px;cursor:pointer">Войти анонимно</button>
+    </div>
+  </div>
+</div>
+
 <!-- ONBOARDING -->
 <div class="ov" id="ob-modal">
   <div class="modal" style="text-align:center">
