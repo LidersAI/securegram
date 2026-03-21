@@ -1457,6 +1457,23 @@ async function handleData(from, raw){
     renderList();
   }
 
+  if(msg.type === 'PINNED_DM'){
+    if(!c.key) return;
+    Cry.dec(c.key, msg.cipher).then(function(plain){
+      var data=JSON.parse(plain);
+      updDB(function(db){
+        if(!db.dms) db.dms={};
+        if(!db.dms[from]) db.dms[from]={messages:[]};
+        if(data.msgId) db.dms[from].pinned={id:data.msgId,text:data.text,name:data.name};
+        else delete db.dms[from].pinned;
+      });
+      if(active==='dm:'+from){
+        if(data.msgId) showPinnedBar(data.text, data.msgId);
+        else{ document.getElementById('pinned-bar').classList.remove('on'); pinnedMsgId=null; }
+      }
+    }).catch(function(){});
+  }
+
   if(msg.type === 'PINNED'){
     updDB(function(db){ if(db.rooms&&db.rooms[msg.roomId]){ if(msg.msgId) db.rooms[msg.roomId].pinned={id:msg.msgId,text:msg.text,name:msg.name}; else delete db.rooms[msg.roomId].pinned; } });
     if(active==='room:'+msg.roomId){ if(msg.msgId) showPinnedBar(msg.text||'Сообщение',msg.msgId); else{ document.getElementById('pinned-bar').classList.remove('on'); pinnedMsgId=null; } }
@@ -1766,7 +1783,7 @@ function showCtxMenu(m,msgEl,x,y){
   var items=[{ico:'😊',txt:'Реакция',fn:function(){showEpPopup(m,msgEl);}},{ico:'↩️',txt:'Ответить',fn:function(){startReply(m);}},{ico:'📋',txt:'Копировать',fn:function(){navigator.clipboard.writeText(m.text||'');toast('Скопировано');}}];
   if(isMe&&(m.text||'').length>0) items.push({ico:'✏️',txt:'Редактировать',fn:function(){startEdit(m,msgEl);}});
   items.push({ico:'📤',txt:'Переслать',fn:function(){forwardMsg(m);}});
-  if(active&&active.startsWith('room:')) items.push({ico:'📌',txt:'Закрепить',fn:function(){pinMessage(m);}});
+  items.push({ico:'📌',txt:'Закрепить',fn:function(){pinMessage(m);}});
   if(isMe) items.push({ico:'🗑',txt:'Удалить у всех',red:true,fn:function(){delMsg(m,msgEl,true);}});
   items.push({ico:'🗑',txt:'Удалить у себя',red:true,fn:function(){delMsg(m,msgEl,false);}});
   items.forEach(function(item){
@@ -2636,21 +2653,46 @@ function checkFirstRun(){
 var pinnedMsgId = null;
 
 function pinMessage(m){
-  if(!active||!active.startsWith('room:')) return;
-  var roomId=active.slice(5);
-  updDB(function(db){ if(db.rooms&&db.rooms[roomId]) db.rooms[roomId].pinned={id:m.id,text:m.text||'📎 Вложение',name:m.name}; });
-  showPinnedBar(m.text||'📎 Вложение', m.id);
-  bcastRoom(roomId, null, {type:'PINNED',roomId:roomId,msgId:m.id,text:m.text||'📎 Вложение',name:m.name});
-  toast('Сообщение закреплено');
+  if(!active) return;
+  var isRoom=active.startsWith('room:');
+  var text=m.text||(m.photo?'📷 Фото':m.audio?'🎤 Голосовое':m.file?'📎 '+m.file.name:'Вложение');
+
+  if(isRoom){
+    var roomId=active.slice(5);
+    updDB(function(db){ if(db.rooms&&db.rooms[roomId]) db.rooms[roomId].pinned={id:m.id,text:text,name:m.name}; });
+    bcastRoom(roomId, null, {type:'PINNED',roomId:roomId,msgId:m.id,text:text,name:m.name});
+  } else {
+    var pid=active.slice(3);
+    updDB(function(db){
+      if(!db.dms) db.dms={};
+      if(!db.dms[pid]) db.dms[pid]={messages:[]};
+      db.dms[pid].pinned={id:m.id,text:text,name:m.name};
+    });
+    // Notify other side
+    var c=conns[pid]; if(c&&c.online&&c.key){
+      Cry.enc(c.key,JSON.stringify({type:'PINNED_DM',msgId:m.id,text:text,name:m.name,from:myId}))
+        .then(function(cipher){rawSend(c.conn,{type:'PINNED_DM',cipher:cipher});})
+        .catch(function(){});
+    }
+  }
+
+  showPinnedBar(text, m.id);
+  toast('Сообщение закреплено 📌');
 }
 
 function unpinMsg(){
-  if(!active||!active.startsWith('room:')) return;
-  var roomId=active.slice(5);
-  updDB(function(db){ if(db.rooms&&db.rooms[roomId]) delete db.rooms[roomId].pinned; });
+  if(!active) return;
+  if(active.startsWith('room:')){
+    var roomId=active.slice(5);
+    updDB(function(db){ if(db.rooms&&db.rooms[roomId]) delete db.rooms[roomId].pinned; });
+    bcastRoom(roomId, null, {type:'PINNED',roomId:roomId,msgId:null});
+  } else {
+    var pid=active.slice(3);
+    updDB(function(db){ if(db.dms&&db.dms[pid]) delete db.dms[pid].pinned; });
+  }
   document.getElementById('pinned-bar').classList.remove('on');
   pinnedMsgId=null;
-  bcastRoom(roomId, null, {type:'PINNED',roomId:roomId,msgId:null});
+  toast('Откреплено');
 }
 
 function showPinnedBar(text, msgId){
@@ -2666,10 +2708,17 @@ function scrollToPinned(){
 }
 
 function loadPinnedBar(){
-  if(!active||!active.startsWith('room:')) return;
-  var room=(getDB().rooms||{})[active.slice(5)];
-  if(room&&room.pinned){
-    showPinnedBar(room.pinned.text, room.pinned.id);
+  if(!active) return;
+  var pinned = null;
+  if(active.startsWith('room:')){
+    var room=(getDB().rooms||{})[active.slice(5)];
+    pinned = room&&room.pinned;
+  } else {
+    var dm=(getDB().dms||{})[active.slice(3)];
+    pinned = dm&&dm.pinned;
+  }
+  if(pinned){
+    showPinnedBar(pinned.text, pinned.id);
   } else {
     document.getElementById('pinned-bar').classList.remove('on');
     pinnedMsgId=null;
