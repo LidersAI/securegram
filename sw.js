@@ -1,5 +1,5 @@
-// LIDERS CHAT Service Worker v4
-const CACHE = 'liders-v4';
+// LIDERS CHAT Service Worker v5
+const CACHE = 'liders-v5';
 const STATIC = [
   '/icon-192.png',
   '/icon-512.png',
@@ -25,7 +25,7 @@ self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   if (url.origin !== location.origin) return;
 
-  // HTML always fresh — never cache
+  // HTML — always from network, never cache
   if (e.request.headers.get('accept')?.includes('text/html')) {
     e.respondWith(
       fetch(e.request, { cache: 'no-store' })
@@ -34,7 +34,7 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // Icons and manifest — cache first
+  // Icons/manifest — cache first
   e.respondWith(
     caches.match(e.request).then(cached => {
       if (cached) return cached;
