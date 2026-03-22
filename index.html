@@ -114,6 +114,13 @@ body{height:100%;overflow:hidden;padding-top:env(safe-area-inset-top)}
 .ci-dot.on{display:block}
 .ci-dot.busy{background:#ef4444!important}
 /* Side tabs */
+/* Drag & Drop */
+.ci.dragging{opacity:.4;background:var(--hover)!important}
+.ci.drag-over{border-top:2px solid var(--accent);margin-top:-2px}
+.ci[draggable]{cursor:grab}
+.ci[draggable]:active{cursor:grabbing}
+.drag-handle{color:var(--text3);font-size:14px;cursor:grab;padding:0 4px;flex-shrink:0;opacity:0;transition:opacity .15s}
+.ci:hover .drag-handle{opacity:1}
 #side-tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0}
 .side-tab{flex:1;padding:8px 4px;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--text3);font-size:12px;cursor:pointer;font-family:var(--font);margin-bottom:-1px;transition:all .15s;-webkit-appearance:none;appearance:none;text-align:center;user-select:none;-webkit-user-select:none}
 .side-tab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
@@ -217,6 +224,8 @@ body{height:100%;overflow:hidden;padding-top:env(safe-area-inset-top)}
 /* Reply */
 #reply-bar{display:none;padding:8px 14px;background:rgba(59,130,246,.06);border-top:2px solid var(--accent);align-items:center;gap:10px}
 #reply-bar.on{display:flex}
+.msg-caption{margin-top:6px;font-size:14px;line-height:1.5;word-break:break-word}
+.msg-caption a{color:var(--accent2)}
 .bub-reply{background:rgba(255,255,255,.07);border-left:3px solid var(--accent2);border-radius:8px;padding:5px 9px;margin-bottom:6px;cursor:pointer}
 .bub-reply-name{font-size:11px;color:var(--accent2);font-weight:700}
 .bub-reply-text{font-size:12px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -618,10 +627,10 @@ body.light #toast{background:rgba(15,23,42,.9)}
   </div>
   <div id="input-bar">
     <label class="attach-btn" title="Фото">
-      📎<input type="file" accept="image/*" style="display:none" onchange="sendPhoto(this)"/>
+      📎<input type="file" accept="image/*" style="display:none" onchange="sendPhotoWithCaption(this)"/>
     </label>
     <label class="attach-btn" title="Файл">
-      📄<input type="file" id="file-input" style="display:none" onchange="sendFile(this)"/>
+      📄<input type="file" id="file-input" style="display:none" onchange="sendFileWithCaption(this)"/>
     </label>
     <button id="mic-btn" title="Голосовое"
       onmousedown="startRec(event)" onmouseup="stopRec(event)"
@@ -1819,7 +1828,7 @@ function appendMsg(m, scroll){
     var contentHtml = m.audio ? makeVoiceBubble(m)
       : m.file ? '<div class="file-row"><div class="file-ico">📄</div><div class="file-info"><div class="file-name">'+esc(m.file.name)+'</div><div class="file-size">'+fmtBytes(m.file.size)+'</div></div><button class="file-dl" onclick="window._dlFile(this)" data-name="'+encodeURIComponent(m.file.name)+'" title="Скачать">⬇</button></div>'
       : m.photo ? '<img class="msg-img" src="'+m.photo+'" onclick="viewImg(this.src)" loading="lazy"/>'
-      : '<div class="msg-text">'+esc(m.text)+'</div>';
+      : '<div class="msg-text">'+renderText(m.text)+'</div>';
 
     el.innerHTML = '<div class="bw">'
       +(!isMe ? avHtml : '')
@@ -2080,6 +2089,20 @@ function renderList(){
       list.appendChild(nHdr);
     }
   }
+  // Apply custom order if exists
+  var db2=getDB(); var order=db2.chatOrder||[];
+  if(order.length){
+    normalItems.sort(function(a,b){
+      var ai=order.indexOf(a.key), bi=order.indexOf(b.key);
+      if(ai<0) ai=9999; if(bi<0) bi=9999;
+      return ai-bi;
+    });
+    pinnedItems.sort(function(a,b){
+      var ai=order.indexOf(a.key), bi=order.indexOf(b.key);
+      if(ai<0) ai=9999; if(bi<0) bi=9999;
+      return ai-bi;
+    });
+  }
   normalItems.forEach(function(item){ list.appendChild(renderItem(item)); });
 
   if(!pinnedItems.length&&!normalItems.length){
@@ -2292,7 +2315,28 @@ function openModal(id){document.getElementById(id).classList.add('on');}
 function closeModal(id){document.getElementById(id).classList.remove('on');}
 document.querySelectorAll('.ov').forEach(function(el){el.addEventListener('click',function(e){if(e.target===el)el.classList.remove('on');});});
 function rawSend(conn,obj){try{conn.send(JSON.stringify(obj));}catch(e){console.error(e);}}
-function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');}
+function esc(s){
+  return String(s||'')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+// Rich text renderer for message content
+function renderText(s){
+  if(!s) return '';
+  var t = String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  // Links: https://... or http://...
+  t = t.replace(/(https?:\/\/[^\s<>"]+)/g,
+    '<a href="$1" target="_blank" rel="noopener noreferrer" style="color:var(--accent2);text-decoration:underline;word-break:break-all">$1</a>');
+  // Bold: **text**
+  t = t.replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>');
+  // Italic: _text_
+  t = t.replace(/(?<![\w])_([^_]+)_(?![\w])/g,'<i>$1</i>');
+  // Monospace: `code`
+  t = t.replace(/`([^`]+)`/g,'<code style="background:rgba(255,255,255,.1);padding:1px 5px;border-radius:4px;font-family:var(--font-mono);font-size:.9em">$1</code>');
+  // Newlines
+  t = t.replace(/\n/g,'<br>');
+  return t;
+}
 function showBanner(t){
   var b=document.getElementById('banner');
   b.textContent=t;
@@ -4256,6 +4300,207 @@ function toggleComments(msgId){
 function submitComment(msgId, inputEl){
   addComment(msgId, inputEl.value);
   inputEl.value='';
+}
+
+
+// ── Drag & Drop chat reorder ─────────────
+var dragKey = null;
+
+function initDragDrop(){
+  var list = document.getElementById('chat-list');
+  list.addEventListener('dragstart', function(e){
+    var ci = e.target.closest('.ci');
+    if(!ci) return;
+    dragKey = ci.dataset.key;
+    ci.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+  });
+  list.addEventListener('dragend', function(e){
+    var ci = e.target.closest('.ci');
+    if(ci) ci.classList.remove('dragging');
+    document.querySelectorAll('.ci.drag-over').forEach(function(el){ el.classList.remove('drag-over'); });
+    dragKey = null;
+  });
+  list.addEventListener('dragover', function(e){
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    var ci = e.target.closest('.ci');
+    document.querySelectorAll('.ci.drag-over').forEach(function(el){ el.classList.remove('drag-over'); });
+    if(ci && ci.dataset.key !== dragKey) ci.classList.add('drag-over');
+  });
+  list.addEventListener('drop', function(e){
+    e.preventDefault();
+    var ci = e.target.closest('.ci');
+    if(!ci || !dragKey || ci.dataset.key === dragKey) return;
+    ci.classList.remove('drag-over');
+    reorderChat(dragKey, ci.dataset.key);
+  });
+
+  // Touch drag for mobile
+  var touchDragEl = null, touchClone = null, touchOffX = 0, touchOffY = 0;
+  list.addEventListener('touchstart', function(e){
+    var handle = e.target.closest('.drag-handle');
+    if(!handle) return;
+    var ci = handle.closest('.ci');
+    if(!ci) return;
+    touchDragEl = ci;
+    dragKey = ci.dataset.key;
+    var rect = ci.getBoundingClientRect();
+    touchOffX = e.touches[0].clientX - rect.left;
+    touchOffY = e.touches[0].clientY - rect.top;
+    // Create floating clone
+    touchClone = ci.cloneNode(true);
+    touchClone.style.cssText = 'position:fixed;width:'+rect.width+'px;opacity:.85;pointer-events:none;z-index:999;border-radius:12px;background:var(--bg3);box-shadow:0 8px 24px rgba(0,0,0,.5)';
+    touchClone.style.left = (e.touches[0].clientX - touchOffX) + 'px';
+    touchClone.style.top = (e.touches[0].clientY - touchOffY) + 'px';
+    document.body.appendChild(touchClone);
+    ci.style.opacity = '.3';
+  }, {passive:true});
+
+  list.addEventListener('touchmove', function(e){
+    if(!touchDragEl) return;
+    e.preventDefault();
+    var x = e.touches[0].clientX, y = e.touches[0].clientY;
+    if(touchClone){
+      touchClone.style.left = (x - touchOffX) + 'px';
+      touchClone.style.top = (y - touchOffY) + 'px';
+    }
+    // Find element under touch
+    document.querySelectorAll('.ci.drag-over').forEach(function(el){ el.classList.remove('drag-over'); });
+    touchClone && (touchClone.style.display='none');
+    var el = document.elementFromPoint(x, y);
+    touchClone && (touchClone.style.display='');
+    var target = el && el.closest('.ci');
+    if(target && target !== touchDragEl) target.classList.add('drag-over');
+  }, {passive:false});
+
+  list.addEventListener('touchend', function(e){
+    if(!touchDragEl) return;
+    if(touchClone){ touchClone.remove(); touchClone=null; }
+    touchDragEl.style.opacity = '';
+    document.querySelectorAll('.ci.drag-over').forEach(function(el){
+      el.classList.remove('drag-over');
+      if(dragKey && el.dataset.key !== dragKey) reorderChat(dragKey, el.dataset.key);
+    });
+    touchDragEl = null; dragKey = null;
+  }, {passive:true});
+}
+
+function reorderChat(fromKey, toKey){
+  // Save custom order to DB
+  updDB(function(db){
+    if(!db.chatOrder) db.chatOrder = [];
+    // Build current order if empty
+    if(!db.chatOrder.length){
+      var rooms = Object.keys(db.rooms||{}).map(function(id){ return 'room:'+id; });
+      var dms = Object.keys(db.dms||{}).map(function(pid){ return 'dm:'+pid; });
+      db.chatOrder = rooms.concat(dms);
+    }
+    // Remove fromKey and insert before toKey
+    var order = db.chatOrder.filter(function(k){ return k !== fromKey; });
+    var toIdx = order.indexOf(toKey);
+    if(toIdx >= 0) order.splice(toIdx, 0, fromKey);
+    else order.push(fromKey);
+    db.chatOrder = order;
+  });
+  renderList();
+}
+
+
+// ── Photo/File with caption ───────────────
+var pendingMedia = null; // {type:'photo'/'file', data, file}
+
+function sendPhotoWithCaption(input){
+  var file = input.files[0]; input.value='';
+  if(!file||!active) return;
+  compressImg(file, 600, 0.75).then(function(compressed){
+    if(compressed.length > 800000){ toast('Фото слишком большое'); return; }
+    // If input has text - send together, else send immediately
+    var caption = document.getElementById('msg-in').value.trim();
+    if(caption){
+      // Send with existing caption
+      document.getElementById('msg-in').value='';
+      doSendPhoto(compressed, caption);
+    } else {
+      // Store pending, show hint
+      pendingMedia = {type:'photo', data:compressed};
+      var inp = document.getElementById('msg-in');
+      inp.placeholder = '📷 Подпись к фото (необязательно)... или нажми ➤';
+      inp.focus();
+      // Override send to include photo
+      document.getElementById('send-btn').onclick = function(){
+        var cap = inp.value.trim();
+        inp.value=''; inp.placeholder='Написать...';
+        document.getElementById('send-btn').onclick = sendMsg;
+        doSendPhoto(pendingMedia.data, cap);
+        pendingMedia = null;
+      };
+    }
+  });
+}
+
+async function doSendPhoto(compressed, caption){
+  var msgId=myId.slice(0,6)+'-'+Date.now()+'-'+Math.random().toString(36).slice(2,5);
+  var now=ts(), day=dateStr();
+  var isRoom=active.startsWith('room:'); var roomId=isRoom?active.slice(5):null;
+  var payload={from:myId,name:myName,photo:compressed,text:caption||'',ts:now,date:day,roomId:roomId};
+  seen.add(msgId);
+  var m={id:msgId,from:myId,name:myName,photo:compressed,text:caption||'',ts:now,date:day};
+  saveMsg(active,m); appendMsg(m,true); renderList();
+  var db=getDB();
+  for(var pid in conns){
+    var c=conns[pid]; if(!c.online||!c.key) continue;
+    if(isRoom&&!(db.rooms&&db.rooms[roomId]&&db.rooms[roomId].members&&db.rooms[roomId].members[pid])) continue;
+    if(!isRoom&&active.slice(3)!==pid) continue;
+    try{ var cipher=await Cry.enc(c.key,JSON.stringify(payload)); rawSend(c.conn,{type:'MSG',id:msgId,cipher:cipher,hops:0}); }catch(e){}
+  }
+}
+
+function sendFileWithCaption(input){
+  var file = input.files[0]; input.value='';
+  if(!file||!active) return;
+  if(file.size>10*1024*1024){ toast('Файл слишком большой (макс 10MB)'); return; }
+  var reader = new FileReader();
+  reader.onload = function(){
+    var b64 = reader.result;
+    var caption = document.getElementById('msg-in').value.trim();
+    if(caption){
+      document.getElementById('msg-in').value='';
+      doSendFile(file, b64, caption);
+    } else {
+      pendingMedia = {type:'file', file:file, data:b64};
+      var inp = document.getElementById('msg-in');
+      inp.placeholder = '📎 Подпись к файлу (необязательно)... или нажми ➤';
+      inp.focus();
+      document.getElementById('send-btn').onclick = function(){
+        var cap = inp.value.trim();
+        inp.value=''; inp.placeholder='Написать...';
+        document.getElementById('send-btn').onclick = sendMsg;
+        doSendFile(pendingMedia.file, pendingMedia.data, cap);
+        pendingMedia = null;
+      };
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+async function doSendFile(file, b64, caption){
+  var msgId=myId.slice(0,6)+'-'+Date.now()+'-'+Math.random().toString(36).slice(2,5);
+  var now=ts(), day=dateStr();
+  var isRoom=active.startsWith('room:'); var roomId=isRoom?active.slice(5):null;
+  var finfo={name:file.name,size:file.size,type:file.type,data:b64};
+  var payload={from:myId,name:myName,file:finfo,text:caption||'',ts:now,date:day,roomId:roomId};
+  seen.add(msgId);
+  var m={id:msgId,from:myId,name:myName,file:finfo,text:caption||'',ts:now,date:day};
+  saveMsg(active,m); appendMsg(m,true); renderList();
+  var db=getDB();
+  for(var pid in conns){
+    var c=conns[pid]; if(!c.online||!c.key) continue;
+    if(isRoom&&!(db.rooms&&db.rooms[roomId]&&db.rooms[roomId].members&&db.rooms[roomId].members[pid])) continue;
+    if(!isRoom&&active.slice(3)!==pid) continue;
+    try{ var cipher=await Cry.enc(c.key,JSON.stringify(payload)); rawSend(c.conn,{type:'MSG',id:msgId,cipher:cipher,hops:0}); }catch(e){}
+  }
+  toast('Файл отправлен');
 }
 
 
