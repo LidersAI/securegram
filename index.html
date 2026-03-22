@@ -992,6 +992,10 @@ try{ unread=JSON.parse(localStorage.getItem('sg_unread')||'{}'); }catch(e){}
 
 function saveUnread(){
   try{ localStorage.setItem('sg_unread',JSON.stringify(unread)); }catch(e){}
+  // Update badge
+  var total=Object.values(unread).reduce(function(a,b){return a+b;},0);
+  updateBadge(total);
+  if(total>0) document.title='('+total+') LIDERS CHAT';
 }
 var selEp='👨‍👩‍👧‍👦';
 var pendJoin=null;
@@ -1185,6 +1189,7 @@ function createPC(peerId) {
       c._reconnectAttempts = 0;
       renderList(); refreshHdr();
     } else if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+      c.lastKey = c.key; // Save for relay
       c.online = false; c.key = null; c.sent = false;
       c.lastSeen = Date.now();
       renderList(); refreshHdr();
@@ -1503,6 +1508,7 @@ async function handleData(from, raw){
     if(msg.status) c.status=msg.status;
     var theirPub = await Cry.impPub(msg.pub);
     c.key = await Cry.derive(kp.privateKey, theirPub);
+    c.lastKey = c.key; // Always keep last known key for relay
 
     if(!c.sent){
       c.sent=true;
@@ -1837,19 +1843,26 @@ async function sendMsg(){
   // Relay for offline peers
   if(!isRoom){
     var dmPeer=active.slice(3), dmConn=conns[dmPeer];
-    if(!delivered[dmPeer] && dmConn && dmConn.key){
-      Cry.enc(dmConn.key, JSON.stringify(payload)).then(function(oc){
+    // Store relay if peer offline - use lastKey (from previous session)
+    var relayKey = dmConn && (dmConn.key || dmConn.lastKey);
+    if(!delivered[dmPeer] && relayKey){
+      Cry.enc(relayKey, JSON.stringify(payload)).then(function(oc){
         relayStore(dmPeer, {id:msgId, cipher:oc, from:myId});
+        console.log('[relay] stored msg for offline peer', dmPeer);
       }).catch(function(){});
+    } else if(!delivered[dmPeer]) {
+      console.log('[relay] no key for', dmPeer, '- cannot store relay');
     }
   } else if(db.rooms&&db.rooms[roomId]){
     Object.keys(db.rooms[roomId].members||{}).forEach(function(rPid){
       if(rPid===myId||delivered[rPid]) return;
       var rc=conns[rPid];
-      if(rc&&rc.key){
-        // Has key — encrypt and store relay immediately
-        Cry.enc(rc.key, JSON.stringify(payload)).then(function(rc2){
+      var rKey = rc && (rc.key || rc.lastKey);
+      if(rKey){
+        // Has key or lastKey — encrypt and store relay
+        Cry.enc(rKey, JSON.stringify(payload)).then(function(rc2){
           relayStore(rPid, {id:msgId, cipher:rc2, from:myId, roomId:roomId});
+          console.log('[relay] stored room msg for', rPid);
         }).catch(function(){});
       } else {
         // No key yet — connect to get key, then store relay
@@ -3556,8 +3569,16 @@ async function processRelayMsg(m, c) {
       photo: data.photo, audio: data.audio, audioDur: data.audioDur,
       file: data.file, replyTo: data.replyTo, ts: data.ts, date: data.date };
     saveMsg(chatKey, msg);
-    if (active === chatKey) appendMsg(msg, true);
-    else { unread[chatKey] = (unread[chatKey]||0) + 1; }
+    if (active === chatKey) {
+      appendMsg(msg, true);
+    } else {
+      unread[chatKey] = (unread[chatKey]||0) + 1;
+      saveUnread();
+      playBeep();
+      var total=Object.values(unread).reduce(function(a,b){return a+b;},0);
+      updateBadge(total);
+      document.title='('+total+') LIDERS CHAT';
+    }
     renderList();
   } catch(e) { console.warn('[relay] decrypt failed', e); }
 }
