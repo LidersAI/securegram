@@ -982,6 +982,11 @@ var active=null;
 var seen=new Set();
 var typT={};
 var unread={};
+try{ unread=JSON.parse(localStorage.getItem('sg_unread')||'{}'); }catch(e){}
+
+function saveUnread(){
+  try{ localStorage.setItem('sg_unread',JSON.stringify(unread)); }catch(e){}
+}
 var selEp='👨‍👩‍👧‍👦';
 var pendJoin=null;
 
@@ -1066,6 +1071,10 @@ async function connectSignal(savedId) {
     pollLoop();
 
     setTimeout(relayFetch, 1000);
+    // Retry relay fetch several times after connect (messages may arrive with delay)
+    setTimeout(relayFetch, 5000);
+    setTimeout(relayFetch, 15000);
+    setTimeout(relayFetch, 30000);
     startHeartbeat();
     checkInvite();
     renderList();
@@ -1494,12 +1503,29 @@ async function handleData(from, raw){
     }
 
     sysMsg('dm:'+from, '🔒 Зашифровано · E2E');
+    // If we have relay queue that we couldn't decrypt - ask sender to resend
+    if(c._relayQueue && c._relayQueue.length > 0 && c.key){
+      console.log('[relay] have', c._relayQueue.length, 'undecryptable msgs - requesting resend');
+      rawSend(c.conn, {type:'RELAY_RESEND_REQ', count: c._relayQueue.length});
+      c._relayQueue = []; // clear old undecryptable msgs
+    }
     // Only auto-open chat if this peer is in our DMs (explicitly added)
     if(!active){
       var db2=getDB(); if(db2.dms&&db2.dms[from]) openChat('dm:'+from);
     }
     // Process any queued relay messages for this peer
     processRelayQueue(from);
+    // Send pending relay messages for rooms
+    if(c._pendingRelay && c._pendingRelay.length && c.key){
+      var pending = c._pendingRelay; c._pendingRelay = [];
+      pending.forEach(function(item){
+        Cry.enc(c.key, JSON.stringify(item.payload)).then(function(cipher){
+          relayStore(from, {id:item.msgId, cipher:cipher, from:myId, roomId:item.roomId});
+        }).catch(function(){});
+      });
+    }
+    // Re-fetch relay after key exchange - might have new messages now
+    setTimeout(relayFetch, 500);
     renderList(); refreshHdr();
   }
 
@@ -1544,6 +1570,7 @@ async function handleData(from, raw){
       if(active===chatKey){ appendMsg(m, true); }
       else{
         unread[chatKey]=(unread[chatKey]||0)+1;
+        saveUnread();
         playBeep();
         var total=Object.values(unread).reduce(function(a,b){return a+b;},0);
         updateBadge(total);
@@ -1567,6 +1594,27 @@ async function handleData(from, raw){
   }
 
   if(msg.type === 'PING'){
+    return;
+  }
+
+  if(msg.type === 'RELAY_RESEND_REQ'){
+    // Peer couldn't decrypt our relay messages - resend last messages
+    if(!c.key) return;
+    var chatKey = 'dm:'+from;
+    var db3 = getDB();
+    var msgs3 = db3.dms && db3.dms[from] && db3.dms[from].messages || [];
+    var lastMsgs = msgs3.filter(function(m){ return m.from === myId && !m.sys; }).slice(-10);
+    console.log('[relay] resending', lastMsgs.length, 'messages to', from);
+    lastMsgs.forEach(async function(m3){
+      if(!m3.text && !m3.photo && !m3.file && !m3.audio) return;
+      var isRoom = false;
+      var payload = {from:myId, name:myName, text:m3.text||'', photo:m3.photo, file:m3.file,
+        audio:m3.audio, audioDur:m3.audioDur, ts:m3.ts, date:m3.date, roomId:null};
+      try{
+        var cipher = await Cry.enc(c.key, JSON.stringify(payload));
+        rawSend(c.conn, {type:'MSG', id:m3.id, cipher:cipher, hops:0});
+      }catch(e){}
+    });
     return;
   }
 
@@ -1731,6 +1779,7 @@ async function sendMsg(){
     if(room&&room.isChannel&&!room.isHost){ toast('Только администратор канала может публиковать'); return; }
   }
   input.value=''; input.style.height='auto';
+  clearDraft(active);
   var replyRef = replyTo ? {id:replyTo.id, name:replyTo.name, text:(replyTo.text||'').slice(0,80)} : null;
   cancelReply();
 
@@ -1769,10 +1818,24 @@ async function sendMsg(){
   } else if(db.rooms&&db.rooms[roomId]){
     Object.keys(db.rooms[roomId].members||{}).forEach(function(rPid){
       if(rPid===myId||delivered[rPid]) return;
-      var rc=conns[rPid]; if(!rc||!rc.key) return;
-      Cry.enc(rc.key, JSON.stringify(payload)).then(function(rc2){
-        relayStore(rPid, {id:msgId, cipher:rc2, from:myId, roomId:roomId});
-      }).catch(function(){});
+      var rc=conns[rPid];
+      if(rc&&rc.key){
+        // Has key — encrypt and store relay immediately
+        Cry.enc(rc.key, JSON.stringify(payload)).then(function(rc2){
+          relayStore(rPid, {id:msgId, cipher:rc2, from:myId, roomId:roomId});
+        }).catch(function(){});
+      } else {
+        // No key yet — connect to get key, then store relay
+        if(!rc) {
+          conns[rPid] = {pc:null,dc:null,key:null,name:rPid.slice(0,8),color:clr(rPid),online:false,sent:false};
+          rc = conns[rPid];
+        }
+        // Queue this message for relay once key is exchanged
+        if(!rc._pendingRelay) rc._pendingRelay = [];
+        rc._pendingRelay.push({payload:payload, msgId:msgId, roomId:roomId});
+        // Try to connect
+        setupConn(rPid, {initiator:true, mesh:true});
+      }
     });
   }
 }
@@ -2008,6 +2071,7 @@ function hideTyp(pid){var el=document.getElementById('typ-'+pid);if(el)el.remove
 function openChat(chatKey){
   active=chatKey;
   unread[chatKey]=0;
+  saveUnread();
   var total=Object.values(unread).reduce(function(a,b){return a+b;},0);
   updateBadge(total);
   if(total===0) document.title='LIDERS CHAT';
@@ -2019,7 +2083,13 @@ function openChat(chatKey){
   if(window.innerWidth <= 768) hideSidebar();
   document.getElementById('msg-in').disabled=false;
   renderMsgs(); refreshHdr(); renderList();
-  document.getElementById('msg-in').focus();
+  // Load draft
+  var draft = loadDraft(chatKey);
+  var inp = document.getElementById('msg-in');
+  inp.value = draft;
+  inp.style.height = 'auto';
+  if(draft) inp.style.height = Math.min(inp.scrollHeight, 130) + 'px';
+  inp.focus();
   if('Notification'in window&&Notification.permission==='default') Notification.requestPermission();
   // Request badge permission (some platforms need explicit request)
   if('setAppBadge' in navigator) navigator.setAppBadge(0).catch(function(){});
@@ -2095,7 +2165,9 @@ function renderList(){
   Object.values(rooms).forEach(function(r){
     var msgs=(r.messages||[]).filter(function(m){return !m.sys;});
     var last=msgs[msgs.length-1];
-    var preview=last?(last.from===myId?'Вы: ':(last.name||'?')+': ')+(last.text||'📷'):'Группа создана';
+    var draft = drafts['room:'+r.id];
+    var preview = draft ? '✏️ ' + draft.slice(0,40)
+      : last?(last.from===myId?'Вы: ':(last.name||'?')+': ')+(last.text||'📷'):'Группа создана';
     var isPinned=!!pinned['room:'+r.id];
     (isPinned?pinnedItems:normalItems).push({
       key:'room:'+r.id, name:r.name,
@@ -2443,6 +2515,8 @@ document.getElementById('msg-in').addEventListener('input',function(){
   this.style.height='auto';
   this.style.height=Math.min(this.scrollHeight,130)+'px';
   onTyping();
+  // Save draft
+  if(active) saveDraft(active, this.value);
 });
 
 // Swipe gestures
@@ -2745,7 +2819,13 @@ function startReply(m){
   document.getElementById('reply-bar-name').textContent=(m.from===myId?'Вы':m.name)||'?';
   document.getElementById('reply-bar-text').textContent=m.text||'📷 Медиа';
   document.getElementById('reply-bar').classList.add('on');
-  document.getElementById('msg-in').focus();
+  // Load draft
+  var draft = loadDraft(chatKey);
+  var inp = document.getElementById('msg-in');
+  inp.value = draft;
+  inp.style.height = 'auto';
+  if(draft) inp.style.height = Math.min(inp.scrollHeight, 130) + 'px';
+  inp.focus();
 }
 function cancelReply(){
   replyTo=null;
@@ -4631,7 +4711,13 @@ function showMediaPreview(dataOrName, type){
   // Insert before reply-bar or input-bar
   var inputBar = document.getElementById('input-bar');
   inputBar.parentNode.insertBefore(bar, inputBar);
-  document.getElementById('msg-in').focus();
+  // Load draft
+  var draft = loadDraft(chatKey);
+  var inp = document.getElementById('msg-in');
+  inp.value = draft;
+  inp.style.height = 'auto';
+  if(draft) inp.style.height = Math.min(inp.scrollHeight, 130) + 'px';
+  inp.focus();
 }
 
 
@@ -4677,6 +4763,31 @@ document.addEventListener('keydown', function(e){
     triggerPanic();
   }
 });
+
+
+// ── Drafts ───────────────────────────────
+var drafts = {};
+try{ drafts = JSON.parse(localStorage.getItem('sg_drafts')||'{}'); }catch(e){}
+
+function saveDraft(chatKey, text){
+  if(text && text.trim()){
+    drafts[chatKey] = text;
+  } else {
+    delete drafts[chatKey];
+  }
+  try{ localStorage.setItem('sg_drafts', JSON.stringify(drafts)); }catch(e){}
+  // Update chat list to show draft indicator
+  renderList();
+}
+
+function loadDraft(chatKey){
+  return drafts[chatKey] || '';
+}
+
+function clearDraft(chatKey){
+  delete drafts[chatKey];
+  try{ localStorage.setItem('sg_drafts', JSON.stringify(drafts)); }catch(e){}
+}
 
 
 init();
