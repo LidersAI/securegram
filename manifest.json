@@ -1,15 +1,57 @@
 {
   "name": "LIDERS CHAT",
   "short_name": "LIDERS CHAT",
-  "description": "Защищённый P2P мессенджер с E2E шифрованием",
+  "description": "Защищённый P2P мессенджер с E2E шифрованием. Без номера телефона.",
   "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#0d1a2e",
+  "display_override": ["window-controls-overlay", "standalone"],
+  "background_color": "#000000",
   "theme_color": "#0d1a2e",
   "orientation": "portrait-primary",
   "lang": "ru",
-  "categories": ["social", "communication"],
+  "dir": "ltr",
+  "categories": ["social", "communication", "utilities"],
+  "id": "ru.liderschat.app",
+  "iarc_rating_id": "",
+  "shortcuts": [
+    {
+      "name": "Новый чат",
+      "short_name": "Чат",
+      "url": "/?action=new",
+      "description": "Начать новый чат",
+      "icons": [{"src": "icon-96.png", "sizes": "96x96"}]
+    },
+    {
+      "name": "Контакты",
+      "short_name": "Контакты",
+      "url": "/?tab=contacts",
+      "description": "Открыть список контактов",
+      "icons": [{"src": "icon-96.png", "sizes": "96x96"}]
+    }
+  ],
+  "share_target": {
+    "action": "/",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
+  "protocol_handlers": [
+    {
+      "protocol": "web+liderschat",
+      "url": "/?url=%s"
+    }
+  ],
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
+  "launch_handler": {
+    "client_mode": "focus-existing"
+  },
+  "handle_links": "preferred",
   "icons": [
     {"src": "icon-72.png",  "sizes": "72x72",   "type": "image/png"},
     {"src": "icon-96.png",  "sizes": "96x96",   "type": "image/png"},
@@ -21,5 +63,23 @@
     {"src": "icon-256.png", "sizes": "256x256", "type": "image/png"},
     {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
     {"src": "icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
-  ]
+  ],
+  "screenshots": [
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "LIDERS CHAT — Защищённый мессенджер"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "LIDERS CHAT — Десктоп версия"
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false
 }
