@@ -1161,7 +1161,11 @@ async function pollLoop() {
         signal: ctrl.signal,
         cache: 'no-store'
       });
-      if (!r.ok) { await sleep(2000); continue; }
+      if (!r.ok) {
+        console.warn('[poll] server error, retrying in 10s...');
+        await sleep(10000);
+        continue;
+      }
       var j = await r.json();
       if (j.signals && j.signals.length > 0) {
         for (var i = 0; i < j.signals.length; i++) {
@@ -3582,12 +3586,14 @@ function doReconnect(){
 // Heartbeat - ping connected peers every 25s to keep connection alive
 // Also detects dead connections
 function startHeartbeat(){
-  // Ping HTTP server every 10 min to prevent Render sleep
-  setInterval(function(){
-    fetch('https://liders-chat-signal.onrender.com/health')
-      .then(function(r){ if(!r.ok) throw new Error('bad'); })
-      .catch(function(){});
-  }, 10 * 60 * 1000);
+  // Ping server every 4 min to prevent Render sleep (sleeps after 15 min)
+  function pingServer(){
+    fetch(SIGNAL+'/health', {cache:'no-store'})
+      .then(function(r){ console.log('[ping] server alive'); })
+      .catch(function(){ console.warn('[ping] server sleeping - waking up...'); });
+  }
+  pingServer(); // ping immediately on start
+  setInterval(pingServer, 4 * 60 * 1000);
 
   // Ping all connected peers every 20s to keep DataChannel alive
   setInterval(function(){
