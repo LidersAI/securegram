@@ -585,7 +585,17 @@ body.light #toast{background:rgba(15,23,42,.9)}
     <div id="empty-ico">💬</div>
     <h3>LIDERS CHAT</h3>
     <p>Создайте группу или добавьте участника по ID.<br>Все сообщения зашифрованы E2E.</p>
-    <a href="https://liderschat.online" target="_blank" style="margin-top:20px;font-size:11px;color:var(--text3);text-decoration:none;opacity:.6;display:block">liderschat.online</a>
+    <div id="live-stats" style="margin-top:20px;display:flex;gap:20px;justify-content:center">
+      <div style="text-align:center">
+        <div id="stat-accounts" style="font-size:22px;font-weight:700;color:var(--accent2)">—</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">аккаунтов</div>
+      </div>
+      <div style="text-align:center">
+        <div id="stat-online" style="font-size:22px;font-weight:700;color:var(--green)">—</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">онлайн</div>
+      </div>
+    </div>
+    <a href="https://liderschat.online" target="_blank" style="margin-top:16px;font-size:11px;color:var(--text3);text-decoration:none;opacity:.6;display:block">liderschat.online</a>
   </div>
 
   <div id="chat-hdr">
@@ -4543,6 +4553,23 @@ function showMediaPreview(dataOrName, type){
   var inputBar = document.getElementById('input-bar');
   inputBar.parentNode.insertBefore(bar, inputBar);
   document.getElementById('msg-in').focus();
+}
+
+
+// ── Live stats from server ────────────────
+async function fetchLiveStats(){
+  try{
+    var r = await fetch(SIGNAL+'/health', {cache:'no-store'});
+    var j = await r.json();
+    var accEl = document.getElementById('stat-accounts');
+    var onlEl = document.getElementById('stat-online');
+    if(accEl && j.accounts !== undefined){
+      accEl.textContent = j.accounts.toLocaleString('ru');
+    }
+    if(onlEl && j.online !== undefined){
+      onlEl.textContent = j.online.toLocaleString('ru');
+    }
+  }catch(e){}
 }
 
 
