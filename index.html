@@ -116,12 +116,13 @@ body{height:100%;overflow:hidden;padding-top:env(safe-area-inset-top)}
 /* Panic mode */
 body.panic #app{visibility:hidden}
 body.panic #chat-bg{visibility:hidden}
-#panic-overlay{display:none;position:fixed;inset:0;background:var(--bg2);z-index:9999;flex-direction:column;align-items:center;justify-content:center;gap:16px}
+#panic-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.97);z-index:9999;flex-direction:column;align-items:center;justify-content:center;gap:0;cursor:pointer;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
 body.panic #panic-overlay{display:flex}
-#panic-overlay .panic-logo{font-size:48px;animation:panicPulse 1.5s ease-in-out infinite}
-@keyframes panicPulse{0%,100%{opacity:1}50%{opacity:.4}}
-#panic-overlay .panic-title{font-size:22px;font-weight:700;letter-spacing:-.4px;color:var(--text)}
-#panic-overlay .panic-sub{font-size:14px;color:var(--text3);text-align:center;line-height:1.6;max-width:260px}
+#panic-stage1{display:flex;align-items:center;justify-content:center}
+#panic-overlay .panic-logo{font-size:52px;animation:panicPulse 2.5s ease-in-out infinite}
+@keyframes panicPulse{0%,100%{opacity:.9}50%{opacity:.3}}
+#panic-overlay .panic-title{font-size:20px;font-weight:700;letter-spacing:-.4px;color:rgba(255,255,255,.9)}
+#panic-overlay .panic-sub{font-size:13px;color:rgba(255,255,255,.35);text-align:center;line-height:1.6}
 #panic-btn.visible{display:flex!important}
 /* Side tabs */
 /* Drag & Drop */
@@ -922,11 +923,16 @@ body.light #toast{background:rgba(15,23,42,.9)}
 <div id="toast"></div>
 
 <!-- PANIC OVERLAY -->
-<div id="panic-overlay">
-  <div class="panic-logo">🔒</div>
-  <div class="panic-title">Защищено</div>
-  <div class="panic-sub">Содержимое скрыто.<br>Нажмите чтобы вернуться.</div>
-  <button onclick="exitPanic()" style="margin-top:8px;padding:12px 28px;border-radius:12px;border:none;background:var(--accent);color:#fff;font-size:15px;font-weight:600;cursor:pointer">Разблокировать</button>
+<div id="panic-overlay" onclick="showPanicUnlock()">
+  <div id="panic-stage1">
+    <div class="panic-logo">🔒</div>
+  </div>
+  <div id="panic-stage2" style="display:none;flex-direction:column;align-items:center;gap:14px">
+    <div class="panic-logo">🔒</div>
+    <div class="panic-title">LIDERS CHAT</div>
+    <div class="panic-sub">Переписка защищена</div>
+    <button onclick="event.stopPropagation();exitPanic()" style="margin-top:4px;padding:13px 32px;border-radius:14px;border:none;background:var(--accent);color:#fff;font-size:15px;font-weight:600;cursor:pointer;letter-spacing:-.2px">Разблокировать</button>
+  </div>
 </div>
 
 
@@ -4728,11 +4734,23 @@ function showMediaPreview(dataOrName, type){
 function triggerPanic(){
   document.body.classList.add('panic');
   localStorage.setItem('lc_panic','1');
+  // Reset to stage 1
+  document.getElementById('panic-stage1').style.display='flex';
+  document.getElementById('panic-stage2').style.display='none';
+}
+
+function showPanicUnlock(){
+  // Tap → show unlock button
+  document.getElementById('panic-stage1').style.display='none';
+  document.getElementById('panic-stage2').style.display='flex';
 }
 
 function exitPanic(){
   document.body.classList.remove('panic');
   localStorage.removeItem('lc_panic');
+  // Reset back to stage 1 for next time
+  document.getElementById('panic-stage1').style.display='flex';
+  document.getElementById('panic-stage2').style.display='none';
 }
 
 // Show panic button when chat is open
