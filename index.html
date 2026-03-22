@@ -3379,25 +3379,40 @@ async function relayFetch() {
     var data = await r.json();
     if (!data.msgs || !data.msgs.length) return;
     console.log('[relay] fetched', data.msgs.length, 'queued msgs');
-    // Process each message as if received from sender
+
+    var sendersToConnect = {};
+
     for (var i = 0; i < data.msgs.length; i++) {
       var m = data.msgs[i];
       if (!m.from || !m.cipher || !m.id) continue;
       if (seen.has(m.id)) continue;
-      // Find or create session for this sender
+
       if (!conns[m.from]) {
         conns[m.from] = { conn: null, key: null, name: m.from.slice(0,8), color: clr(m.from), online: false, sent: false };
       }
-      // Try to decrypt if we have a key, else queue for later
       var c = conns[m.from];
+
       if (c.key) {
+        // Already have key - decrypt immediately
         await processRelayMsg(m, c);
       } else {
-        // Store for processing after key exchange
+        // Queue for after key exchange
         if (!c._relayQueue) c._relayQueue = [];
         c._relayQueue.push(m);
+        // Mark sender for reconnect
+        sendersToConnect[m.from] = true;
       }
     }
+
+    // Auto-reconnect to senders so key exchange happens → relay queue gets processed
+    Object.keys(sendersToConnect).forEach(function(senderId){
+      var c2 = conns[senderId];
+      if (!c2 || !c2.online) {
+        console.log('[relay] auto-reconnecting to', senderId, 'for key exchange');
+        setupConn(senderId, {initiator: true, mesh: true});
+      }
+    });
+
   } catch(e) { console.warn('[relay] fetch failed', e.message); }
 }
 
