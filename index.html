@@ -115,7 +115,7 @@ body{height:100%;overflow:hidden;padding-top:env(safe-area-inset-top)}
 .ci-dot.busy{background:#ef4444!important}
 /* Side tabs */
 #side-tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0}
-.side-tab{flex:1;padding:8px 4px;border:none;background:transparent;color:var(--text3);font-size:12px;cursor:pointer;font-family:var(--font);border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s}
+.side-tab{flex:1;padding:8px 4px;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--text3);font-size:12px;cursor:pointer;font-family:var(--font);margin-bottom:-1px;transition:all .15s;-webkit-appearance:none;appearance:none;text-align:center;user-select:none;-webkit-user-select:none}
 .side-tab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
 .ci-body{flex:1;min-width:0}
 .ci-top{display:flex;justify-content:space-between;gap:4px;align-items:baseline}
@@ -552,8 +552,8 @@ body.light #toast{background:rgba(15,23,42,.9)}
   </div>
   <!-- Tabs: Chats | Contacts -->
   <div id="side-tabs">
-    <button id="tab-chats" onclick="switchSideTab('chats')" class="side-tab active">💬 Чаты</button>
-    <button id="tab-contacts" onclick="switchSideTab('contacts')" class="side-tab">👤 Контакты</button>
+    <div id="tab-chats" onclick="switchSideTab('chats')" class="side-tab active">💬 Чаты</div>
+    <div id="tab-contacts" onclick="switchSideTab('contacts')" class="side-tab">👤 Контакты</div>
   </div>
   <div id="chat-list"></div>
   <div id="contacts-list" style="display:none;overflow-y:auto;padding:6px 8px;flex:1"></div>
