@@ -1209,12 +1209,25 @@ function createPC(peerId) {
       c.lastSeen = Date.now();
       renderList(); refreshHdr();
     } else if (pc.connectionState === 'disconnected') {
-      // Wait 5s before marking offline - WebRTC often recovers
+      // Try ICE restart first, wait 8s before marking offline
       setTimeout(function(){
         if(c.pc === pc && pc.connectionState === 'disconnected'){
-          c.online = false; c.key = null; c.sent = false;
-          c.lastSeen = Date.now();
-          renderList(); refreshHdr();
+          // Try ICE restart
+          if(pc.restartIce) {
+            console.log('[ice] restarting ICE for', peerId);
+            pc.restartIce();
+            setTimeout(function(){
+              if(c.pc === pc && !c.online){
+                c.online = false; c.key = null; c.sent = false;
+                c.lastSeen = Date.now();
+                renderList(); refreshHdr();
+              }
+            }, 8000);
+          } else {
+            c.online = false; c.key = null; c.sent = false;
+            c.lastSeen = Date.now();
+            renderList(); refreshHdr();
+          }
         }
       }, 5000);
     }
@@ -2204,7 +2217,14 @@ function refreshHdr(){
     else if(!c.key){ st.textContent='обмен ключами…'; st.className=''; }
     else{
       var statusIcon = c.status==='busy'?'🔴 ':c.status==='away'?'🟡 ':'';
-      st.textContent=statusIcon+'🔒 зашифрован · E2E'; st.className='ok';
+      // Show connection type
+      var connType = '';
+      if(c.pc){
+        var cs = c.pc.connectionState;
+        if(cs==='connected') connType = '';
+        else if(cs==='connecting') connType = ' · подключение…';
+      }
+      st.textContent=statusIcon+'🔒 E2E'+connType; st.className='ok';
     }
     mb.style.display='none';
   }
@@ -3154,7 +3174,14 @@ function markRead(chatKey){
 // =============================================
 var callState={active:false,peerId:null,isVideo:false,pc:null,localStream:null,timerInterval:null,timerSecs:0,muted:false};
 var pendingCall=null;
-var ICE_CFG={iceServers:[{urls:'stun:stun.cloudflare.com:3478'},{urls:'stun:stun.relay.metered.ca:80'},{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},{urls:'turn:global.relay.metered.ca:80',username:'openrelayproject',credential:'openrelayproject'},{urls:'turn:global.relay.metered.ca:80?transport=tcp',username:'openrelayproject',credential:'openrelayproject'},{urls:'turn:global.relay.metered.ca:443',username:'openrelayproject',credential:'openrelayproject'},{urls:'turns:global.relay.metered.ca:443?transport=tcp',username:'openrelayproject',credential:'openrelayproject'},{urls:'turn:numb.viagenie.ca',username:'webrtc@live.com',credential:'muazkh'},{urls:'stun:stun.stunprotocol.org:3478'},{urls:'stun:stun.voip.blackberry.com:3478'}]};
+var ICE_CFG={iceServers:[
+  {urls:'stun:stun.l.google.com:19302'},
+  {urls:'stun:stun1.l.google.com:19302'},
+  {urls:'stun:stun2.l.google.com:19302'},
+  {urls:'stun:stun.cloudflare.com:3478'},
+  {urls:'turn:global.relay.metered.ca:80',username:'openrelayproject',credential:'openrelayproject'},
+  {urls:'turn:global.relay.metered.ca:443',username:'openrelayproject',credential:'openrelayproject'},
+  {urls:'turns:global.relay.metered.ca:443?transport=tcp',username:'openrelayproject',credential:'openrelayproject'},{urls:'turn:global.relay.metered.ca:443',username:'openrelayproject',credential:'openrelayproject'},{urls:'turns:global.relay.metered.ca:443?transport=tcp',username:'openrelayproject',credential:'openrelayproject'},{urls:'turn:numb.viagenie.ca',username:'webrtc@live.com',credential:'muazkh'},{urls:'stun:stun.stunprotocol.org:3478'},{urls:'stun:stun.voip.blackberry.com:3478'}]};
 
 async function startCall(isVideo){
   if(!active||active.startsWith('room:')){ toast('Звонки только в личных сообщениях'); return; }
@@ -3498,11 +3525,10 @@ function startHeartbeat(){
         c.lastSeen = Date.now();
         renderList(); refreshHdr();
       }
-      // Auto-reconnect explicit DMs that dropped
-      var db3 = getDB();
-      if(!c.online && db3.dms && db3.dms[pid] && db3.dms[pid].explicit){
-        if(!c.pc || ['disconnected','failed','closed'].includes(c.pc.connectionState)){
-          console.log('[heartbeat] auto-reconnecting to', pid);
+      // Auto-reconnect only if chat is currently open
+      if(!c.online && active === 'dm:'+pid){
+        if(!c.pc || ['failed','closed'].includes(c.pc.connectionState)){
+          console.log('[heartbeat] reconnecting active chat', pid);
           setupConn(pid, {initiator: true});
         }
       }
