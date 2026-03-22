@@ -2614,15 +2614,13 @@ function hideSidebar(){
 }
 
 function goBack(){
-  // Mobile: go back to chat list
   if(window.innerWidth <= 768){
+    active = null;
     showSidebar();
-    // Hide chat area on mobile
     document.getElementById('chat-hdr').style.display = 'none';
     document.getElementById('chat-bg').style.display = 'none';
     document.getElementById('input-bar').classList.remove('on');
     document.getElementById('empty').style.display = 'flex';
-    active = null;
     updatePanicBtn();
   }
 }
@@ -2701,10 +2699,16 @@ document.getElementById('msg-in').addEventListener('input',function(){
     if(window.innerWidth > 768) return; // desktop - no swipe
     var sb=document.getElementById('sidebar');
     var sidebarVisible = !sb.classList.contains('hidden');
-    // Swipe right from left edge → show sidebar (only when hidden)
-    if(sx < 30 && dx > 50 && !sidebarVisible) { showSidebar(); return; }
-    // Swipe left → hide sidebar ONLY when sidebar is open
-    if(sidebarVisible && dx < -50 && sx > 30) { hideSidebar(); return; }
+    // Swipe right from anywhere left half → show sidebar (when chat open)
+    if(sx < 60 && dx > 40 && !sidebarVisible) { goBack(); return; }
+    // Swipe left → hide sidebar and go back (when sidebar open and chat exists)
+    if(sidebarVisible && dx < -50 && active) { 
+      hideSidebar();
+      document.getElementById('chat-hdr').style.removeProperty('display');
+      document.getElementById('chat-bg').style.removeProperty('display');
+      document.getElementById('input-bar').classList.add('on');
+      return; 
+    }
     // Don't intercept other swipes
   },{passive:true});
 })();
@@ -2809,7 +2813,11 @@ async function startRec(e){
   if(!active) return;
   try{
     var stream=await navigator.mediaDevices.getUserMedia({audio:true});
-    var mime=MediaRecorder.isTypeSupported('audio/webm;codecs=opus')?'audio/webm;codecs=opus':'audio/webm';
+    var mime='audio/webm';
+    if(MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) mime='audio/webm;codecs=opus';
+    else if(MediaRecorder.isTypeSupported('audio/mp4;codecs=mp4a.40.2')) mime='audio/mp4;codecs=mp4a.40.2';
+    else if(MediaRecorder.isTypeSupported('audio/mp4')) mime='audio/mp4';
+    else if(MediaRecorder.isTypeSupported('audio/ogg')) mime='audio/ogg';
     mediaRec=new MediaRecorder(stream,{mimeType:mime});
     audioChunks=[];
     recStart=Date.now();
