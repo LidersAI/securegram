@@ -2626,13 +2626,14 @@ document.getElementById('msg-in').addEventListener('input',function(){
     var dx=e.changedTouches[0].clientX-sx;
     var dy=Math.abs(e.changedTouches[0].clientY-sy);
     if(dy>60) return; // vertical scroll - ignore
-    // Swipe right from left edge → show sidebar
-    if(sx<40 && dx>60) { showSidebar(); return; }
-    // Swipe left anywhere when sidebar open → hide sidebar
+    if(window.innerWidth > 768) return; // desktop - no swipe
     var sb=document.getElementById('sidebar');
-    if(!sb.classList.contains('hidden') && dx < -60 && window.innerWidth<=768){
-      hideSidebar();
-    }
+    var sidebarVisible = !sb.classList.contains('hidden');
+    // Swipe right from left edge → show sidebar (only when hidden)
+    if(sx < 30 && dx > 50 && !sidebarVisible) { showSidebar(); return; }
+    // Swipe left → hide sidebar ONLY when sidebar is open
+    if(sidebarVisible && dx < -50 && sx > 30) { hideSidebar(); return; }
+    // Don't intercept other swipes
   },{passive:true});
 })();
 
