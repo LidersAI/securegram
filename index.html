@@ -1490,7 +1490,13 @@ async function handleData(from, raw){
       var m = {id:msg.id, from:from, name:data.name, text:data.text, photo:data.photo, ts:data.ts, date:data.date};
       saveMsg(chatKey, m);
       if(active===chatKey){ appendMsg(m, true); }
-      else{ unread[chatKey]=(unread[chatKey]||0)+1; playBeep(); }
+      else{
+        unread[chatKey]=(unread[chatKey]||0)+1;
+        playBeep();
+        var total=Object.values(unread).reduce(function(a,b){return a+b;},0);
+        updateBadge(total);
+        document.title='('+total+') LIDERS CHAT';
+      }
       renderList();
       propagate(from, msg);
       if(document.hidden) notif(data.name, data.text||'📷 Фото');
@@ -1653,6 +1659,17 @@ async function propagate(srcId, origMsg){
 async function sendMsg(){
   var input = document.getElementById('msg-in');
   var text = input.value.trim();
+
+  // If there's pending media — send media+caption together
+  if(pendingMedia && active){
+    var cap = text;
+    input.value=''; input.style.height='auto';
+    var pm = pendingMedia; pendingMedia = null;
+    var bar=document.getElementById('media-preview-bar'); if(bar) bar.remove();
+    if(pm.type==='photo') { await doSendPhoto(pm.data, cap); return; }
+    if(pm.type==='file')  { await doSendFile(pm.file, pm.data, cap); return; }
+  }
+
   if(!text||!active) return;
   // Handle edit mode
   if(editId){ applyEdit(text); return; }
@@ -1939,6 +1956,9 @@ function hideTyp(pid){var el=document.getElementById('typ-'+pid);if(el)el.remove
 function openChat(chatKey){
   active=chatKey;
   unread[chatKey]=0;
+  var total=Object.values(unread).reduce(function(a,b){return a+b;},0);
+  updateBadge(total);
+  if(total===0) document.title='LIDERS CHAT';
   document.getElementById('empty').style.display='none';
   document.getElementById('chat-hdr').style.display='flex';
   document.getElementById('chat-bg').style.display='block';
@@ -1949,6 +1969,8 @@ function openChat(chatKey){
   renderMsgs(); refreshHdr(); renderList();
   document.getElementById('msg-in').focus();
   if('Notification'in window&&Notification.permission==='default') Notification.requestPermission();
+  // Request badge permission (some platforms need explicit request)
+  if('setAppBadge' in navigator) navigator.setAppBadge(0).catch(function(){});
   // Show call buttons for DMs only
   var isDM=!chatKey.startsWith('room:');
   document.getElementById('call-audio-btn').style.display=isDM?'flex':'none';
@@ -2394,7 +2416,19 @@ document.getElementById('msg-in').addEventListener('input',function(){
 setInterval(function(){
   var total=Object.values(unread).reduce(function(a,b){return a+b;},0);
   document.title=total>0?'('+total+') LIDERS CHAT':'LIDERS CHAT';
+  updateBadge(total);
 },3000);
+
+function updateBadge(count){
+  // App Badge API (PWA on Android/Desktop)
+  if('setAppBadge' in navigator){
+    if(count>0){
+      navigator.setAppBadge(count).catch(function(){});
+    } else {
+      navigator.clearAppBadge().catch(function(){});
+    }
+  }
+}
 
 // =============================================
 // SIDEBAR TOGGLE
@@ -4415,27 +4449,8 @@ function sendPhotoWithCaption(input){
   if(!file||!active) return;
   compressImg(file, 600, 0.75).then(function(compressed){
     if(compressed.length > 800000){ toast('Фото слишком большое'); return; }
-    // If input has text - send together, else send immediately
-    var caption = document.getElementById('msg-in').value.trim();
-    if(caption){
-      // Send with existing caption
-      document.getElementById('msg-in').value='';
-      doSendPhoto(compressed, caption);
-    } else {
-      // Store pending, show hint
-      pendingMedia = {type:'photo', data:compressed};
-      var inp = document.getElementById('msg-in');
-      inp.placeholder = '📷 Подпись к фото (необязательно)... или нажми ➤';
-      inp.focus();
-      // Override send to include photo
-      document.getElementById('send-btn').onclick = function(){
-        var cap = inp.value.trim();
-        inp.value=''; inp.placeholder='Написать...';
-        document.getElementById('send-btn').onclick = sendMsg;
-        doSendPhoto(pendingMedia.data, cap);
-        pendingMedia = null;
-      };
-    }
+    pendingMedia = {type:'photo', data:compressed};
+    showMediaPreview(compressed, 'photo');
   });
 }
 
@@ -4462,24 +4477,8 @@ function sendFileWithCaption(input){
   if(file.size>10*1024*1024){ toast('Файл слишком большой (макс 10MB)'); return; }
   var reader = new FileReader();
   reader.onload = function(){
-    var b64 = reader.result;
-    var caption = document.getElementById('msg-in').value.trim();
-    if(caption){
-      document.getElementById('msg-in').value='';
-      doSendFile(file, b64, caption);
-    } else {
-      pendingMedia = {type:'file', file:file, data:b64};
-      var inp = document.getElementById('msg-in');
-      inp.placeholder = '📎 Подпись к файлу (необязательно)... или нажми ➤';
-      inp.focus();
-      document.getElementById('send-btn').onclick = function(){
-        var cap = inp.value.trim();
-        inp.value=''; inp.placeholder='Написать...';
-        document.getElementById('send-btn').onclick = sendMsg;
-        doSendFile(pendingMedia.file, pendingMedia.data, cap);
-        pendingMedia = null;
-      };
-    }
+    pendingMedia = {type:'file', file:file, data:reader.result};
+    showMediaPreview(file.name, 'file');
   };
   reader.readAsDataURL(file);
 }
@@ -4501,6 +4500,49 @@ async function doSendFile(file, b64, caption){
     try{ var cipher=await Cry.enc(c.key,JSON.stringify(payload)); rawSend(c.conn,{type:'MSG',id:msgId,cipher:cipher,hops:0}); }catch(e){}
   }
   toast('Файл отправлен');
+}
+
+
+function showMediaPreview(dataOrName, type){
+  // Remove existing preview
+  var old = document.getElementById('media-preview-bar');
+  if(old) old.remove();
+
+  var bar = document.createElement('div');
+  bar.id = 'media-preview-bar';
+  bar.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 12px;background:rgba(48,213,245,.08);border-top:1px solid rgba(48,213,245,.2);flex-shrink:0';
+
+  if(type==='photo'){
+    var img = document.createElement('img');
+    img.src = dataOrName;
+    img.style.cssText = 'width:40px;height:40px;object-fit:cover;border-radius:6px;flex-shrink:0';
+    bar.appendChild(img);
+  } else {
+    var ico = document.createElement('div');
+    ico.style.cssText = 'width:40px;height:40px;background:rgba(255,255,255,.1);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0';
+    ico.textContent = '📎';
+    bar.appendChild(ico);
+    var nm = document.createElement('div');
+    nm.style.cssText = 'font-size:12px;color:var(--text2);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+    nm.textContent = dataOrName;
+    bar.appendChild(nm);
+  }
+
+  var hint = document.createElement('div');
+  hint.style.cssText = 'font-size:11px;color:var(--text3);flex:1';
+  hint.textContent = type==='photo' ? '📷 Напиши подпись или отправь так' : '';
+  if(type==='photo') bar.appendChild(hint);
+
+  var cancelBtn = document.createElement('button');
+  cancelBtn.textContent = '✕';
+  cancelBtn.style.cssText = 'border:none;background:transparent;color:var(--text3);cursor:pointer;font-size:16px;padding:4px;flex-shrink:0';
+  cancelBtn.onclick = function(){ bar.remove(); pendingMedia=null; };
+  bar.appendChild(cancelBtn);
+
+  // Insert before reply-bar or input-bar
+  var inputBar = document.getElementById('input-bar');
+  inputBar.parentNode.insertBefore(bar, inputBar);
+  document.getElementById('msg-in').focus();
 }
 
 
