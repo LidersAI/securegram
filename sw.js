@@ -1,10 +1,6 @@
-// LIDERS CHAT Service Worker v6
-const CACHE = 'liders-v6';
-const STATIC = [
-  '/icon-192.png',
-  '/icon-512.png',
-  '/manifest.json',
-];
+// LIDERS CHAT Service Worker v7 — cache bust
+const CACHE = 'liders-v7';
+const STATIC = ['/icon-192.png', '/icon-512.png', '/manifest.json'];
 
 self.addEventListener('install', e => {
   e.waitUntil(
@@ -15,7 +11,10 @@ self.addEventListener('install', e => {
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+      Promise.all(keys.filter(k => k !== CACHE).map(k => {
+        console.log('[sw] deleting old cache:', k);
+        return caches.delete(k);
+      }))
     ).then(() => self.clients.claim())
   );
 });
@@ -25,7 +24,7 @@ self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   if (url.origin !== location.origin) return;
 
-  // HTML — always fresh
+  // HTML — always fresh, never cache
   if (e.request.headers.get('accept')?.includes('text/html')) {
     e.respondWith(
       fetch(e.request, { cache: 'no-store' })
@@ -49,49 +48,38 @@ self.addEventListener('fetch', e => {
   );
 });
 
-// Background Sync — retry failed messages
+// Background Sync
 self.addEventListener('sync', e => {
   if (e.tag === 'sync-messages') {
-    e.waitUntil(
-      self.clients.matchAll().then(clients => {
-        clients.forEach(client => client.postMessage({ type: 'SYNC_MESSAGES' }));
-      })
-    );
+    e.waitUntil(self.clients.matchAll().then(clients =>
+      clients.forEach(c => c.postMessage({ type: 'SYNC_MESSAGES' }))
+    ));
   }
 });
 
-// Periodic Sync — check for new messages
+// Periodic Sync
 self.addEventListener('periodicsync', e => {
   if (e.tag === 'check-messages') {
-    e.waitUntil(
-      self.clients.matchAll().then(clients => {
-        clients.forEach(client => client.postMessage({ type: 'PERIODIC_CHECK' }));
-      })
-    );
+    e.waitUntil(self.clients.matchAll().then(clients =>
+      clients.forEach(c => c.postMessage({ type: 'PERIODIC_CHECK' }))
+    ));
   }
 });
 
-// Push notifications
+// Push
 self.addEventListener('push', e => {
   if (!e.data) return;
   try {
-    const data = e.data.json();
-    e.waitUntil(
-      self.registration.showNotification(data.title || 'LIDERS CHAT', {
-        body: data.body || 'Новое сообщение',
-        icon: '/icon-192.png',
-        badge: '/icon-72.png',
-        tag: 'liders-msg',
-        renotify: true,
-        data: { url: data.url || '/' }
-      })
-    );
-  } catch(err) {}
+    const d = e.data.json();
+    e.waitUntil(self.registration.showNotification(d.title || 'LIDERS CHAT', {
+      body: d.body || 'Новое сообщение',
+      icon: '/icon-192.png', badge: '/icon-72.png',
+      tag: 'liders-msg', renotify: true, data: { url: d.url || '/' }
+    }));
+  } catch(e) {}
 });
 
 self.addEventListener('notificationclick', e => {
   e.notification.close();
-  e.waitUntil(
-    clients.openWindow(e.notification.data?.url || '/')
-  );
+  e.waitUntil(clients.openWindow(e.notification.data?.url || '/'));
 });
