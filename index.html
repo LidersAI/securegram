@@ -421,8 +421,7 @@ body.light #toast{background:rgba(15,23,42,.9)}
     padding-top:env(safe-area-inset-top);
     transition:transform .3s cubic-bezier(.4,0,.2,1)}
   #sidebar.hidden{box-shadow:none}
-  #sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:49;backdrop-filter:blur(3px);transition:opacity .3s}
-  #sidebar-overlay.on{display:block}
+  /* overlay handled inline */
   /* My row - compact on mobile */
   #my-row{padding:10px 12px 8px}
   #my-av{width:38px;height:38px;font-size:13px}
@@ -533,7 +532,7 @@ body.light #toast{background:rgba(15,23,42,.9)}
   </div>
 </div>
 
-<div id="sidebar-overlay" onclick="hideSidebar()"></div>
+<div id="sidebar-overlay" onclick="hideSidebar()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:49;backdrop-filter:blur(3px)"></div>
 <div id="app">
 
 <!-- SIDEBAR -->
@@ -557,7 +556,7 @@ body.light #toast{background:rgba(15,23,42,.9)}
     <button id="tab-contacts" onclick="switchSideTab('contacts')" class="side-tab">👤 Контакты</button>
   </div>
   <div id="chat-list"></div>
-  <div id="contacts-list" style="display:none;flex:1;overflow-y:auto;padding:6px 8px"></div>
+  <div id="contacts-list" style="display:none;overflow-y:auto;padding:6px 8px;flex:1"></div>
   <div id="sb-bottom">
     <div id="add-wrap">
       <div id="add-lbl">Добавить по ID</div>
@@ -2279,11 +2278,15 @@ function resetAll(){
 // =============================================
 function showSidebar(){
   document.getElementById('sidebar').classList.remove('hidden');
-  if(window.innerWidth<=768) document.getElementById('sidebar-overlay').classList.add('on');
+  if(window.innerWidth<=768){
+    var ov=document.getElementById('sidebar-overlay');
+    if(ov) ov.style.display='block';
+  }
 }
 function hideSidebar(){
   document.getElementById('sidebar').classList.add('hidden');
-  document.getElementById('sidebar-overlay').classList.remove('on');
+  var ov=document.getElementById('sidebar-overlay');
+  if(ov) ov.style.display='none';
 }
 function copyMyId(){navigator.clipboard.writeText(myId).then(function(){toast('ID скопирован ✓');}).catch(function(){toast('Скопируйте вручную');});}
 function openModal(id){document.getElementById(id).classList.add('on');}
