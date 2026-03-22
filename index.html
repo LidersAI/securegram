@@ -113,6 +113,17 @@ body{height:100%;overflow:hidden;padding-top:env(safe-area-inset-top)}
 .ci-dot{position:absolute;bottom:1px;right:1px;width:11px;height:11px;border-radius:50%;background:var(--green);border:2px solid var(--bg);display:none}
 .ci-dot.on{display:block}
 .ci-dot.busy{background:#ef4444!important}
+/* PIN screen */
+#pin-screen{display:none;position:fixed;inset:0;background:#000;z-index:9998;flex-direction:column;align-items:center;justify-content:center;gap:20px}
+body.pin-locked #pin-screen{display:flex}
+body.pin-locked #app{display:none}
+.pin-dots{display:flex;gap:14px}
+.pin-dot{width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,.3);transition:background .1s}
+.pin-dot.filled{background:var(--accent);border-color:var(--accent)}
+.pin-pad{display:grid;grid-template-columns:repeat(3,72px);gap:12px}
+.pin-key{width:72px;height:72px;border-radius:50%;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:#fff;font-size:22px;font-weight:500;cursor:pointer;transition:background .1s;font-family:var(--font)}
+.pin-key:hover{background:rgba(255,255,255,.12)}
+.pin-key.del{font-size:18px}
 /* Panic mode */
 body.panic #app{visibility:hidden}
 body.panic #chat-bg{visibility:hidden}
@@ -121,10 +132,13 @@ body.panic #panic-overlay{display:flex}
 #panic-stage1{display:flex;align-items:center;justify-content:center}
 #panic-overlay .panic-logo{font-size:52px;animation:panicPulse 2.5s ease-in-out infinite}
 @keyframes panicPulse{0%,100%{opacity:.9}50%{opacity:.3}}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
 #panic-overlay .panic-title{font-size:20px;font-weight:700;letter-spacing:-.4px;color:rgba(255,255,255,.9)}
 #panic-overlay .panic-sub{font-size:13px;color:rgba(255,255,255,.35);text-align:center;line-height:1.6}
 #panic-btn.visible{display:flex!important}
 /* Side tabs */
+/* Founder badge */
+.founder-badge{font-size:14px;margin-left:4px;vertical-align:middle}
 /* Drag & Drop */
 .ci.dragging{opacity:.4;background:var(--hover)!important}
 .ci.drag-over{border-top:2px solid var(--accent);margin-top:-2px}
@@ -686,6 +700,7 @@ body.light #toast{background:rgba(15,23,42,.9)}
     <label class="attach-btn" title="Файл">
       📄<input type="file" id="file-input" style="display:none" onchange="sendFileWithCaption(this)"/>
     </label>
+    <button class="attach-btn" onclick="openPollCreator()" title="Опрос" id="poll-btn" style="display:none">📊</button>
     <button id="mic-btn" title="Голосовое"
       onmousedown="startRec(event)" onmouseup="stopRec(event)"
       ontouchstart="startRec(event)" ontouchend="stopRec(event)">🎤</button>
@@ -888,7 +903,8 @@ body.light #toast{background:rgba(15,23,42,.9)}
     <div class="mtitle">⚙ Настройки</div>
     <div id="sett-account-info" style="font-size:12px;color:var(--text3);margin-bottom:12px;padding:8px 12px;background:rgba(255,255,255,.04);border-radius:10px"></div>
     <button onclick="closeModal('sett-modal');openQR()" style="width:100%;padding:10px;border-radius:8px;border:none;background:rgba(82,136,193,.15);color:var(--blue);font-size:13px;font-weight:500;cursor:pointer;margin-bottom:8px">📱 Синхронизировать с другим устройством</button>
-    <button onclick="showInstallGuide()" style="width:100%;padding:10px;border-radius:8px;border:none;background:rgba(34,197,94,.1);color:#22c55e;font-size:13px;font-weight:500;cursor:pointer;margin-bottom:14px">📲 Установить как приложение</button>
+    <button onclick="showInstallGuide()" style="width:100%;padding:10px;border-radius:8px;border:none;background:rgba(34,197,94,.1);color:#22c55e;font-size:13px;font-weight:500;cursor:pointer;margin-bottom:8px">📲 Установить как приложение</button>
+    <button onclick="setupPin()" style="width:100%;padding:10px;border-radius:8px;border:none;background:rgba(239,68,68,.1);color:#ef4444;font-size:13px;font-weight:500;cursor:pointer;margin-bottom:14px" id="pin-sett-btn">🔐 Установить пин-код</button>
     <div class="field" style="display:flex;align-items:center;gap:14px">
       <label style="width:62px;height:62px;flex-shrink:0;cursor:pointer;position:relative">
         <div id="sett-av" style="width:62px;height:62px;border-radius:50%;background:#5288c122;color:#5288c1;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:600;overflow:hidden">?</div>
@@ -932,6 +948,33 @@ body.light #toast{background:rgba(15,23,42,.9)}
 </div>
 
 <div id="toast"></div>
+
+<!-- PIN SCREEN -->
+<div id="pin-screen">
+  <div style="font-size:48px;margin-bottom:8px">🔐</div>
+  <div style="font-size:18px;font-weight:600;color:#fff;margin-bottom:4px">LIDERS CHAT</div>
+  <div style="font-size:13px;color:rgba(255,255,255,.4);margin-bottom:24px" id="pin-hint">Введите пин-код</div>
+  <div class="pin-dots" id="pin-dots">
+    <div class="pin-dot" id="pd0"></div>
+    <div class="pin-dot" id="pd1"></div>
+    <div class="pin-dot" id="pd2"></div>
+    <div class="pin-dot" id="pd3"></div>
+  </div>
+  <div class="pin-pad" style="margin-top:28px">
+    <button class="pin-key" onclick="pinKey('1')">1</button>
+    <button class="pin-key" onclick="pinKey('2')">2</button>
+    <button class="pin-key" onclick="pinKey('3')">3</button>
+    <button class="pin-key" onclick="pinKey('4')">4</button>
+    <button class="pin-key" onclick="pinKey('5')">5</button>
+    <button class="pin-key" onclick="pinKey('6')">6</button>
+    <button class="pin-key" onclick="pinKey('7')">7</button>
+    <button class="pin-key" onclick="pinKey('8')">8</button>
+    <button class="pin-key" onclick="pinKey('9')">9</button>
+    <button class="pin-key" onclick="pinKey('bio')">👆</button>
+    <button class="pin-key" onclick="pinKey('0')">0</button>
+    <button class="pin-key del" onclick="pinKey('del')">⌫</button>
+  </div>
+</div>
 
 <!-- PANIC OVERLAY -->
 <div id="panic-overlay" onclick="showPanicUnlock()">
@@ -1656,6 +1699,27 @@ async function handleData(from, raw){
     return;
   }
 
+  if(msg.type === 'POLL_VOTE'){
+    if(!c.key) return;
+    Cry.dec(c.key,msg.cipher).then(function(plain){
+      var data=JSON.parse(plain);
+      if(!data.msgId&&data.optionId===undefined) return;
+      updDB(function(db2){
+        var msgs2=active&&active.startsWith('room:')&&active.slice(5)===data.roomId
+          ?(db2.rooms&&db2.rooms[data.roomId]&&db2.rooms[data.roomId].messages)
+          :null;
+        if(!msgs2) return;
+        var m2=msgs2.find(function(m){return m.id===data.msgId;});
+        if(!m2||!m2.poll) return;
+        m2.poll.options.forEach(function(o){o.votes=o.votes.filter(function(v){return v!==data.from;});});
+        if(m2.poll.options[data.optionId]) m2.poll.options[data.optionId].votes.push(data.from);
+      });
+      var el=document.querySelector('[data-msgid="'+data.msgId+'"]');
+      var msgObj=(getDB().rooms&&getDB().rooms[data.roomId]&&getDB().rooms[data.roomId].messages||[]).find(function(m){return m.id===data.msgId;});
+      if(el&&msgObj&&msgObj.poll) el.outerHTML=renderPollHtml(msgObj.poll,data.msgId);
+    }).catch(function(){});
+  }
+
   if(msg.type === 'RELAY_RESEND_REQ'){
     // Peer couldn't decrypt our relay messages - resend last messages
     if(!c.key) return;
@@ -2031,8 +2095,12 @@ function appendMsg(m, scroll){
 
     var contentHtml = m.audio ? makeVoiceBubble(m)
       : m.file ? '<div class="file-row"><div class="file-ico">📄</div><div class="file-info"><div class="file-name">'+esc(m.file.name)+'</div><div class="file-size">'+fmtBytes(m.file.size)+'</div></div><button class="file-dl" onclick="window._dlFile(this)" data-name="'+encodeURIComponent(m.file.name)+'" title="Скачать">⬇</button></div>'
-      : m.photo ? '<img class="msg-img" src="'+m.photo+'" onclick="viewImg(this.src)" loading="lazy"/>'
-      : '<div class="msg-text">'+renderText(m.text)+'</div>';
+      : (m.poll
+        ? renderPollHtml(m.poll, m.id)
+        : m.photo
+          ? '<img class="msg-img" src="'+m.photo+'" onclick="viewImg(this.src)" loading="lazy"/>'
+            +(m.text ? '<div class="msg-caption">'+renderText(m.text)+'</div>' : '')
+          : '<div class="msg-text">'+renderText(m.text)+'</div>');
 
     el.innerHTML = '<div class="bw">'
       +(!isMe ? avHtml : '')
@@ -4362,8 +4430,9 @@ function finishAuth(peerId, username, isFounder){
     updDB(function(db){ db.myId=peerId; if(username&&!db.myName) db.myName=username; });
   }
   if(username && !myName){
-    myName = username;
-    updDB(function(db){ if(!db.myName) db.myName=username; });
+    var cleanName = username.replace(/^⭐\s*/, ''); // strip badge from stored name
+    myName = cleanName;
+    updDB(function(db){ if(!db.myName) db.myName=cleanName; });
   }
   if(isFounder){
     setTimeout(function(){
@@ -4590,6 +4659,9 @@ function setMyStatus(s){
 }
 
 function updateStatusUI(){
+  // Update PIN button text
+  var pinBtn = document.getElementById('pin-sett-btn');
+  if(pinBtn) pinBtn.textContent = localStorage.getItem('sg_pin') ? '🔐 Изменить пин-код' : '🔐 Установить пин-код';
   var el = document.getElementById('my-status-el');
   if(el) el.textContent = STATUS_LABELS[myStatus]||'';
   // Update buttons in settings
@@ -4997,6 +5069,259 @@ async function loadAllSavedKeys(){
     }
   }
   console.log('[keys] loaded', count, 'saved relay keys');
+}
+
+
+// ── PIN Code ─────────────────────────────
+var pinBuffer = '';
+var PIN_KEY = 'sg_pin';
+
+function setupPin(){
+  closeModal('sett-modal');
+  var existing = localStorage.getItem(PIN_KEY);
+  if(existing){
+    var action = confirm('Пин-код установлен. OK — изменить, Cancel — удалить');
+    if(!action){ localStorage.removeItem(PIN_KEY); toast('Пин-код удалён'); document.getElementById('pin-sett-btn').textContent='🔐 Установить пин-код'; return; }
+  }
+  // Ask for new PIN via prompt (simple)
+  var p1 = prompt('Введите новый пин-код (4 цифры):');
+  if(!p1 || !/^\d{4}$/.test(p1)){ toast('Пин-код должен быть 4 цифры'); return; }
+  var p2 = prompt('Повторите пин-код:');
+  if(p1!==p2){ toast('Пин-коды не совпадают'); return; }
+  localStorage.setItem(PIN_KEY, btoa(p1));
+  document.getElementById('pin-sett-btn').textContent='🔐 Изменить пин-код';
+  toast('Пин-код установлен ✓');
+}
+
+function checkPinOnStart(){
+  var pin = localStorage.getItem(PIN_KEY);
+  if(!pin) return;
+  pinBuffer = '';
+  document.body.classList.add('pin-locked');
+  updatePinDots();
+}
+
+function pinKey(k){
+  if(k==='del'){ pinBuffer=pinBuffer.slice(0,-1); updatePinDots(); return; }
+  if(k==='bio'){ tryBiometric(); return; }
+  if(pinBuffer.length>=4) return;
+  pinBuffer += k;
+  updatePinDots();
+  if(pinBuffer.length===4) setTimeout(checkPin, 100);
+}
+
+function updatePinDots(){
+  for(var i=0;i<4;i++){
+    var d=document.getElementById('pd'+i);
+    if(d) d.classList.toggle('filled', i<pinBuffer.length);
+  }
+}
+
+function checkPin(){
+  var stored = atob(localStorage.getItem(PIN_KEY)||'');
+  if(pinBuffer===stored){
+    document.body.classList.remove('pin-locked');
+    pinBuffer='';
+    updatePinDots();
+    document.getElementById('pin-hint').textContent='Введите пин-код';
+  } else {
+    document.getElementById('pin-hint').textContent='Неверный пин-код ✗';
+    pinBuffer='';
+    updatePinDots();
+    // Shake dots
+    var dots=document.getElementById('pin-dots');
+    dots.style.animation='none'; dots.offsetHeight;
+    dots.style.animation='shake .3s ease';
+  }
+}
+
+async function tryBiometric(){
+  try{
+    var cred = await navigator.credentials.get({publicKey:{
+      challenge: new Uint8Array(32),
+      timeout: 30000,
+      userVerification: 'required'
+    }});
+    if(cred){ document.body.classList.remove('pin-locked'); pinBuffer=''; updatePinDots(); }
+  }catch(e){
+    document.getElementById('pin-hint').textContent='Используйте пин-код';
+  }
+}
+
+
+// ── Polls ─────────────────────────────────
+function openPollCreator(){
+  if(!active||!active.startsWith('room:')) return;
+  var roomId = active.slice(5);
+  var db = getDB(); var room = db.rooms&&db.rooms[roomId];
+  if(room&&room.isChannel&&!room.isHost){ toast('Только автор канала может создавать опросы'); return; }
+
+  var popup = document.createElement('div');
+  popup.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;display:flex;align-items:flex-end;justify-content:center;padding:16px;backdrop-filter:blur(6px)';
+  popup.onclick=function(e){if(e.target===popup)popup.remove();};
+
+  var box = document.createElement('div');
+  box.style.cssText='background:var(--bg3);border-radius:20px;width:100%;max-width:420px;padding:20px;border:1px solid var(--border2)';
+
+  box.innerHTML='<div style="font-size:16px;font-weight:700;margin-bottom:16px">📊 Создать опрос</div>'
+    +'<div style="font-size:12px;color:var(--text3);margin-bottom:6px">Вопрос</div>'
+    +'<input id="poll-q" type="text" placeholder="Введите вопрос..." maxlength="200" style="width:100%;background:rgba(255,255,255,.07);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-size:14px;font-family:var(--font);outline:none;margin-bottom:12px">'
+    +'<div style="font-size:12px;color:var(--text3);margin-bottom:6px">Варианты ответов</div>'
+    +'<div id="poll-opts"></div>'
+    +'<button onclick="addPollOption()" style="width:100%;padding:8px;border-radius:8px;border:1px dashed var(--border);background:transparent;color:var(--text3);font-size:13px;cursor:pointer;margin:8px 0 16px">+ Добавить вариант</button>'
+    +'<div style="display:flex;gap:8px">'
+    +'<button id="poll-cancel-btn" style="flex:1;padding:11px;border-radius:12px;border:none;background:rgba(255,255,255,.07);color:var(--text2);font-size:13px;cursor:pointer">Отмена</button>'
+    +'<button onclick="submitPoll()" style="flex:1;padding:11px;border-radius:12px;border:none;background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer">Опубликовать</button>'
+    +'</div>';
+
+  box.querySelector('#poll-opts').appendChild(createPollOptInput());
+  box.querySelector('#poll-opts').appendChild(createPollOptInput());
+
+  popup.appendChild(box);
+  document.body.appendChild(popup);
+  var cancelBtn = document.getElementById('poll-cancel-btn');
+  if(cancelBtn) cancelBtn.onclick = function(){ popup.remove(); };
+  setTimeout(function(){ box.querySelector('#poll-q').focus(); }, 100);
+}
+
+function createPollOptInput(){
+  var wrap = document.createElement('div');
+  wrap.style.cssText='display:flex;gap:6px;margin-bottom:8px';
+  wrap.innerHTML='<input class="poll-opt-in" type="text" placeholder="Вариант..." maxlength="100" '
+    +'style="flex:1;background:rgba(255,255,255,.07);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px;font-family:var(--font);outline:none">'
+    +'<button onclick="this.parentNode.remove()" style="width:32px;height:32px;border-radius:8px;border:none;background:rgba(239,68,68,.15);color:#ef4444;cursor:pointer;flex-shrink:0;font-size:16px;margin-top:2px">✕</button>';
+  return wrap;
+}
+
+function addPollOption(){
+  var opts = document.getElementById('poll-opts');
+  if(opts && opts.children.length < 10) opts.appendChild(createPollOptInput());
+}
+
+async function submitPoll(){
+  var q = document.getElementById('poll-q');
+  if(!q||!q.value.trim()){ toast('Введите вопрос'); return; }
+  var opts = Array.from(document.querySelectorAll('.poll-opt-in'))
+    .map(function(i){ return i.value.trim(); }).filter(Boolean);
+  if(opts.length < 2){ toast('Минимум 2 варианта'); return; }
+
+  var poll = {
+    id: gid()+'-poll',
+    question: q.value.trim(),
+    options: opts.map(function(o,i){ return {id:i,text:o,votes:[]}; }),
+    createdAt: Date.now()
+  };
+
+  // Send as special message type
+  var msgId = myId.slice(0,6)+'-'+Date.now()+'-poll';
+  var roomId = active.slice(5);
+  var msg = {id:msgId, from:myId, name:myName, poll:poll, text:'📊 '+poll.question, ts:ts(), date:dateStr()};
+  saveMsg(active, msg);
+  appendMsg(msg, true);
+  renderList();
+
+  // Broadcast
+  var db = getDB();
+  var payload = {from:myId,name:myName,poll:poll,text:'📊 '+poll.question,ts:msg.ts,date:msg.date,roomId:roomId};
+  for(var pid in conns){
+    var c=conns[pid]; if(!c.online||!c.key) continue;
+    if(!(db.rooms&&db.rooms[roomId]&&db.rooms[roomId].members&&db.rooms[roomId].members[pid])) continue;
+    try{
+      var cipher=await Cry.enc(c.key,JSON.stringify({...payload,type:'MSG',id:msgId,hops:0}));
+      rawSend(c.conn,{type:'MSG',id:msgId,cipher:cipher,hops:0});
+    }catch(e){}
+  }
+
+  // Close popup
+  var popup = document.querySelector('[style*="backdrop-filter"]');
+  if(popup) popup.remove();
+  toast('Опрос опубликован!');
+}
+
+async function votePoll(msgId, optionId){
+  if(!active) return;
+  // Find message and update vote
+  var db = getDB();
+  var messages = active.startsWith('room:')
+    ? (db.rooms&&db.rooms[active.slice(5)]&&db.rooms[active.slice(5)].messages||[])
+    : (db.dms&&db.dms[active.slice(3)]&&db.dms[active.slice(3)].messages||[]);
+
+  var msg = messages.find(function(m){ return m.id===msgId; });
+  if(!msg||!msg.poll) return;
+
+  // Remove previous vote
+  msg.poll.options.forEach(function(o){ o.votes=o.votes.filter(function(v){ return v!==myId; }); });
+  // Add new vote
+  msg.poll.options[optionId].votes.push(myId);
+
+  updDB(function(db2){
+    var msgs2 = active.startsWith('room:')
+      ? (db2.rooms&&db2.rooms[active.slice(5)]&&db2.rooms[active.slice(5)].messages)
+      : (db2.dms&&db2.dms[active.slice(3)]&&db2.dms[active.slice(3)].messages);
+    if(msgs2){ var m2=msgs2.find(function(m){return m.id===msgId;}); if(m2) m2.poll=msg.poll; }
+  });
+
+  // Re-render the poll message
+  var el = document.querySelector('[data-msgid="'+msgId+'"]');
+  if(el) el.outerHTML = renderPollHtml(msg.poll, msgId);
+
+  // Broadcast vote to room members
+  var roomId = active.startsWith('room:') ? active.slice(5) : null;
+  if(roomId){
+    var payload2 = {from:myId,name:myName,type:'POLL_VOTE',msgId:msgId,optionId:optionId,roomId:roomId};
+    var db3=getDB();
+    for(var pid in conns){
+      var c=conns[pid]; if(!c.online||!c.key) continue;
+      if(!(db3.rooms&&db3.rooms[roomId]&&db3.rooms[roomId].members&&db3.rooms[roomId].members[pid])) continue;
+      try{ var cipher=await Cry.enc(c.key,JSON.stringify(payload2)); rawSend(c.conn,{type:'POLL_VOTE',cipher:cipher}); }catch(e){}
+    }
+  }
+}
+
+function renderPollHtml(poll, msgId){
+  var total = poll.options.reduce(function(s,o){ return s+o.votes.length; },0);
+  var myVote = -1;
+  poll.options.forEach(function(o,i){ if(o.votes.indexOf(myId)>=0) myVote=i; });
+
+  var wrap = document.createElement('div');
+  wrap.className = 'poll-widget';
+  wrap.dataset.msgid = msgId;
+  wrap.style.cssText = 'background:rgba(255,255,255,.06);border-radius:14px;padding:14px;min-width:220px;max-width:280px';
+
+  var qDiv = document.createElement('div');
+  qDiv.style.cssText = 'font-size:14px;font-weight:600;margin-bottom:12px;line-height:1.4';
+  qDiv.textContent = poll.question;
+  wrap.appendChild(qDiv);
+
+  poll.options.forEach(function(o, i){
+    var pct = total>0 ? Math.round(o.votes.length/total*100) : 0;
+    var voted = myVote===i;
+    var opt = document.createElement('div');
+    opt.style.cssText = 'cursor:pointer;margin-bottom:8px;position:relative;border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,'+(voted?'.4':'.1')+')';
+    opt.dataset.poll = msgId;
+    opt.dataset.opt = i;
+    opt.onclick = function(){ votePoll(this.dataset.poll, parseInt(this.dataset.opt)); };
+    var bg = document.createElement('div');
+    bg.style.cssText = 'position:absolute;top:0;left:0;height:100%;width:'+pct+'%;background:rgba(48,213,245,'+(voted?'.25':'.12')+')';
+    var row = document.createElement('div');
+    row.style.cssText = 'position:relative;padding:8px 10px;display:flex;justify-content:space-between;align-items:center';
+    var txt = document.createElement('span');
+    txt.style.fontSize = '13px';
+    txt.textContent = (voted?'✓ ':'')+o.text;
+    var pctEl = document.createElement('span');
+    pctEl.style.cssText = 'font-size:12px;color:var(--text3)';
+    pctEl.textContent = pct+'%';
+    row.appendChild(txt); row.appendChild(pctEl);
+    opt.appendChild(bg); opt.appendChild(row);
+    wrap.appendChild(opt);
+  });
+
+  var footer = document.createElement('div');
+  footer.style.cssText = 'font-size:11px;color:var(--text3);margin-top:4px';
+  footer.textContent = total+' голос'+(total===1?'':'ов');
+  wrap.appendChild(footer);
+
+  return wrap.outerHTML;
 }
 
 
