@@ -411,7 +411,7 @@ mark.hit{background:rgba(59,130,246,.35);color:inherit;border-radius:3px}
 
 /* Light theme */
 body.light{
-  --bg:#f0f5fa;--bg2:#e4eef8;--bg3:#ffffff;--bg4:#d0e4f4;
+  --bg:#eef2f7;--bg2:#e4eef8;--bg3:#ffffff;--bg4:#d0e4f4;
   --border:rgba(16,48,96,.08);--border2:rgba(16,48,96,.15);
   --text:#0d1a2e;--text2:#1a3050;--text3:#4a6a8a;
   --accent:#0a70a0;--accent2:#0860a0;--green:#16a34a;--blue:#0a70a0;
@@ -448,6 +448,20 @@ body.light #add-lbl{color:rgba(255,255,255,.35)}
 body.light #add-in{background:rgba(255,255,255,.07);border-color:transparent;color:#f0f4f8}
 body.light #add-in::placeholder{color:rgba(255,255,255,.3)}
 body.light #add-btn{background:var(--accent)}
+/* Light theme chat area */
+body.light #chat-bg{background:#eef2f7}
+body.light .them .bub{background:#ffffff;color:#0d1a2e;box-shadow:0 1px 4px rgba(0,0,0,.1)}
+body.light .me .bub{background:linear-gradient(135deg,#1a5080,#103060);color:#fff}
+body.light .bub-time{color:rgba(0,0,0,.4)}
+body.light .msg-date{background:rgba(0,0,0,.08);color:#2a4060}
+body.light #input-bar{background:#fff;border-top:1px solid rgba(0,0,0,.08)}
+body.light #msg-in{background:#f0f4f8;color:#0d1a2e;border-color:rgba(0,0,0,.1)}
+body.light #msg-in::placeholder{color:#7a9ab8}
+body.light .attach-btn{color:#5a7a9a}
+body.light #hdr-name{color:#0d1a2e}
+body.light #hdr-status{color:#5a7a9a}
+body.light .hdr-btn{color:#2a4a6a}
+body.light #chat-hdr{background:#fff;border-bottom:1px solid rgba(0,0,0,.08)}
 body.light .me .bub{background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff}
 body.light .them .bub{background:#fff;border-color:rgba(0,0,0,.08);color:#0f172a;box-shadow:0 1px 4px rgba(0,0,0,.08)}
 body.light .bub-time{color:rgba(0,0,0,.35)}
@@ -631,7 +645,7 @@ body.light #toast{background:rgba(15,23,42,.9)}
   </div>
 
   <div id="chat-hdr">
-    <button id="back-btn" onclick="hideSidebar()">←</button>
+    <button id="back-btn" onclick="goBack()">←</button>
     <div id="hdr-av"></div>
     <div style="flex:1;min-width:0">
       <div id="hdr-name" style="cursor:pointer" onclick="onHdrNameClick()" title="Нажмите для профиля">—</div>
@@ -2498,6 +2512,20 @@ function hideSidebar(){
   document.getElementById('sidebar').classList.add('hidden');
   var ov=document.getElementById('sidebar-overlay');
   if(ov) ov.style.display='none';
+}
+
+function goBack(){
+  // Mobile: go back to chat list
+  if(window.innerWidth <= 768){
+    showSidebar();
+    // Hide chat area on mobile
+    document.getElementById('chat-hdr').style.display = 'none';
+    document.getElementById('chat-bg').style.display = 'none';
+    document.getElementById('input-bar').classList.remove('on');
+    document.getElementById('empty').style.display = 'flex';
+    active = null;
+    updatePanicBtn();
+  }
 }
 function copyMyId(){navigator.clipboard.writeText(myId).then(function(){toast('ID скопирован ✓');}).catch(function(){toast('Скопируйте вручную');});}
 function openModal(id){document.getElementById(id).classList.add('on');}
