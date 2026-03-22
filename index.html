@@ -122,9 +122,7 @@ body.panic #panic-overlay{display:flex}
 @keyframes panicPulse{0%,100%{opacity:1}50%{opacity:.4}}
 #panic-overlay .panic-title{font-size:22px;font-weight:700;letter-spacing:-.4px;color:var(--text)}
 #panic-overlay .panic-sub{font-size:14px;color:var(--text3);text-align:center;line-height:1.6;max-width:260px}
-#panic-btn{position:fixed;bottom:max(20px,env(safe-area-inset-bottom));right:16px;width:48px;height:48px;border-radius:50%;border:none;background:rgba(239,68,68,.15);color:#ef4444;font-size:20px;cursor:pointer;z-index:500;display:none;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(239,68,68,.2);transition:all .2s}
-#panic-btn.visible{display:flex}
-#panic-btn:hover{background:rgba(239,68,68,.25);transform:scale(1.08)}
+#panic-btn.visible{display:flex!important}
 /* Side tabs */
 /* Drag & Drop */
 .ci.dragging{opacity:.4;background:var(--hover)!important}
@@ -627,16 +625,7 @@ body.light #toast{background:rgba(15,23,42,.9)}
     <div id="empty-ico">💬</div>
     <h3>LIDERS CHAT</h3>
     <p>Создайте группу или добавьте участника по ID.<br>Все сообщения зашифрованы E2E.</p>
-    <div id="live-stats" style="margin-top:20px;display:flex;gap:20px;justify-content:center">
-      <div style="text-align:center">
-        <div id="stat-accounts" style="font-size:22px;font-weight:700;color:var(--accent2)">—</div>
-        <div style="font-size:11px;color:var(--text3);margin-top:2px">аккаунтов</div>
-      </div>
-      <div style="text-align:center">
-        <div id="stat-online" style="font-size:22px;font-weight:700;color:var(--green)">—</div>
-        <div style="font-size:11px;color:var(--text3);margin-top:2px">онлайн</div>
-      </div>
-    </div>
+
     <a href="https://liderschat.online" target="_blank" style="margin-top:16px;font-size:11px;color:var(--text3);text-decoration:none;opacity:.6;display:block">liderschat.online</a>
   </div>
 
@@ -653,6 +642,7 @@ body.light #toast{background:rgba(15,23,42,.9)}
     <button class="hdr-btn" id="call-video-btn" onclick="startCall(true)" title="Видеозвонок" style="display:none">📹</button>
     <button class="hdr-btn" onclick="openSearchBar()" title="Поиск">🔍</button>
     <button class="hdr-btn" onclick="openInvite()" title="Пригласить">🔗</button>
+    <button class="hdr-btn" id="panic-btn" onclick="triggerPanic()" title="Режим паники" style="display:none;color:#ef4444;font-size:13px">🔴</button>
   </div>
 
   <div style="display:flex;flex:1;min-height:0">
@@ -939,8 +929,7 @@ body.light #toast{background:rgba(15,23,42,.9)}
   <button onclick="exitPanic()" style="margin-top:8px;padding:12px 28px;border-radius:12px;border:none;background:var(--accent);color:#fff;font-size:15px;font-weight:600;cursor:pointer">Разблокировать</button>
 </div>
 
-<!-- PANIC BUTTON -->
-<button id="panic-btn" onclick="triggerPanic()" title="Режим паники">🔴</button>
+
 
 <script>
 'use strict';
@@ -4149,12 +4138,33 @@ function finishAuth(peerId, username){
 
 // Show logout option in settings
 function logoutAccount(){
-  if(!confirm('Выйти из аккаунта? Данные на этом устройстве останутся.')) return;
+  if(!confirm('Выйти из аккаунта?\nДанные (чаты, группы) на устройстве останутся.')) return;
+  // Clear auth session
   localStorage.removeItem('lc_token');
   localStorage.removeItem('lc_username');
-  authToken = null; authUsername = null;
-  toast('Вышли из аккаунта');
-  setTimeout(function(){ location.reload(); }, 1000);
+  authToken = null;
+  authUsername = null;
+  // Clear myId so new session gets fresh ID
+  updDB(function(db){ delete db.myId; });
+  myId = '';
+  // Stop polling
+  pollActive = false;
+  if(pollController) pollController.abort();
+  // Reset UI
+  closeModal('sett-modal');
+  active = null;
+  document.getElementById('empty').style.display = 'flex';
+  document.getElementById('chat-hdr').style.display = 'none';
+  document.getElementById('chat-bg').style.display = 'none';
+  document.getElementById('input-bar').classList.remove('on');
+  document.getElementById('my-name-el').textContent = '...';
+  document.getElementById('my-id-el').textContent = 'подключение...';
+  hideBanner();
+  // Show auth modal
+  setTimeout(function(){
+    openModal('auth-modal');
+    switchAuthTab('login');
+  }, 200);
 }
 
 
@@ -4624,22 +4634,6 @@ function showMediaPreview(dataOrName, type){
   document.getElementById('msg-in').focus();
 }
 
-
-// ── Live stats from server ────────────────
-async function fetchLiveStats(){
-  try{
-    var r = await fetch(SIGNAL+'/health', {cache:'no-store'});
-    var j = await r.json();
-    var accEl = document.getElementById('stat-accounts');
-    var onlEl = document.getElementById('stat-online');
-    if(accEl && j.accounts !== undefined){
-      accEl.textContent = j.accounts.toLocaleString('ru');
-    }
-    if(onlEl && j.online !== undefined){
-      onlEl.textContent = j.online.toLocaleString('ru');
-    }
-  }catch(e){}
-}
 
 
 // ── Panic mode ────────────────────────────
