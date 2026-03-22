@@ -1205,6 +1205,8 @@ function setupDC(dc, peerId) {
 
   dc.onopen = function() {
     c.online = true;
+    c.key = null; // Reset key on new DC open - fresh key exchange needed
+    c.sent = false; // Allow HELLO to be sent again
     if (!c.sent) {
       c.sent = true;
       var meta = c._pendingMeta || {};
@@ -1214,7 +1216,7 @@ function setupDC(dc, peerId) {
         rawSend(c.conn, pl);
       });
     }
-    sysMsg('dm:'+peerId, 'Соединение установлено…');
+    // Only show connection msg if first time or was offline
     renderList(); refreshHdr();
     processRelayQueue(peerId);
   };
@@ -1240,12 +1242,22 @@ async function setupConn(peerId, meta) {
   // Store meta so dc.onopen can use it for HELLO
   if (meta) c._pendingMeta = meta;
   if (c.online) return;
+  // Prevent duplicate connection attempts
+  if (c.pc && (c.pc.connectionState === 'connecting' || c.pc.connectionState === 'new')) {
+    console.log('[conn] already connecting to', peerId, '- skip');
+    return;
+  }
 
   updDB(function(db) {
     if (!db.dms) db.dms = {};
     if (!db.dms[peerId] && (!meta||!meta.mesh)) db.dms[peerId] = { name:c.name, messages:[] };
   });
 
+  // Close old PC if exists
+  if (c.pc) {
+    try { c.pc.close(); } catch(e) {}
+    c.pc = null;
+  }
   var pc = createPC(peerId);
   c.pc = pc;
 
