@@ -1877,7 +1877,13 @@ async function sendMsg(){
         console.log('[relay] stored msg for offline peer', dmPeer);
       }).catch(function(){});
     } else if(!delivered[dmPeer]) {
-      console.log('[relay] no key for', dmPeer, '- cannot store relay');
+      var hasKey = dmConn && dmConn.key;
+      var hasLastKey = dmConn && dmConn.lastKey;
+      var lsKey = localStorage.getItem('sg_rk_'+dmPeer);
+      console.warn('[relay] FAILED - no key for', dmPeer,
+        'online:', dmConn&&dmConn.online,
+        'key:', !!hasKey, 'lastKey:', !!hasLastKey,
+        'localStorage:', !!lsKey);
     }
   } else if(db.rooms&&db.rooms[roomId]){
     Object.keys(db.rooms[roomId].members||{}).forEach(function(rPid){
@@ -3385,6 +3391,16 @@ function openPeerProfile(peerId){
   closeBtn.textContent='Закрыть';
   closeBtn.onclick=function(){popup.remove();};
   btns.appendChild(dmBtn);btns.appendChild(closeBtn);inner.appendChild(btns);
+  var renameBtn=document.createElement('button');
+  renameBtn.style.cssText='width:100%;margin-top:8px;padding:9px;border-radius:8px;border:none;background:rgba(255,255,255,.06);color:rgba(255,255,255,.6);font-size:13px;cursor:pointer;font-family:var(--font)';
+  renameBtn.textContent='✏️ Переименовать';
+  renameBtn.onclick=function(){
+    popup.remove();
+    var pid2=peerId;
+    openOrCreateDM(pid2,name);
+    setTimeout(function(){ renameContact(); },300);
+  };
+  inner.appendChild(renameBtn);
   popup.appendChild(inner);
   document.body.appendChild(popup);
 }
@@ -3572,6 +3588,7 @@ async function relayStore(toPeerId, msgObj) {
 // Забрать очередь с relay при подключении
 async function relayFetch() {
   if (!myId) return;
+  console.log('[relay] fetching for', myId);
   try {
     var r = await fetch(RELAY + '/relay?peer=' + myId);
     if (!r.ok) return;
@@ -4946,6 +4963,7 @@ function clearDraft(chatKey){
 var RELAY_KEYS_PREFIX = 'sg_rk_';
 
 async function exportAndSaveKey(peerId, cryptoKey){
+  console.log('[key] saving key for', peerId);
   try{
     var raw = await crypto.subtle.exportKey('raw', cryptoKey);
     var b64 = btoa(String.fromCharCode(...new Uint8Array(raw)));
@@ -4963,6 +4981,7 @@ async function loadSavedKey(peerId){
 }
 
 async function loadAllSavedKeys(){
+  var count=0;
   // Load saved keys into conns[peerId].lastKey
   for(var i=0; i<localStorage.length; i++){
     var k = localStorage.key(i);
@@ -4973,9 +4992,10 @@ async function loadAllSavedKeys(){
     if(key){
       if(!conns[peerId]) conns[peerId]={pc:null,dc:null,key:null,name:peerId.slice(0,8),color:clr(peerId),online:false,sent:false};
       conns[peerId].lastKey = key;
+      count++;
     }
   }
-  console.log('[keys] loaded saved relay keys');
+  console.log('[keys] loaded', count, 'saved relay keys');
 }
 
 
