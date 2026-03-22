@@ -113,6 +113,18 @@ body{height:100%;overflow:hidden;padding-top:env(safe-area-inset-top)}
 .ci-dot{position:absolute;bottom:1px;right:1px;width:11px;height:11px;border-radius:50%;background:var(--green);border:2px solid var(--bg);display:none}
 .ci-dot.on{display:block}
 .ci-dot.busy{background:#ef4444!important}
+/* Panic mode */
+body.panic #app{visibility:hidden}
+body.panic #chat-bg{visibility:hidden}
+#panic-overlay{display:none;position:fixed;inset:0;background:var(--bg2);z-index:9999;flex-direction:column;align-items:center;justify-content:center;gap:16px}
+body.panic #panic-overlay{display:flex}
+#panic-overlay .panic-logo{font-size:48px;animation:panicPulse 1.5s ease-in-out infinite}
+@keyframes panicPulse{0%,100%{opacity:1}50%{opacity:.4}}
+#panic-overlay .panic-title{font-size:22px;font-weight:700;letter-spacing:-.4px;color:var(--text)}
+#panic-overlay .panic-sub{font-size:14px;color:var(--text3);text-align:center;line-height:1.6;max-width:260px}
+#panic-btn{position:fixed;bottom:max(20px,env(safe-area-inset-bottom));right:16px;width:48px;height:48px;border-radius:50%;border:none;background:rgba(239,68,68,.15);color:#ef4444;font-size:20px;cursor:pointer;z-index:500;display:none;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(239,68,68,.2);transition:all .2s}
+#panic-btn.visible{display:flex}
+#panic-btn:hover{background:rgba(239,68,68,.25);transform:scale(1.08)}
 /* Side tabs */
 /* Drag & Drop */
 .ci.dragging{opacity:.4;background:var(--hover)!important}
@@ -402,11 +414,23 @@ mark.hit{background:rgba(59,130,246,.35);color:inherit;border-radius:3px}
 body.light{
   --bg:#f0f5fa;--bg2:#e4eef8;--bg3:#ffffff;--bg4:#d0e4f4;
   --border:rgba(16,48,96,.08);--border2:rgba(16,48,96,.15);
-  --text:#0d1a2e;--text2:#2a4a6a;--text3:#5a7a9a;
-  --accent:#0a70a0;--accent2:#1090c0;--green:#16a34a;--blue:#0a70a0;
+  --text:#0d1a2e;--text2:#1a3050;--text3:#4a6a8a;
+  --accent:#0a70a0;--accent2:#0860a0;--green:#16a34a;--blue:#0a70a0;
   --me:#103060;--them:#ffffff;
-  --hover:rgba(16,48,96,.04);
+  --hover:rgba(16,48,96,.06);
 }
+body.light .ci-name{color:#0d1a2e}
+body.light .ci-prev{color:#2a4060}
+body.light .ci-time{color:#5a7a9a}
+body.light #my-name-el{color:#0d1a2e}
+body.light .hdr-btn{color:#2a4060}
+body.light #hdr-name{color:#0d1a2e}
+body.light #search-box{color:#0d1a2e;background:rgba(16,48,96,.06)}
+body.light #search-box::placeholder{color:#5a7a9a}
+body.light .side-tab{color:#4a6a8a}
+body.light .side-tab.active{color:#0a70a0}
+body.light #add-in{color:#0d1a2e;background:rgba(16,48,96,.05)}
+body.light #add-lbl{color:#5a7a9a}
 body.light .me .bub{background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff}
 body.light .them .bub{background:#fff;border-color:rgba(0,0,0,.08);color:#0f172a;box-shadow:0 1px 4px rgba(0,0,0,.08)}
 body.light .bub-time{color:rgba(0,0,0,.35)}
@@ -863,7 +887,7 @@ body.light #toast{background:rgba(15,23,42,.9)}
       </div>
     </div>
     <div class="field"><label>Ваш ID — поделитесь с друзьями</label><div class="fmono" id="sett-id-el" onclick="copyMyId()" style="cursor:pointer">...</div><div class="fhint">Нажмите чтобы скопировать и отправить другу — он добавит вас по этому ID</div></div>
-    <div class="field"><label>Сервер</label><div class="fhint" id="sett-srv-el">—</div></div>
+
     <div class="field">
       <label>Тема</label>
       <div style="display:flex;gap:8px;margin-top:4px">
@@ -888,6 +912,17 @@ body.light #toast{background:rgba(15,23,42,.9)}
 </div>
 
 <div id="toast"></div>
+
+<!-- PANIC OVERLAY -->
+<div id="panic-overlay">
+  <div class="panic-logo">🔒</div>
+  <div class="panic-title">Защищено</div>
+  <div class="panic-sub">Содержимое скрыто.<br>Нажмите чтобы вернуться.</div>
+  <button onclick="exitPanic()" style="margin-top:8px;padding:12px 28px;border-radius:12px;border:none;background:var(--accent);color:#fff;font-size:15px;font-weight:600;cursor:pointer">Разблокировать</button>
+</div>
+
+<!-- PANIC BUTTON -->
+<button id="panic-btn" onclick="triggerPanic()" title="Режим паники">🔴</button>
 
 <script>
 'use strict';
@@ -1016,7 +1051,7 @@ async function connectSignal(savedId) {
     renderAv(document.getElementById('my-av'), id, myName);
     renderAv(document.getElementById('sett-av'), id, myName);
     document.getElementById('my-name-el').textContent = myName || 'Аноним';
-    document.getElementById('sett-srv-el').textContent = '✓ ' + SIGNAL.replace('https://','');
+
     hideBanner();
 
     // Start long-polling loop
@@ -2004,6 +2039,7 @@ function openChat(chatKey){
   loadPinnedBar();
   // Send read receipt for DMs
   if(isDM){ sendReadReceipt(chatKey); markRead(chatKey); }
+  updatePanicBtn();
 }
 
 function refreshHdr(){
@@ -2160,7 +2196,7 @@ function delChat(chatKey){
   if(!confirm('Удалить чат «'+name+'»?')) return;
   updDB(function(db2){ if(chatKey.startsWith('room:')) delete db2.rooms[chatKey.slice(5)]; else delete db2.dms[chatKey.slice(3)]; });
   if(!chatKey.startsWith('room:')){var pid2=chatKey.slice(3);try{conns[pid2]&&conns[pid2].conn&&conns[pid2].conn.close();}catch(e){}delete conns[pid2];}
-  if(active===chatKey){active=null;document.getElementById('empty').style.display='flex';document.getElementById('chat-hdr').style.display='none';document.getElementById('chat-bg').style.display='none';document.getElementById('input-bar').classList.remove('on');showSidebar();}
+  if(active===chatKey){active=null;document.getElementById('empty').style.display='flex';updatePanicBtn();document.getElementById('chat-hdr').style.display='none';document.getElementById('chat-bg').style.display='none';document.getElementById('input-bar').classList.remove('on');showSidebar();}
   delete unread[chatKey]; renderList(); toast('Чат удалён');
 }
 
@@ -4571,6 +4607,49 @@ async function fetchLiveStats(){
     }
   }catch(e){}
 }
+
+
+// ── Panic mode ────────────────────────────
+function triggerPanic(){
+  document.body.classList.add('panic');
+  localStorage.setItem('lc_panic','1');
+}
+
+function exitPanic(){
+  document.body.classList.remove('panic');
+  localStorage.removeItem('lc_panic');
+}
+
+// Show panic button when chat is open
+function updatePanicBtn(){
+  var btn = document.getElementById('panic-btn');
+  if(btn) btn.classList.toggle('visible', !!active);
+}
+
+// Shake to panic (mobile)
+(function(){
+  var lastShake=0, shakeCount=0;
+  if(!window.DeviceMotionEvent) return;
+  window.addEventListener('devicemotion', function(e){
+    var a=e.accelerationIncludingGravity;
+    if(!a) return;
+    var force=Math.abs(a.x)+Math.abs(a.y)+Math.abs(a.z);
+    if(force>60){
+      var now=Date.now();
+      if(now-lastShake<600){ shakeCount++; } else { shakeCount=1; }
+      lastShake=now;
+      if(shakeCount>=3){ shakeCount=0; triggerPanic(); }
+    }
+  });
+})();
+
+// Keyboard shortcut: Ctrl+Shift+P
+document.addEventListener('keydown', function(e){
+  if(e.ctrlKey && e.shiftKey && e.key==='P'){
+    e.preventDefault();
+    triggerPanic();
+  }
+});
 
 
 init();
