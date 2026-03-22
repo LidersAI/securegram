@@ -2272,7 +2272,9 @@ function renderList(){
     var div=document.createElement('div');
     div.className='ci'+(isActive?' active':'')+(item.isPinned?' pinned':'');
     div.dataset.key=item.key;
-    div.innerHTML=item.av
+    div.setAttribute('draggable','true');
+    div.innerHTML='<div class="drag-handle" title="Перетащить">⠿</div>'
+      +item.av
       +'<div class="ci-body">'
         +'<div class="ci-top">'
           +'<div class="ci-name">'+esc(item.name)+'</div>'
@@ -2328,6 +2330,8 @@ function renderList(){
   if(!pinnedItems.length&&!normalItems.length){
     list.innerHTML='<div style="padding:32px 16px;color:var(--text3);font-size:13px;text-align:center;line-height:2">Нет чатов.<br>Создайте группу ✏️<br>или добавьте по ID.</div>';
   }
+  // Reinit drag&drop after render
+  if(typeof initDragDrop === 'function') initDragDrop();
 }
 
 
