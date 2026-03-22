@@ -5,9 +5,9 @@
 ### Защищённый P2P мессенджер с E2E шифрованием
 
 [![Live](https://img.shields.io/badge/LIVE-liderschat.ru-30d5f5?style=for-the-badge&logo=googlechrome&logoColor=white)](https://liderschat.ru)
-[![PWA](https://img.shields.io/badge/PWA-Ready-0d1a2e?style=for-the-badge&logo=pwa&logoColor=white)](https://liderschat.ru)
-[![E2E](https://img.shields.io/badge/E2E-AES--256--GCM-22c55e?style=for-the-badge&logo=shield&logoColor=white)](#)
-[![No Server](https://img.shields.io/badge/P2P-WebRTC-3b82f6?style=for-the-badge)](#)
+[![PWA](https://img.shields.io/badge/PWA-37%2F45-22c55e?style=for-the-badge)](https://liderschat.ru)
+[![E2E](https://img.shields.io/badge/E2E-AES--256--GCM-22c55e?style=for-the-badge)](#)
+[![P2P](https://img.shields.io/badge/P2P-WebRTC-3b82f6?style=for-the-badge)](#)
 
 **Сообщения шифруются на вашем устройстве. Никто — даже мы — не может их прочитать.**
 
@@ -25,15 +25,15 @@
      │──── POST /register ──────────▶│                               │
      │◀─── {token, peerId} ─────────│                               │
      │                               │                               │
-     │──── GET /poll (20s hold) ────▶│◀──── POST /signal ───────────│
-     │◀─── {offer} ─────────────────│                               │
+     │──── GET /poll (20s) ─────────▶│◀──── POST /signal ───────────│
+     │◀─── {offer/answer} ──────────│                               │
      │                               │                               │
      │══════════════ WebRTC DataChannel (P2P, E2E) ════════════════▶│
      │                               │                               │
-     │─── 🔒 зашифрованные сообщения ────────────────────────────▶  │
+     │──── 🔒 AES-256-GCM ──────────────────────────────────────▶  │
 ```
 
-Сервер нужен **только** для сигнализации (WebRTC handshake). Сообщения идут напрямую.
+Сервер нужен **только** для WebRTC handshake (~0.2 сек). Далее всё P2P.
 
 ---
 
@@ -42,125 +42,125 @@
 | Компонент | Технология |
 |---|---|
 | Обмен ключами | ECDH P-384 |
-| Шифрование сообщений | AES-256-GCM |
+| Шифрование | AES-256-GCM |
 | IV | Случайный, уникальный для каждого сообщения |
-| Защита от replay | Seen message IDs (Set) |
-| Пароли аккаунтов | PBKDF2-SHA256, 100 000 итераций |
+| Защита от replay | Set из seen message IDs |
+| Пароли | PBKDF2-SHA256, 100 000 итераций, уникальная соль |
 | Резервный код | PBKDF2-SHA256, хранится только хэш |
+| Relay ключи | Сохраняются в localStorage для офлайн-доставки |
 
 ---
 
 ## 📱 Возможности
 
-### Чаты
-- 💬 Личные сообщения (DM) по никнейму или ID
-- 👥 Группы с приглашением по ссылке
-- 📢 Каналы — публикации только от создателя
-- 📌 Закрепление чатов и сообщений
-- 🔍 Поиск по чатам и сообщениям
+### Чаты и группы
+- 💬 Личные сообщения (DM) по никнейму
+- 👥 Группы с invite-ссылками и пин-кодом
+- 📢 Каналы — посты только от создателя
+- 💬 Комментарии к постам канала
+- 📊 Статистика канала (подписчики, онлайн)
+- 📋 Опросы в группах и каналах
+- 📌 Закреплённые чаты и сообщения
+- ↕️ Перетаскивание чатов (drag & drop)
 - ✏️ Черновики сообщений
-- 🔄 Drag & drop — перетаскивание чатов
 
 ### Сообщения
 - 📷 Фото + подпись в одном сообщении
 - 📎 Файлы до 10MB с подписью
-- 🎤 Голосовые сообщения
-- 🔗 Автоматические ссылки, **жирный**, _курсив_, `код`
+- 🎤 Голосовые сообщения (WebM / MP4 для iOS)
+- 🔗 Автоссылки, **жирный**, _курсив_, `код`
 - 😊 Реакции, ответы, редактирование, удаление
-- 📤 Пересылка сообщений
-- 💬 Комментарии к постам в канале
+- 📤 Пересылка, закрепление сообщений
 
-### Аккаунт
-- 🔑 Никнейм + пароль (без номера телефона)
-- 🔄 Вход с любого устройства под своим ID
-- 🔒 Резервный код восстановления доступа
-- 👤 Аватар, статус (онлайн / не беспокоить / нет на месте)
-- 🕐 «Был(а) N минут назад» в шапке чата
+### Аккаунт и безопасность
+- 🔑 Никнейм + пароль (без телефона и email)
+- 🔄 Вход с любого устройства
+- 🔒 Резервный код восстановления
+- 👤 Аватар, статус (🟢 / 🔴 / 🟡)
+- 🕐 «Был(а) N минут назад»
+- 🔐 Пин-код при открытии приложения
+- 🚨 Режим паники — мгновенно скрыть всё
+- 📱 Экспорт/импорт ключей между устройствами
 
-### Безопасность
-- 🚨 Режим паники — мгновенно скрыть весь контент
-- 🔐 Экспорт/импорт аккаунта на другое устройство
+### Звонки и медиа
+- 📞 Аудио и видеозвонки P2P
+- 🔔 App Badge (счётчик непрочитанных на иконке)
+
+### Офлайн-доставка
+- 📦 Relay через сервер — сообщения ждут до 7 дней
+- 🔑 Ключи сохраняются в localStorage — работает после перезагрузки
+- 🔄 Авто-resend при новом подключении
 
 ### Платформы
 - 🌐 Браузер (Chrome, Safari, Firefox)
-- 📱 PWA — установка на главный экран iOS и Android
-- 📞 Аудио и видеозвонки P2P
+- 📱 PWA — установка на iOS и Android
+- 🤖 APK через PWABuilder (37/45 score)
 
 ---
 
 ## 🏗 Архитектура
 
 ```
-┌─────────────────────────────────────────┐
-│             index.html (210KB)           │
-│  ┌──────────┐  ┌──────────┐  ┌────────┐ │
-│  │  CSS     │  │   HTML   │  │   JS   │ │
-│  │ (theme)  │  │ (layout) │  │ (logic)│ │
-│  └──────────┘  └──────────┘  └────────┘ │
-│                                          │
-│  Crypto: Web Crypto API (встроен)        │
-│  Transport: WebRTC DataChannel           │
-│  Signaling: HTTP long-polling            │
-│  Storage: localStorage                   │
-└─────────────────────────────────────────┘
+┌─────────────────────────────────────┐
+│          index.html (242KB)          │
+│  Всё приложение в одном файле        │
+│  CSS + HTML + JS — без зависимостей  │
+│                                      │
+│  Crypto:    Web Crypto API           │
+│  Transport: WebRTC DataChannel       │
+│  Signaling: HTTP long-polling        │
+│  Storage:   localStorage             │
+│  Auth:      PBKDF2 + JWT-like tokens │
+└─────────────────────────────────────┘
 ```
-
-**Одним файлом.** Никаких зависимостей, никакой сборки.
 
 ---
 
-## 📁 Файлы репозитория
+## 📁 Структура репозитория
 
 ```
 /
-├── index.html              ← Всё приложение (HTML + CSS + JS)
-├── sw.js                   ← Service Worker (PWA, кэш иконок)
-├── manifest.json           ← PWA манифест
-├── 404.html                ← Редирект для старых ссылок
+├── index.html              ← Всё приложение
+├── sw.js                   ← Service Worker v7
+├── manifest.json           ← PWA (37/45 PWABuilder)
+├── 404.html                ← Редирект для SPA
 ├── CNAME                   ← liderschat.ru
-├── BRANDING.md             ← Гайд по брендингу
-├── favicon.ico
-├── favicon-16.png
-├── favicon-32.png
-├── icon-72.png .. icon-512.png          ← PWA иконки
-├── icon-192-maskable.png                ← Android adaptive
-└── icon-512-maskable.png
+├── BRANDING.md             ← Гайд по бренду
+├── og-image.png            ← OG превью для соцсетей
+├── favicon.ico / favicon-*.png
+└── icon-72..512*.png       ← PWA иконки (LC логотип)
 ```
 
 ---
 
 ## ⚙️ Конфигурация
 
-В начале `index.html`:
-
 ```javascript
-var SIGNAL = 'https://liders-chat-signal.onrender.com'; // сигнальный сервер
-var RELAY  = 'https://liders-chat-signal.onrender.com'; // офлайн-доставка
-var BASE   = 'https://liderschat.ru/';                  // базовый URL
-var DB_KEY = 'sg_v1';                                   // ключ localStorage
+var SIGNAL = 'https://liders-chat-signal.onrender.com';
+var RELAY  = 'https://liders-chat-signal.onrender.com';
+var BASE   = 'https://liderschat.ru/';
+var DB_KEY = 'sg_v1';
 ```
 
 ---
 
 ## 🚀 Деплой
 
-Сайт деплоится автоматически через **GitHub Pages** при каждом пуше в `main`.
+**Клиент** → GitHub Pages (автодеплой при пуше в `main`)
 
-Custom domain: `liderschat.ru` → настроен через CNAME + DNS A-записи на GitHub Pages IPs.
+**Сервер** → Render.com + UptimeRobot (пинг каждые 5 мин — не засыпает)
+
+**База данных** → Supabase PostgreSQL (аккаунты, сессии)
 
 ---
 
-## 🛠 Разработка
+## 🛠 Локальная разработка
 
 ```bash
-# Просто откройте файл в браузере
-open index.html
-
-# Или любой локальный сервер
+# Никакой сборки не нужно
 python3 -m http.server 8080
+# Открыть http://localhost:8080
 ```
-
-Никакого npm, никакой сборки.
 
 ---
 
