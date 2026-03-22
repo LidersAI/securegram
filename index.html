@@ -1181,12 +1181,22 @@ function createPC(peerId) {
 
   pc.onconnectionstatechange = function() {
     if (pc.connectionState === 'connected') {
-      c.online = true; renderList(); refreshHdr();
-    } else if (['disconnected','failed','closed'].includes(pc.connectionState)) {
+      c.online = true;
+      c._reconnectAttempts = 0;
+      renderList(); refreshHdr();
+    } else if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
       c.online = false; c.key = null; c.sent = false;
       c.lastSeen = Date.now();
-      sysMsg('dm:'+peerId, (c.name||'Участник')+' отключился');
       renderList(); refreshHdr();
+    } else if (pc.connectionState === 'disconnected') {
+      // Wait 5s before marking offline - WebRTC often recovers
+      setTimeout(function(){
+        if(c.pc === pc && pc.connectionState === 'disconnected'){
+          c.online = false; c.key = null; c.sent = false;
+          c.lastSeen = Date.now();
+          renderList(); refreshHdr();
+        }
+      }, 5000);
     }
   };
 
@@ -1205,10 +1215,9 @@ function setupDC(dc, peerId) {
 
   dc.onopen = function() {
     c.online = true;
-    c.key = null; // Reset key on new DC open - fresh key exchange needed
-    c.sent = false; // Allow HELLO to be sent again
-    if (!c.sent) {
-      c.sent = true;
+    c.key = null; // Always fresh key exchange on new DC
+    c.sent = true; // Mark sent immediately to prevent race
+    if (true) {
       var meta = c._pendingMeta || {};
       Cry.expPub(kp.publicKey).then(function(pub) {
         var db3=getDB(); var pl = { type:'HELLO', pub:pub, name:myName||'Аноним', phone:db3.myPhone||'' };
@@ -1242,8 +1251,8 @@ async function setupConn(peerId, meta) {
   // Store meta so dc.onopen can use it for HELLO
   if (meta) c._pendingMeta = meta;
   if (c.online) return;
-  // Prevent duplicate connection attempts
-  if (c.pc && (c.pc.connectionState === 'connecting' || c.pc.connectionState === 'new')) {
+  // Prevent duplicate connection attempts (but allow after failure)
+  if (c.pc && c.pc.connectionState === 'connecting') {
     console.log('[conn] already connecting to', peerId, '- skip');
     return;
   }
@@ -3417,14 +3426,47 @@ function doReconnect(){
 // Heartbeat - ping connected peers every 25s to keep connection alive
 // Also detects dead connections
 function startHeartbeat(){
-  // Ping server every 10 min to prevent Render.com sleep
+  // Ping HTTP server every 10 min to prevent Render sleep
   setInterval(function(){
     fetch('https://liders-chat-signal.onrender.com/health')
       .then(function(r){ if(!r.ok) throw new Error('bad'); })
-      .catch(function(){ console.log('[keepalive] server unreachable'); });
+      .catch(function(){});
   }, 10 * 60 * 1000);
 
-  // Update "last seen" in header every 30 seconds
+  // Ping all connected peers every 20s to keep DataChannel alive
+  setInterval(function(){
+    var now = Date.now();
+    for(var pid in conns){
+      var c = conns[pid];
+      if(c.online && c.dc && c.dc.readyState === 'open'){
+        try{ c.dc.send(JSON.stringify({type:'PING', ts: now})); }catch(e){}
+      }
+    }
+  }, 20000);
+
+  // Check for dead connections every 30s and reconnect
+  setInterval(function(){
+    for(var pid in conns){
+      var c = conns[pid];
+      // If DC closed but we think we're online - fix state
+      if(c.online && c.dc && c.dc.readyState !== 'open'){
+        console.log('[heartbeat] DC closed for', pid, '- fixing state');
+        c.online = false; c.key = null; c.sent = false;
+        c.lastSeen = Date.now();
+        renderList(); refreshHdr();
+      }
+      // Auto-reconnect explicit DMs that dropped
+      var db3 = getDB();
+      if(!c.online && db3.dms && db3.dms[pid] && db3.dms[pid].explicit){
+        if(!c.pc || ['disconnected','failed','closed'].includes(c.pc.connectionState)){
+          console.log('[heartbeat] auto-reconnecting to', pid);
+          setupConn(pid, {initiator: true});
+        }
+      }
+    }
+  }, 30000);
+
+  // Update "last seen" every 30s
   setInterval(function(){
     if(active && !active.startsWith('room:')){
       var pid=active.slice(3);
