@@ -300,8 +300,8 @@ body{height:100%;overflow:hidden;padding-top:env(safe-area-inset-top)}
 #rec-hint.on{display:block}
 
 /* Toast */
-#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(70px);background:rgba(30,41,59,.95);color:#fff;padding:11px 22px;border-radius:14px;font-size:13px;font-weight:500;transition:transform .25s var(--ease);z-index:999;pointer-events:none;white-space:nowrap;box-shadow:0 8px 32px rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.08);backdrop-filter:blur(12px)}
-#toast.on{transform:translateX(-50%) translateY(0)}
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:rgba(13,26,46,.97);color:#fff;padding:11px 22px;border-radius:14px;font-size:13px;font-weight:500;transition:opacity .25s,visibility .25s;z-index:999;pointer-events:none;white-space:nowrap;box-shadow:0 8px 32px rgba(0,0,0,.6);border:1px solid rgba(48,213,245,.15);backdrop-filter:blur(12px);opacity:0;visibility:hidden}
+#toast.on{opacity:1;visibility:visible}
 
 /* Welcome screen */
 #welcome{display:none;position:fixed;inset:0;z-index:800;overflow-y:auto;background:linear-gradient(160deg,#0a0f1e 0%,#0f172a 50%,#0a1628 100%)}
@@ -469,8 +469,7 @@ body.light #toast{background:rgba(15,23,42,.9)}
   #send-btn{width:40px;height:40px;flex-shrink:0}
   #mic-btn{width:34px;height:34px;font-size:17px}
   .attach-btn{width:32px;height:32px;font-size:15px}
-  /* Toast at top on mobile (not blocked by keyboard) */
-  #toast{bottom:auto;top:calc(env(safe-area-inset-top) + 60px)}
+  /* Toast stays at bottom on mobile */
   /* Members panel full screen on mobile */
   #members-panel-popup{width:100%!important;top:50px!important}
 }
@@ -2305,7 +2304,13 @@ function notif(name,text){if(Notification.permission==='granted')new Notificatio
 var beepT=0;
 function playBeep(){var n=Date.now();if(n-beepT<2000)return;beepT=n;try{var ctx=new(window.AudioContext||window.webkitAudioContext)();var o=ctx.createOscillator();var g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.setValueAtTime(880,ctx.currentTime);o.frequency.setValueAtTime(1100,ctx.currentTime+0.08);g.gain.setValueAtTime(0.1,ctx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.25);o.start();o.stop(ctx.currentTime+0.25);}catch(e){}}
 var toastT;
-function toast(msg){var el=document.getElementById('toast');el.textContent=msg;el.classList.add('on');clearTimeout(toastT);toastT=setTimeout(function(){el.classList.remove('on');},3000);}
+function toast(msg){
+  var el=document.getElementById('toast');
+  el.textContent=msg;
+  el.classList.add('on');
+  clearTimeout(toastT);
+  toastT=setTimeout(function(){ el.classList.remove('on'); },2500);
+}
 
 // =============================================
 // EVENTS
