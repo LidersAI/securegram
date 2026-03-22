@@ -4430,15 +4430,10 @@ function finishAuth(peerId, username, isFounder){
     updDB(function(db){ db.myId=peerId; if(username&&!db.myName) db.myName=username; });
   }
   if(username && !myName){
-    var cleanName = username.replace(/^⭐\s*/, ''); // strip badge from stored name
-    myName = cleanName;
-    updDB(function(db){ if(!db.myName) db.myName=cleanName; });
+    myName = username;
+    updDB(function(db){ if(!db.myName) db.myName=username; });
   }
-  if(isFounder){
-    setTimeout(function(){
-      toast('🎉 Вы один из первых 100 пользователей! Получен статус ⭐ Основатель');
-    }, 1000);
-  }
+
   var db = getDB();
   connectSignal(db.myId || peerId);
 }
