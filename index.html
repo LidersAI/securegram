@@ -4147,7 +4147,7 @@ async function doLogin(){
     if(!j.ok){ errEl.textContent=j.error||'Ошибка входа'; errEl.style.display='block'; return; }
     saveAuthSession(j);
     closeModal('auth-modal');
-    finishAuth(j.peerId, j.username);
+    finishAuth(j.peerId, j.username, j.isFounder);
   }catch(e){ errEl.textContent='Нет связи с сервером'; errEl.style.display='block'; }
 }
 
@@ -4168,10 +4168,9 @@ async function doRegister(){
     var j = await r.json();
     if(!j.ok){ errEl.textContent=j.error||'Ошибка регистрации'; errEl.style.display='block'; return; }
     saveAuthSession(j);
-    // Show backup code
     var backupCode = j.backupCode || null;
     closeModal('auth-modal');
-    finishAuth(j.peerId, j.username);
+    finishAuth(j.peerId, j.username, j.isFounder);
     if(backupCode){
       setTimeout(function(){
         alert('⚠️ Сохраните код восстановления:\n\n' + backupCode + '\n\nЕсли забудете пароль — введите этот код вместо него.\nЗапишите его!');
@@ -4202,8 +4201,7 @@ function saveAuthSession(j){
   authUsername = j.username;
 }
 
-function finishAuth(peerId, username){
-  // Store peerId and continue init
+function finishAuth(peerId, username, isFounder){
   if(peerId){
     updDB(function(db){ db.myId=peerId; if(username&&!db.myName) db.myName=username; });
   }
@@ -4211,7 +4209,11 @@ function finishAuth(peerId, username){
     myName = username;
     updDB(function(db){ if(!db.myName) db.myName=username; });
   }
-  // Continue with signaling
+  if(isFounder){
+    setTimeout(function(){
+      toast('🎉 Вы один из первых 100 пользователей! Получен статус ⭐ Основатель');
+    }, 1000);
+  }
   var db = getDB();
   connectSignal(db.myId || peerId);
 }
