@@ -5353,6 +5353,142 @@ function connectToRoomMembers(roomId){
 }
 
 
+// ── Group Server Sync ─────────────────────
+var GROUP_MSG_KEYS = {}; // roomId -> AES key for server storage
+var lastGroupSync = {}; // roomId -> timestamp
+
+// Generate or get group encryption key for server storage
+// Uses a deterministic key based on roomId (all members derive same key)
+async function getGroupKey(roomId){
+  if(GROUP_MSG_KEYS[roomId]) return GROUP_MSG_KEYS[roomId];
+  var keyMaterial = await crypto.subtle.importKey(
+    'raw', new TextEncoder().encode(roomId.padEnd(32,'x').slice(0,32)),
+    {name:'AES-GCM'}, false, ['encrypt','decrypt']
+  );
+  GROUP_MSG_KEYS[roomId] = keyMaterial;
+  return keyMaterial;
+}
+
+async function syncGroupToServer(roomId){
+  var db = getDB();
+  var room = db.rooms && db.rooms[roomId];
+  if(!room) return;
+
+  // 1. Register/update group on server
+  try{
+    await fetch(SIGNAL+'/group', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        roomId: roomId,
+        hostId: room.host || myId,
+        name: room.name,
+        emoji: room.emoji||'👥',
+        pin: room.pin||'',
+        isChannel: room.isChannel||false
+      })
+    });
+  }catch(e){}
+
+  // 2. Register myself as member
+  try{
+    await fetch(SIGNAL+'/group/'+roomId+'/join', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ peerId: myId, displayName: myName||myId })
+    });
+  }catch(e){}
+
+  // 3. Push recent messages to server (encrypted with group key)
+  var key = await getGroupKey(roomId);
+  var msgs = (room.messages||[]).slice(-50); // last 50
+  var since = lastGroupSync[roomId]||0;
+  var newMsgs = msgs.filter(function(m){ return !m.sys && m.id; });
+
+  for(var i=0; i<newMsgs.length; i++){
+    var m = newMsgs[i];
+    try{
+      var plain = JSON.stringify({text:m.text,photo:m.photo,file:m.file,audio:m.audio,name:m.name,from:m.from,ts:m.ts,date:m.date});
+      var iv = crypto.getRandomValues(new Uint8Array(12));
+      var enc = await crypto.subtle.encrypt({name:'AES-GCM',iv:iv}, key, new TextEncoder().encode(plain));
+      var cipher = btoa(String.fromCharCode(...iv))+'.'+btoa(String.fromCharCode(...new Uint8Array(enc)));
+      await fetch(SIGNAL+'/group/'+roomId+'/msg', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({id:m.id, fromId:m.from, fromName:m.name, cipher:cipher, msgDate:m.date, msgTs:m.ts})
+      });
+    }catch(e){}
+  }
+  lastGroupSync[roomId] = Date.now();
+}
+
+async function fetchGroupFromServer(roomId){
+  try{
+    // Get group info + members
+    var r = await fetch(SIGNAL+'/group/'+roomId);
+    if(!r.ok) return;
+    var data = await r.json();
+    if(!data.ok) return;
+
+    var db = getDB();
+    // Update local room with server members
+    updDB(function(db2){
+      if(!db2.rooms) db2.rooms = {};
+      if(!db2.rooms[roomId]){
+        db2.rooms[roomId] = {
+          id: roomId,
+          name: data.group.name,
+          emoji: data.group.emoji||'👥',
+          pin: data.group.pin||'',
+          isChannel: data.group.is_channel||false,
+          host: data.group.host_id,
+          isHost: data.group.host_id === myId,
+          members: {},
+          messages: []
+        };
+      }
+      // Merge members
+      data.members.forEach(function(m){
+        db2.rooms[roomId].members[m.peer_id] = m.display_name;
+      });
+    });
+
+    // Get messages
+    var since = lastGroupSync[roomId]||0;
+    var r2 = await fetch(SIGNAL+'/group/'+roomId+'/msgs?since='+since);
+    if(!r2.ok) return;
+    var msgData = await r2.json();
+    if(!msgData.ok || !msgData.msgs.length) return;
+
+    var key = await getGroupKey(roomId);
+    var added = 0;
+    for(var i=0; i<msgData.msgs.length; i++){
+      var sm = msgData.msgs[i];
+      try{
+        var parts = sm.cipher.split('.');
+        var iv2 = Uint8Array.from(atob(parts[0]), function(c){return c.charCodeAt(0);});
+        var enc2 = Uint8Array.from(atob(parts[1]), function(c){return c.charCodeAt(0);});
+        var dec = await crypto.subtle.decrypt({name:'AES-GCM',iv:iv2}, key, enc2);
+        var obj = JSON.parse(new TextDecoder().decode(dec));
+        var msg = {id:sm.id, from:sm.from_id, name:sm.from_name, text:obj.text, photo:obj.photo,
+          file:obj.file, audio:obj.audio, ts:sm.msg_ts, date:sm.msg_date};
+
+        // Save if not already have it
+        var chatKey = 'room:'+roomId;
+        var existing = (getDB().rooms&&getDB().rooms[roomId]&&getDB().rooms[roomId].messages||[]);
+        if(!existing.find(function(x){return x.id===msg.id;})){
+          saveMsg(chatKey, msg);
+          if(active===chatKey) appendMsg(msg, false);
+          added++;
+        }
+      }catch(e){}
+    }
+    lastGroupSync[roomId] = Date.now();
+    if(added>0){ renderList(); toast('Загружено '+added+' сообщений из облака'); }
+
+    // Connect to online members
+    setTimeout(function(){ connectToRoomMembers(roomId); }, 1000);
+  }catch(e){ console.warn('[group sync] failed', e.message); }
+}
+
+
 init();
 </script>
 </body>
